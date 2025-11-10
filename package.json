@@ -1,0 +1,139 @@
+{
+  "name": "@tawk-agents-sdk/core",
+  "version": "1.0.0",
+  "description": "Production-ready AI agent framework built on Vercel AI SDK with OpenAI Agents SDK patterns",
+  "author": "Tawk.to <support@tawk.to>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/tawk-agents-sdk.git"
+  },
+  "homepage": "https://github.com/yourusername/tawk-agents-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/tawk-agents-sdk/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    },
+    "./memory": {
+      "types": "./dist/memory/index.d.ts",
+      "require": "./dist/memory/index.js",
+      "import": "./dist/memory/index.mjs"
+    },
+    "./tracing": {
+      "types": "./dist/tracing/index.d.ts",
+      "require": "./dist/tracing/index.js",
+      "import": "./dist/tracing/index.mjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/types/index.js",
+      "import": "./dist/types/index.mjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "require": "./dist/utils/index.js",
+      "import": "./dist/utils/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "ai",
+    "agents",
+    "openai",
+    "anthropic",
+    "google",
+    "langfuse",
+    "mcp",
+    "vercel-ai-sdk",
+    "multi-agent",
+    "agent-framework",
+    "typescript",
+    "production-ready",
+    "tracing",
+    "guardrails",
+    "human-in-the-loop"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:check": "tsc --noEmit",
+    "test": "ts-node tests/run-all-tests.ts",
+    "test:basic": "ts-node tests/01-basic-agent.test.ts",
+    "test:multi": "ts-node tests/02-multi-agent.test.ts",
+    "test:stream": "ts-node tests/03-streaming.test.ts",
+    "test:guards": "ts-node tests/04-guardrails.test.ts",
+    "test:sessions": "ts-node tests/05-sessions.test.ts",
+    "test:langfuse": "ts-node tests/06-langfuse-tracing.test.ts",
+    "test:output": "ts-node tests/09-structured-output.test.ts",
+    "test:errors": "ts-node tests/10-error-handling.test.ts",
+    "test:watch": "nodemon --watch src --watch tests --ext ts --exec ts-node tests/run-all-tests.ts",
+    "lint": "eslint src tests --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "ai": "^4.0.0",
+    "langfuse": "^3.30.3",
+    "zod": "^3.25.40"
+  },
+  "peerDependencies": {
+    "@ai-sdk/openai": "^1.0.0",
+    "@ai-sdk/anthropic": "^1.0.0",
+    "@ai-sdk/google": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/openai": {
+      "optional": true
+    },
+    "@ai-sdk/anthropic": {
+      "optional": true
+    },
+    "@ai-sdk/google": {
+      "optional": true
+    }
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "ioredis": "^5.4.2",
+    "mongodb": "^6.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.17.0",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.4.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "typesVersions": {
+    "*": {
+      "memory": [
+        "dist/memory/index.d.ts"
+      ],
+      "tracing": [
+        "dist/tracing/index.d.ts"
+      ],
+      "types": [
+        "dist/types/index.d.ts"
+      ],
+      "utils": [
+        "dist/utils/index.d.ts"
+      ]
+    }
+  }
+}
