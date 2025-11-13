@@ -82,19 +82,15 @@ async function test02() {
 
     const coordinator = new Agent({
       name: 'Coordinator',
-      instructions: `You are a helpful coordinator managing a team of specialists:
-      
-      - MathExpert: For ANY mathematical calculations or problems
-      - WriterExpert: For ANY writing or content creation tasks
-      
-      IMPORTANT: When you receive a task:
-      1. Identify if it's a math or writing task
-      2. IMMEDIATELY use the appropriate handoff tool to delegate:
-         - Use handoff_to_mathexpert for math problems
-         - Use handoff_to_writerexpert for writing tasks
-      3. Do NOT try to solve it yourself - always delegate to specialists
-      
-      Be very concise in your responses.`,
+      instructions: `You coordinate tasks between specialized agents. You have access to:
+- MathExpert: Expert in mathematical calculations
+- WriterExpert: Expert in writing and content creation
+
+When you receive a task:
+- If it involves math/calculations, use handoff_to_mathexpert
+- If it involves writing/content, use handoff_to_writerexpert
+
+Always delegate to the appropriate specialist.`,
       handoffs: [mathAgent, writerAgent],
     });
 

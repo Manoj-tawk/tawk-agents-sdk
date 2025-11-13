@@ -165,7 +165,7 @@ interface AgentConfig<TContext = any, TOutput = string> {
   model?: LanguageModel;                  // AI model (optional if default set)
   instructions: string | ((context: RunContextWrapper<TContext>) => string | Promise<string>);
   tools?: Record<string, CoreTool>;       // Available tools
-  handoffs?: Agent[];                     // Agents to delegate to
+  handoffs?: Agent[];                     // Delegate tasks to other specialized agents
   guardrails?: Guardrail[];               // Input/output validation
   outputSchema?: z.ZodSchema<TOutput>;    // Structured output schema
   modelSettings?: ModelSettings;          // Model parameters
@@ -869,7 +869,7 @@ class BackgroundResult<T> {
 
 ## Handoffs
 
-Handoffs allow agents to delegate tasks to other specialized agents.
+Handoffs allow agents to delegate tasks to other specialized agents within your application. This enables multi-agent workflows where a coordinator agent routes tasks to domain experts.
 
 ### Handoff Class
 
@@ -894,8 +894,8 @@ import { Handoff } from '@tawk-agents-sdk/core';
 const handoff = new Handoff({
   agentName: 'Billing',
   agent: billingAgent,
-  toolName: 'transfer_to_billing',
-  toolDescription: 'Transfer to billing specialist',
+  toolName: 'handoff_to_billing',
+  toolDescription: 'Handoff to billing specialist',
   inputFilter: (data) => keepLastMessages(5)(data),
   isEnabled: (context) => context.userTier === 'premium',
 });

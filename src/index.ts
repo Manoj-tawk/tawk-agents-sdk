@@ -30,17 +30,21 @@ export {
   setDefaultModel,
 } from './agent';
 
+// NEW: Race agents pattern
+export { raceAgents } from './race-agents';
+
 // Usage tracking
 export { Usage } from './usage';
 
 // Enhanced Result types (override agent.ts exports with richer versions)
 export { RunResult as EnhancedRunResult, StreamedRunResult } from './result';
 
-// Handoff system
+// Handoff system - DEPRECATED: Use transfers instead
+// Keeping exports for backward compatibility but marked as deprecated
 export { Handoff, handoff, getHandoff } from './handoff';
 export type { HandoffInputData, HandoffInputFilter, HandoffEnabledFunction } from './handoff';
 
-// Handoff extensions
+// Handoff extensions - DEPRECATED
 export {
   removeAllTools,
   keepLastMessages,

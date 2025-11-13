@@ -30,7 +30,9 @@ export function initializeLangfuse(): Langfuse | null {
   const baseUrl = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
 
   if (!publicKey || !secretKey) {
-    console.warn('⚠️  Langfuse not initialized: Missing LANGFUSE_PUBLIC_KEY or LANGFUSE_SECRET_KEY');
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  Langfuse not initialized: Missing LANGFUSE_PUBLIC_KEY or LANGFUSE_SECRET_KEY');
+    }
     return null;
   }
 
@@ -39,12 +41,14 @@ export function initializeLangfuse(): Langfuse | null {
       publicKey,
       secretKey,
       baseUrl,
-      flushAt: 1, // Flush immediately for testing
+      flushAt: 1,
       requestTimeout: 10000,
     });
 
     isEnabled = true;
-    console.log('✅ Langfuse tracing initialized:', baseUrl);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Langfuse tracing initialized:', baseUrl);
+    }
     return langfuseInstance;
   } catch (error) {
     console.error('❌ Failed to initialize Langfuse:', error);
@@ -76,6 +80,8 @@ export function createTrace(options: {
   name: string;
   userId?: string;
   sessionId?: string;
+  input?: any;
+  output?: any;
   metadata?: Record<string, any>;
   tags?: string[];
 }) {
@@ -87,6 +93,8 @@ export function createTrace(options: {
       name: options.name,
       userId: options.userId,
       sessionId: options.sessionId,
+      input: options.input,
+      output: options.output,
       metadata: options.metadata,
       tags: options.tags,
     });
@@ -162,13 +170,28 @@ export function endGeneration(generation: any, options?: {
   if (!generation) return;
 
   try {
+    // Langfuse generation.end() accepts output, level, and statusMessage
+    // Make sure we always call end() even if output is null
     generation.end({
-      output: options?.output,
-      level: options?.level,
+      output: options?.output !== undefined ? options.output : null,
+      level: options?.level || 'DEFAULT',
       statusMessage: options?.statusMessage,
     });
   } catch (error) {
     console.error('Failed to end Langfuse generation:', error);
+    // Try alternative: update then end
+    try {
+      if (generation.update) {
+        generation.update({
+          output: options?.output !== undefined ? options.output : null,
+        });
+      }
+      if (generation.end) {
+        generation.end();
+      }
+    } catch (fallbackError) {
+      console.error('Failed to end generation with fallback:', fallbackError);
+    }
   }
 }
 
@@ -268,7 +291,6 @@ export async function shutdownLangfuse(): Promise<void> {
     await langfuse.shutdownAsync();
     langfuseInstance = null;
     isEnabled = false;
-    console.log('✅ Langfuse shutdown complete');
   } catch (error) {
     console.error('Failed to shutdown Langfuse:', error);
   }

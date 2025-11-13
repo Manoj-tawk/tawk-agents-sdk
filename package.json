@@ -1,7 +1,7 @@
 {
   "name": "@tawk-agents-sdk/core",
   "version": "1.0.0",
-  "description": "Production-ready AI agent framework built on Vercel AI SDK with OpenAI Agents SDK patterns",
+  "description": "Production-ready AI agent framework with multi-agent orchestration, handoffs, guardrails, and observability. Built on Vercel AI SDK.",
   "author": "Tawk.to <support@tawk.to>",
   "license": "MIT",
   "repository": {

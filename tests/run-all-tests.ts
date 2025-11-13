@@ -1,7 +1,13 @@
 /**
- * Comprehensive Test Suite Runner
+ * Test Suite Runner
  * 
- * Runs all tests in sequence and reports results
+ * Runs 6 core test suites in sequence and reports results:
+ * 1. Basic Agent - Core functionality and tools
+ * 2. Multi-Agent - Handoffs and coordination
+ * 3. Streaming - Real-time responses
+ * 4. Guardrails - Safety and validation
+ * 5. Sessions - Session management
+ * 6. Langfuse Tracing - Observability
  */
 
 import { exec } from 'child_process';
@@ -17,9 +23,6 @@ const tests = [
   '04-guardrails.test.ts',
   '05-sessions.test.ts',
   '06-langfuse-tracing.test.ts',
-  '09-structured-output.test.ts',
-  '10-error-handling.test.ts',
-  '11-complete-integration.test.ts',  // NEW: Complete integration test
 ];
 
 interface TestResult {

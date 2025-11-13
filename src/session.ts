@@ -86,13 +86,17 @@ export class MemorySession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      console.log(`📝 [Memory] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📝 [Memory] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      }
       
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
     } catch (error: any) {
-      console.error(`⚠️  [Memory] Summarization failed: ${error.message}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`⚠️  [Memory] Summarization failed: ${error.message}`);
+      }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {
         return messages.slice(-this.maxMessages);
@@ -293,13 +297,17 @@ export class RedisSession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      console.log(`📝 [Redis] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📝 [Redis] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      }
       
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
     } catch (error: any) {
-      console.error(`⚠️  [Redis] Summarization failed: ${error.message}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`⚠️  [Redis] Summarization failed: ${error.message}`);
+      }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {
         return messages.slice(-this.maxMessages);
@@ -532,13 +540,17 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      console.log(`📝 [MongoDB] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📝 [MongoDB] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      }
       
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
     } catch (error: any) {
-      console.error(`⚠️  [MongoDB] Summarization failed: ${error.message}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`⚠️  [MongoDB] Summarization failed: ${error.message}`);
+      }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {
         return messages.slice(-this.maxMessages);

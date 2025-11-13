@@ -20,16 +20,12 @@
  * @license MIT
  */
 
-import { generateText, streamText, type CoreMessage, type CoreTool, type LanguageModel } from 'ai';
+import { generateText, streamText, type CoreMessage, type LanguageModel } from 'ai';
+import type { CoreTool } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
-import { Handoff, getHandoff } from './handoff';
 import {
   createTrace,
-  createGeneration,
-  updateGeneration,
-  createSpan,
-  endSpan,
   formatMessagesForLangfuse,
   extractModelName,
   isLangfuseEnabled,
@@ -38,11 +34,8 @@ import {
   getCurrentTrace,
   getCurrentSpan,
   setCurrentSpan,
-  createContextualSpan,
-  createContextualGeneration,
 } from './tracing/context';
 import { AgentHooks, RunHooks } from './lifecycle';
-import { safeExecute, safeExecuteWithTimeout } from './utils/safe-execute';
 
 // ============================================
 // TYPES
@@ -267,13 +260,13 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       
       // Use handoffDescription if available, otherwise use generic description
       const description = handoffAgent.handoffDescription 
-        ? `Delegate to ${handoffAgent.name}: ${handoffAgent.handoffDescription}`
-        : `Delegate to ${handoffAgent.name}`;
+        ? `Handoff to ${handoffAgent.name}: ${handoffAgent.handoffDescription}`
+        : `Handoff to ${handoffAgent.name} agent to handle this task`;
       
       this.tools[handoffToolName] = {
         description,
         parameters: z.object({
-          reason: z.string().describe('Reason for handoff'),
+          reason: z.string().describe('Reason for handing off to this agent'),
           context: z.string().optional().describe('Additional context for the handoff')
         }),
         execute: async ({ reason, context: handoffContext }) => {
@@ -424,6 +417,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private agentMetrics: Map<string, AgentMetric> = new Map();
   private trace: any = null; // Langfuse trace
   private currentAgentSpan: any = null; // Current agent span for nesting
+  private wrappedToolsCache: Map<string, Record<string, CoreTool>> = new Map(); // Cache wrapped tools per agent
 
   constructor(agent: Agent<TContext, TOutput>, options: RunOptions<TContext>) {
     super(); // Initialize EventEmitter
@@ -436,28 +430,45 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   /**
    * Wrap tools to automatically inject context (similar to OpenAI Agents SDK's RunContext)
    * This allows tools to access context without manual workarounds
+   * OPTIMIZED: Cache wrapped tools per agent
    */
   private wrapToolsWithContext(
+    agentName: string,
     tools: Record<string, CoreTool>,
     contextWrapper: RunContextWrapper<TContext>
   ): Record<string, CoreTool> {
+    // Check cache first
+    const cached = this.wrappedToolsCache.get(agentName);
+    if (cached) {
+      // Update context reference for cached tools
+      for (const tool of Object.values(cached)) {
+        (tool as any)._contextWrapper = contextWrapper;
+      }
+      return cached;
+    }
+    
+    // Create wrapped tools
     const wrapped: Record<string, CoreTool> = {};
     
     for (const [name, tool] of Object.entries(tools)) {
       const originalExecute = tool.execute;
-      wrapped[name] = {
+      const wrappedTool = {
         ...tool,
         execute: async (args: any, options: any) => {
-          // Inject context wrapper as second parameter (like OpenAI's RunContext)
-          // Our tool() helper function signature allows context as 2nd param
+          // Get current context from wrapper
+          const ctx = (wrappedTool as any)._contextWrapper;
           if (originalExecute) {
-            return await originalExecute(args, contextWrapper as any);
+            return await originalExecute(args, ctx as any);
           }
           return {};
         }
       };
+      (wrappedTool as any)._contextWrapper = contextWrapper;
+      wrapped[name] = wrappedTool;
     }
     
+    // Cache for future use
+    this.wrappedToolsCache.set(agentName, wrapped);
     return wrapped;
   }
 
@@ -492,15 +503,36 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       await this.runInputGuardrails(messages);
     }
 
+    // CRITICAL: Wrap entire execution in try-finally to GUARANTEE span cleanup
+    try {
     // Main agent loop
     while (stepNumber < (this.options.maxTurns || 50)) {
       stepNumber++;
 
       // Create or update agent span when agent changes
       if (!this.currentAgentSpan || this.currentAgentSpan._agentName !== currentAgent.name) {
-        // End previous agent span if exists
+        // End previous agent span if exists (with full output)
         if (this.currentAgentSpan) {
-          this.currentAgentSpan.end();
+          const prevAgentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
+          const tokensDelta = {
+            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+          };
+          
+          this.currentAgentSpan.end({
+            output: {
+              totalSteps: this.steps.length - (this.currentAgentSpan._startStepCount || 0),
+              totalToolCalls: prevAgentMetric?.toolCalls || 0,
+              totalTransfers: 1,
+            },
+            metadata: {
+              totalSteps: this.steps.length,
+              totalToolCalls: prevAgentMetric?.toolCalls || 0,
+              totalTransfers: 1,
+            },
+          });
+          this.currentAgentSpan._ended = true;
         }
 
         // Emit agent_start event
@@ -520,13 +552,29 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           
           this.currentAgentSpan = parent.span({
             name: `Agent: ${currentAgent.name}`,
+            input: {
+              messages: formatMessagesForLangfuse(messages),
+              stepNumber,
+              turnNumber: stepNumber,
+            },
             metadata: {
               agentName: currentAgent.name,
               tools: Object.keys(currentAgent._tools || {}),
               handoffs: currentAgent.handoffs.map(a => a.name),
+              stepNumber,
+              turnNumber: stepNumber,
+              transferCount: 0,
+              toolCallCount: 0,
+              architecture: 'flat',
             },
           });
           this.currentAgentSpan._agentName = currentAgent.name; // Track which agent this span is for
+          this.currentAgentSpan._startStepCount = this.steps.length; // Track starting step count
+          this.currentAgentSpan._startTokens = {
+            prompt: this.promptTokens,
+            completion: this.completionTokens,
+            total: this.totalTokens,
+          };
           
           // Set as current span in context
           setCurrentSpan(this.currentAgentSpan);
@@ -547,19 +595,28 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       const systemMessage = await currentAgent.getInstructions(contextWrapper);
 
       // Create generation span NESTED under agent span
-      const generation = this.currentAgentSpan ? this.currentAgentSpan.generation({
-        name: `Generation - Step ${stepNumber}`,
-        model: extractModelName(currentAgent._model),
-        input: formatMessagesForLangfuse(messages),
-        metadata: {
-          stepNumber,
-          agentName: currentAgent.name,
-          systemMessage,
-        },
-      }) : null;
+      // OPTIMIZED: Only create if span exists (avoid unnecessary checks)
+      let generation: any = null;
+      if (this.currentAgentSpan) {
+        generation = this.currentAgentSpan.generation({
+          name: `Generation - Step ${stepNumber}`,
+          model: extractModelName(currentAgent._model),
+          input: formatMessagesForLangfuse(messages),
+          metadata: {
+            stepNumber,
+            agentName: currentAgent.name,
+            systemMessage,
+          },
+        });
+      }
 
       // Wrap tools to inject context automatically (similar to OpenAI Agents SDK)
-      const wrappedTools = this.wrapToolsWithContext(currentAgent._tools, contextWrapper);
+      const wrappedTools = this.wrapToolsWithContext(currentAgent.name, currentAgent._tools, contextWrapper);
+
+      // For coordinator agents with ONLY handoff tools, force tool usage and limit to 1 step
+      const hasOnlyHandoffTools = Object.keys(wrappedTools).every(name => name.startsWith('handoff_to_'));
+      const toolChoice = hasOnlyHandoffTools && Object.keys(wrappedTools).length > 0 ? 'required' : undefined;
+      const maxSteps = hasOnlyHandoffTools ? 1 : currentAgent._maxSteps; // OPTIMIZATION: 1 step for handoffs
 
       // Execute agent step
       const result = await generateText({
@@ -567,7 +624,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         system: systemMessage,
         messages,
         tools: wrappedTools,
-        maxSteps: currentAgent._maxSteps,
+        toolChoice: toolChoice as any,
+        maxSteps: maxSteps,
         temperature: currentAgent._modelSettings?.temperature,
         topP: currentAgent._modelSettings?.topP,
         maxTokens: currentAgent._modelSettings?.maxTokens,
@@ -575,23 +633,67 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         frequencyPenalty: currentAgent._modelSettings?.frequencyPenalty
       });
 
-      // Update token usage
+      // Extract tool results from the AI SDK response
+      // OPTIMIZED: Use Map for O(1) lookup instead of nested loops
+      let toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
+      
+      if (result.response?.messages) {
+        const msgs = result.response.messages;
+        
+        // Build a map of toolCallId -> result for O(1) lookup
+        const resultMap = new Map<string, any>();
+        for (const msg of msgs) {
+          if (msg.role === 'tool' && Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+              if ((part as any).type === 'tool-result') {
+                resultMap.set((part as any).toolCallId, (part as any).result);
+              }
+            }
+          }
+        }
+        
+        // Extract tool calls and match with results
+        for (const msg of msgs) {
+          if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+              if ((part as any).type === 'tool-call') {
+                const toolCallId = (part as any).toolCallId;
+                const result = resultMap.get(toolCallId);
+                if (result !== undefined) {
+                  toolCalls.push({
+                    toolName: (part as any).toolName,
+                    args: (part as any).args,
+                    result
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Update token usage and metrics
       if (result.usage) {
         this.totalTokens += result.usage.totalTokens;
         this.promptTokens += result.usage.promptTokens;
         this.completionTokens += result.usage.completionTokens;
         
-        // Record agent-specific usage
+        // Record agent-specific usage with tool count
         this.recordAgentUsage(currentAgent.name, {
           prompt: result.usage.promptTokens,
           completion: result.usage.completionTokens,
           total: result.usage.totalTokens,
-        });
+        }, toolCalls.length);
 
-        // Update Langfuse generation with usage data
+        // Update and END Langfuse generation with usage data
         if (generation) {
-          updateGeneration(generation, {
-            output: result.text,
+          // For tool calls, include tool info in output, otherwise use text
+          const generationOutput = result.finishReason === 'tool-calls' && toolCalls.length > 0
+            ? { toolCalls: toolCalls.map(tc => ({ tool: tc.toolName, args: tc.args })), text: result.text || '' }
+            : result.text;
+            
+          generation.end({
+            output: generationOutput,
             usage: {
               input: result.usage.promptTokens,
               output: result.usage.completionTokens,
@@ -599,18 +701,12 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             },
             metadata: {
               finishReason: result.finishReason,
-              toolCallsCount: result.toolCalls?.length || 0,
+              toolCallsCount: toolCalls.length,
+              totalToolCalls: toolCalls.length,
             },
           });
         }
       }
-
-      // Process tool calls
-      const toolCalls = result.toolCalls?.map(tc => ({
-        toolName: tc.toolName,
-        args: tc.args,
-        result: (tc as any).result
-      })) || [];
 
       // Check for handoffs
       const handoff = this.detectHandoff(toolCalls, currentAgent);
@@ -625,8 +721,16 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         this.emit('agent_handoff', contextWrapper, handoff.agent);
         currentAgent.emit('agent_handoff', contextWrapper, handoff.agent);
 
-        // Create handoff span NESTED under current agent span
-        if (this.currentAgentSpan) {
+        // CRITICAL: Close current agent span before switching
+        if (this.currentAgentSpan && !this.currentAgentSpan._ended) {
+          const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
+          const tokensDelta = {
+            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+          };
+
+          // Create handoff span NESTED under current agent span
           const handoffSpan = this.currentAgentSpan.span({
             name: `Handoff: ${currentAgent.name} → ${handoff.agent.name}`,
             input: { 
@@ -646,6 +750,26 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
               output: { success: true, nextAgent: handoff.agent.name },
             });
           }
+
+          // End current agent span with handoff info
+          this.currentAgentSpan.end({
+            output: {
+              handoffTo: handoff.agent.name,
+              handoffReason: handoff.reason,
+              stepCount: this.steps.length - (this.currentAgentSpan._startStepCount || 0),
+              totalSteps: this.steps.length,
+              totalToolCalls: agentMetric?.toolCalls || 0,
+            },
+            metadata: {
+              totalSteps: this.steps.length,
+              totalToolCalls: agentMetric?.toolCalls || 0,
+              handoffTo: handoff.agent.name,
+              handoffReason: handoff.reason,
+            },
+          });
+          this.currentAgentSpan._ended = true;
+          this.currentAgentSpan = null;
+          setCurrentSpan(null);
         }
 
         // Track handoff chain
@@ -660,6 +784,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           role: 'assistant',
           content: `Handing off to ${handoff.agent.name}. Reason: ${handoff.reason}`
         });
+        
+        // Continue loop - new agent span will be created on next iteration
         continue;
       }
 
@@ -677,11 +803,24 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         await currentAgent._onStepFinish(step);
       }
 
-      // Add assistant message
-      messages.push({
-        role: 'assistant',
-        content: result.text
-      });
+      // Add messages from result (includes assistant + tool messages if tools were called)
+      // OPTIMIZED: Only add new messages, avoid slice operation
+      if (result.response && result.response.messages) {
+        const responseMessages = result.response.messages;
+        const startIdx = messages.length;
+        if (responseMessages.length > startIdx) {
+          // Only push new messages, avoiding slice
+          for (let i = startIdx; i < responseMessages.length; i++) {
+            messages.push(responseMessages[i]);
+          }
+        }
+      } else {
+        // Fallback: just add assistant message
+        messages.push({
+          role: 'assistant',
+          content: result.text
+        });
+      }
 
       // Check if we should finish
       const shouldFinish = currentAgent._shouldFinish 
@@ -705,9 +844,32 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           await this.session.addMessages(messages);
         }
 
-        // End current agent span
+        // End current agent span with full output
         if (this.currentAgentSpan) {
-          this.currentAgentSpan.end();
+          const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
+          const tokensDelta = {
+            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+          };
+          
+          this.currentAgentSpan.end({
+            output: {
+              finalOutput: typeof finalOutput === 'string' ? finalOutput.substring(0, 500) : finalOutput,
+              stepCount: this.steps.length - (this.currentAgentSpan._startStepCount || 0),
+              totalSteps: this.steps.length,
+              totalToolCalls: agentMetric?.toolCalls || 0,
+              totalTransfers: 0,
+              messagesProduced: messages.length,
+              finishReason: result.finishReason,
+            },
+            metadata: {
+              totalSteps: this.steps.length,
+              totalToolCalls: agentMetric?.toolCalls || 0,
+              totalTransfers: 0,
+            },
+          });
+          this.currentAgentSpan._ended = true;
         }
 
         return {
@@ -727,12 +889,61 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
     }
 
-    // End current agent span before throwing
+    // End current agent span before throwing (max turns)
     if (this.currentAgentSpan) {
-      this.currentAgentSpan.end();
+      const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
+      const tokensDelta = {
+        prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+        completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+        total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+      };
+      
+      this.currentAgentSpan.end({
+        output: {
+          error: 'Max turns exceeded',
+          stepCount: this.steps.length,
+          totalSteps: this.steps.length,
+          totalToolCalls: agentMetric?.toolCalls || 0,
+          totalTransfers: 0,
+        },
+        level: 'ERROR',
+        statusMessage: 'Max turns exceeded',
+      });
+      this.currentAgentSpan._ended = true;
     }
     
     throw new Error('Max turns exceeded');
+    
+    } finally {
+      // CRITICAL: Always cleanup spans, even on errors/interruptions
+      // This ensures Langfuse traces are ALWAYS properly closed
+      if (this.currentAgentSpan) {
+        try {
+          const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
+          const tokensDelta = {
+            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+          };
+          
+          // Only end if not already ended
+          if (!this.currentAgentSpan._ended) {
+          this.currentAgentSpan.end({
+            output: {
+              totalSteps: this.steps.length,
+              totalToolCalls: agentMetric?.toolCalls || 0,
+            },
+          });
+          this.currentAgentSpan._ended = true;
+        }
+      } catch (error) {
+        console.error('[Trace Cleanup] Failed to close agent span:', error);
+      } finally {
+        this.currentAgentSpan = null;
+        setCurrentSpan(null);
+      }
+    }
+    }
   }
 
   async executeStream(
@@ -753,7 +964,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     const systemMessage = await this.agent.getInstructions(contextWrapper);
 
     // Wrap tools to inject context automatically (same as non-streaming)
-    const wrappedTools = this.wrapToolsWithContext(this.agent._tools, contextWrapper);
+    const wrappedTools = this.wrapToolsWithContext(this.agent.name, this.agent._tools, contextWrapper);
 
     const result = streamText({
       model: this.agent._model,
@@ -951,7 +1162,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         const targetAgent = currentAgent.handoffs.find(a => a.name === agentName);
         
         if (!targetAgent) {
-          console.warn(`⚠️  Handoff target agent "${agentName}" not found in ${currentAgent.name}'s handoffs`);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`⚠️  Handoff target agent "${agentName}" not found in ${currentAgent.name}'s handoffs`);
+          }
           return null;
         }
         
@@ -967,15 +1180,16 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
   /**
    * Record agent usage for metrics
+   * OPTIMIZED: Cache last step tool count to avoid array lookup
    */
-  private recordAgentUsage(agentName: string, tokens: { prompt: number; completion: number; total: number }): void {
+  private recordAgentUsage(agentName: string, tokens: { prompt: number; completion: number; total: number }, toolCallCount: number = 0): void {
     const existing = this.agentMetrics.get(agentName);
     if (existing) {
       existing.turns++;
       existing.tokens.input += tokens.prompt;
       existing.tokens.output += tokens.completion;
       existing.tokens.total += tokens.total;
-      existing.toolCalls += this.steps[this.steps.length - 1]?.toolCalls?.length || 0;
+      existing.toolCalls += toolCallCount;
     } else {
       this.agentMetrics.set(agentName, {
         agentName,
@@ -985,7 +1199,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           output: tokens.completion,
           total: tokens.total,
         },
-        toolCalls: this.steps[this.steps.length - 1]?.toolCalls?.length || 0,
+        toolCalls: toolCallCount,
         duration: 0,
       });
     }

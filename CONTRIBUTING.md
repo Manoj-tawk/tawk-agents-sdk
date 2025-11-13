@@ -1,96 +1,94 @@
 # Contributing to Tawk Agents SDK
 
-Thank you for your interest in contributing to Tawk Agents SDK!
-
-## Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/tawk/agents-sdk.git
-   cd tawk-agents-sdk
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Build the project**
-   ```bash
-   npm run build
-   ```
-
-4. **Run examples**
-   ```bash
-   npm run example
-   ```
-
-## Code Standards
-
-### TypeScript
-
-- Use TypeScript strict mode
-- Provide proper type annotations
-- Avoid `any` types when possible
-- Use interfaces for public APIs
-- Use types for internal implementations
-
-### Code Style
-
-- Follow the project's ESLint and Prettier configurations
-- Use meaningful variable and function names
-- Write self-documenting code
-- Add JSDoc comments for public APIs
-
-### Testing
-
-- Write tests for new features
-- Ensure all tests pass before submitting PR
-- Aim for high code coverage
-
-## Pull Request Process
-
-1. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. **Make your changes**
-   - Write clean, documented code
-   - Add tests
-   - Update documentation
-
-3. **Commit your changes**
-   ```bash
-   git commit -m "feat: add your feature"
-   ```
-
-   Follow conventional commits:
-   - `feat:` for new features
-   - `fix:` for bug fixes
-   - `docs:` for documentation
-   - `refactor:` for code refactoring
-   - `test:` for tests
-   - `chore:` for maintenance
-
-4. **Push and create PR**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-5. **Code Review**
-   - Address review feedback
-   - Keep the PR updated
+Thank you for your interest in contributing to the Tawk Agents SDK! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
-- Be respectful and inclusive
-- Accept constructive criticism
-- Focus on what's best for the community
+Be respectful, inclusive, and constructive in all interactions.
+
+## Getting Started
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/your-username/agents-sdk.git`
+3. Install dependencies: `npm install`
+4. Create a branch: `git checkout -b feature/your-feature-name`
+
+## Development Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Run tests
+npm test
+
+# Run specific test
+npm run test:basic
+```
+
+## Code Style
+
+- **TypeScript**: All code must be written in TypeScript
+- **Formatting**: We use Prettier (run `npm run format`)
+- **Linting**: We use ESLint (run `npm run lint`)
+- **Types**: Prefer explicit types, avoid `any` when possible
+
+## Testing
+
+All new features must include tests:
+
+```typescript
+// tests/your-feature.test.ts
+import { Agent, run } from '../src';
+
+describe('Your Feature', () => {
+  it('should work correctly', async () => {
+    const agent = new Agent({
+      name: 'Test',
+      instructions: 'Test instructions'
+    });
+    
+    const result = await run(agent, 'test input');
+    expect(result.finalOutput).toBeDefined();
+  });
+});
+```
+
+## Commit Messages
+
+Use clear, descriptive commit messages:
+
+```
+feat: add new handoff feature
+fix: resolve session memory leak
+docs: update README with examples
+perf: optimize tool result extraction
+test: add tests for guardrails
+```
+
+## Pull Request Process
+
+1. Update README.md with details of changes if needed
+2. Add tests for new functionality
+3. Ensure all tests pass: `npm test`
+4. Ensure build succeeds: `npm run build`
+5. Update documentation if needed
+6. Submit PR with clear description
+
+## Areas for Contribution
+
+- 🐛 Bug fixes
+- ✨ New features
+- 📚 Documentation improvements
+- ⚡ Performance optimizations
+- 🧪 Additional tests
+- 🌐 Examples and tutorials
 
 ## Questions?
 
-Feel free to open an issue for any questions or concerns.
+Open an issue or reach out to support@tawk.to
 
-Thank you for contributing! 🎉
-
+Thank you for contributing!

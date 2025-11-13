@@ -51,6 +51,7 @@ export async function withTrace<T>(
   name: string,
   fn: (trace: any) => Promise<T>,
   options: {
+    input?: any; // NEW: Accept input for trace
     metadata?: Record<string, any>;
     tags?: string[];
     sessionId?: string;
@@ -67,9 +68,10 @@ export async function withTrace<T>(
   // Import here to avoid circular dependency
   const { createTrace } = await import('../langfuse');
 
-  // Create new trace
+  // Create new trace with input
   const trace = createTrace({
     name,
+    input: options.input, // NEW: Forward input to trace
     metadata: options.metadata,
     tags: options.tags,
     sessionId: options.sessionId,
@@ -82,9 +84,49 @@ export async function withTrace<T>(
   }
 
   // Run function with trace in context
-  return await traceStorage.run({ trace, span: null }, async () => {
-    return await fn(trace);
-  });
+  // Capture output when function completes
+  let result: T;
+  let output: any = null;
+  
+  try {
+    result = await traceStorage.run({ trace, span: null }, async () => {
+      return await fn(trace);
+    });
+    
+    // Extract output from result if it's a RunResult
+    if (result && typeof result === 'object' && 'finalOutput' in result) {
+      output = {
+        finalOutput: (result as any).finalOutput,
+        stepCount: (result as any).steps?.length || 0,
+        totalToolCalls: (result as any).metadata?.totalToolCalls || 0,
+        totalTransfers: (result as any).metadata?.totalTransfers || 0,
+        handoffChain: (result as any).metadata?.handoffChain,
+        finishReason: (result as any).metadata?.finishReason,
+      };
+    } else {
+      output = result;
+    }
+    
+    return result;
+  } finally {
+    // CRITICAL: Always update trace with output when function completes
+    if (trace && output !== null) {
+      try {
+        trace.update({
+          output,
+          metadata: {
+            ...options.metadata,
+            completed: true,
+          },
+        });
+      } catch (error) {
+        // Don't fail if trace update fails
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to update trace output in withTrace:', error);
+        }
+      }
+    }
+  }
 }
 
 /**
