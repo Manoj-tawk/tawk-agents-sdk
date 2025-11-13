@@ -231,6 +231,11 @@ export type {
 } from './types';
 
 /**
+ * Package version
+ */
+export const VERSION = '1.0.0';
+
+/**
  * Default export for convenience
  */
 export { Agent as default } from './agent';

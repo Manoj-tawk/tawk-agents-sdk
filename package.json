@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/tawk-agents-sdk.git"
+    "url": "https://github.com/atawk/agents-sdk.git"
   },
-  "homepage": "https://github.com/yourusername/tawk-agents-sdk#readme",
+  "homepage": "https://github.com/atawk/agents-sdk#readme",
   "bugs": {
-    "url": "https://github.com/yourusername/tawk-agents-sdk/issues"
+    "url": "https://github.com/atawk/agents-sdk/issues"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,27 +18,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
-      "import": "./dist/index.mjs"
-    },
-    "./memory": {
-      "types": "./dist/memory/index.d.ts",
-      "require": "./dist/memory/index.js",
-      "import": "./dist/memory/index.mjs"
-    },
-    "./tracing": {
-      "types": "./dist/tracing/index.d.ts",
-      "require": "./dist/tracing/index.js",
-      "import": "./dist/tracing/index.mjs"
-    },
-    "./types": {
-      "types": "./dist/types/index.d.ts",
-      "require": "./dist/types/index.js",
-      "import": "./dist/types/index.mjs"
-    },
-    "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "require": "./dist/utils/index.js",
-      "import": "./dist/utils/index.mjs"
+      "import": "./dist/index.js"
     }
   },
   "files": [
@@ -77,21 +57,29 @@
     "test:sessions": "ts-node tests/05-sessions.test.ts",
     "test:langfuse": "ts-node tests/06-langfuse-tracing.test.ts",
     "test:output": "ts-node tests/09-structured-output.test.ts",
+    "test:storage": "ts-node tests/17-session-storage-e2e.test.ts",
+    "test:summarization": "ts-node tests/16-auto-summarization.test.ts",
+    "test:multi-model": "ts-node tests/14-multi-model-handoff.test.ts",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down -v",
+    "docker:logs": "docker-compose logs -f",
     "test:errors": "ts-node tests/10-error-handling.test.ts",
     "test:watch": "nodemon --watch src --watch tests --ext ts --exec ts-node tests/run-all-tests.ts",
+    "example": "ts-node examples/complete-examples.ts",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^2.0.29",
     "ai": "^4.0.0",
     "langfuse": "^3.30.3",
     "zod": "^3.25.40"
   },
   "peerDependencies": {
-    "@ai-sdk/openai": "^1.0.0",
     "@ai-sdk/anthropic": "^1.0.0",
-    "@ai-sdk/google": "^1.0.0"
+    "@ai-sdk/google": "^1.0.0",
+    "@ai-sdk/openai": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/openai": {
@@ -119,21 +107,5 @@
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
-  },
-  "typesVersions": {
-    "*": {
-      "memory": [
-        "dist/memory/index.d.ts"
-      ],
-      "tracing": [
-        "dist/tracing/index.d.ts"
-      ],
-      "types": [
-        "dist/types/index.d.ts"
-      ],
-      "utils": [
-        "dist/utils/index.d.ts"
-      ]
-    }
   }
 }

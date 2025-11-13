@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Tawk Agents SDK!
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/tawk-agents-sdk.git
+   git clone https://github.com/tawk/agents-sdk.git
    cd tawk-agents-sdk
    ```
 

@@ -48,10 +48,8 @@ tawk-agents-sdk/
 ├── CHANGELOG.md          # Version history
 ├── CONTRIBUTING.md       # Contribution guidelines
 ├── LICENSE               # MIT License
-├── MIGRATION.md          # Migration guide
-├── QUICK_REFERENCE.md    # Quick reference
 │
-└── run-tests.sh          # Test runner script
+└── docker-compose.yml    # Redis + MongoDB for testing
 ```
 
 ## Core Files
@@ -78,10 +76,11 @@ tawk-agents-sdk/
 - Rate limiting, language detection
 - Custom guardrail support
 
-**session.ts** (300+ lines)
+**session.ts** (900+ lines)
 - Session management implementations
 - Memory, Redis, MongoDB, Hybrid adapters
 - Session interface and utilities
+- Auto-summarization support
 
 **langfuse.ts** (280 lines)
 - Langfuse integration
@@ -111,16 +110,29 @@ tawk-agents-sdk/
 
 ### `/tests`
 
-**test-all.ts** (550+ lines)
-- Complete test suite
-- 13 comprehensive tests
-- Multi-provider testing
-- Multi-agent workflow tests
-- Automatic Langfuse tracing
+**run-all-tests.ts**
+- Test runner that executes all test suites
+- 19 comprehensive test files covering all features
 
-**test-langfuse.ts** (120 lines)
-- Standalone Langfuse integration test
-- Trace creation and verification
+**Test Files:**
+- `01-basic-agent.test.ts` - Basic agent operations
+- `02-multi-agent.test.ts` - Multi-agent coordination
+- `03-streaming.test.ts` - Streaming responses
+- `04-guardrails.test.ts` - Guardrails validation
+- `05-sessions.test.ts` - Session management
+- `06-langfuse-tracing.test.ts` - Langfuse integration
+- `09-structured-output.test.ts` - Structured output parsing
+- `10-error-handling.test.ts` - Error handling
+- `11-complete-integration.test.ts` - Complete integration scenarios
+- `12-complex-scenarios.test.ts` - Complex use cases
+- `13-multi-turn-multi-model.test.ts` - Multi-turn conversations
+- `14-multi-model-handoff.test.ts` - Multi-model handoffs
+- `16-auto-summarization.test.ts` - Auto-summarization feature
+- `17-session-storage-e2e.test.ts` - End-to-end storage testing
+- `18-performance-benchmark.test.ts` - Performance benchmarks
+- `19-model-speed-comparison.test.ts` - Model speed comparison
+
+All tests include real API calls and comprehensive coverage.
 
 ### `/examples`
 

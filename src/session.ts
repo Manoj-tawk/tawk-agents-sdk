@@ -16,9 +16,13 @@ export class MemorySession<TContext = any> implements Session<TContext> {
   public readonly id: string;
   private messages: CoreMessage[] = [];
   private metadata: Record<string, any> = {};
+  private maxMessages?: number;
+  private summarizationConfig?: SummarizationConfig;
 
-  constructor(id: string) {
+  constructor(id: string, maxMessages?: number, summarizationConfig?: SummarizationConfig) {
     this.id = id;
+    this.maxMessages = maxMessages;
+    this.summarizationConfig = summarizationConfig;
   }
 
   async getHistory(): Promise<CoreMessage[]> {
@@ -27,6 +31,137 @@ export class MemorySession<TContext = any> implements Session<TContext> {
 
   async addMessages(messages: CoreMessage[]): Promise<void> {
     this.messages.push(...messages);
+    
+    // Check if we should summarize
+    if (this.summarizationConfig?.enabled) {
+      this.messages = await this.checkAndSummarize(this.messages);
+    }
+    // Otherwise, use simple sliding window
+    else if (this.maxMessages && this.messages.length > this.maxMessages) {
+      this.messages = this.messages.slice(-this.maxMessages);
+    }
+  }
+
+  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+    if (!this.summarizationConfig) return messages;
+    
+    const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
+    
+    // Count non-system messages (exclude existing summaries)
+    const nonSystemMessages = messages.filter(msg => 
+      !(msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary'))
+    );
+    
+    // Only summarize if we exceed threshold
+    if (nonSystemMessages.length <= messageThreshold) {
+      return messages;
+    }
+    
+    try {
+      // Find existing summary (if any)
+      const existingSummaryIndex = messages.findIndex(msg =>
+        msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary')
+      );
+      
+      let existingSummary: string | undefined;
+      if (existingSummaryIndex >= 0) {
+        const summaryMsg = messages[existingSummaryIndex];
+        existingSummary = typeof summaryMsg.content === 'string' 
+          ? summaryMsg.content.replace('Previous conversation summary:\n', '')
+          : undefined;
+        // Remove old summary
+        messages.splice(existingSummaryIndex, 1);
+      }
+      
+      // Messages to summarize (all except recent ones)
+      const toSummarize = messages.slice(0, -keepRecentMessages);
+      const recentMessages = messages.slice(-keepRecentMessages);
+      
+      // Generate summary
+      const newSummary = await this.generateSummary(toSummarize, existingSummary);
+      
+      // Create summary as system message
+      const summaryMessage: CoreMessage = {
+        role: 'system',
+        content: `Previous conversation summary:\n${newSummary}`
+      };
+      
+      console.log(`📝 [Memory] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      
+      // Return: [summary, recent messages]
+      return [summaryMessage, ...recentMessages];
+      
+    } catch (error: any) {
+      console.error(`⚠️  [Memory] Summarization failed: ${error.message}`);
+      // Fallback to sliding window
+      if (this.maxMessages && messages.length > this.maxMessages) {
+        return messages.slice(-this.maxMessages);
+      }
+      return messages;
+    }
+  }
+
+  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+    if (!this.summarizationConfig) {
+      throw new Error('Summarization config not set');
+    }
+    
+    // Build conversation text
+    const conversationText = messages
+      .map(msg => `${msg.role}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`)
+      .join('\n\n');
+    
+    // Use custom prompt or default
+    const summaryPrompt = this.summarizationConfig.summaryPrompt || 
+      `Summarize the following conversation concisely, preserving all important facts, context, and information about the user. Focus on:
+- User's identity (name, job, background)
+- Key facts mentioned
+- Topics discussed
+- Important context
+
+Conversation:
+${conversationText}
+
+Summary (2-3 paragraphs):`;
+
+    // If previous summary exists, include it
+    const fullPrompt = previousSummary 
+      ? `Previous summary:\n${previousSummary}\n\n${summaryPrompt}`
+      : summaryPrompt;
+    
+    // Use the provided model or create simple summary
+    if (this.summarizationConfig.model) {
+      const { generateText } = await import('ai');
+      const result = await generateText({
+        model: this.summarizationConfig.model,
+        prompt: fullPrompt,
+        maxTokens: 500,
+      });
+      return result.text;
+    } else {
+      // Simple fallback
+      return this.createSimpleSummary(messages, previousSummary);
+    }
+  }
+
+  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+    const facts: string[] = [];
+    
+    messages.forEach(msg => {
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      
+      if (content.includes("I'm") || content.includes("I am") || 
+          content.includes("My name") || content.includes("I work") ||
+          content.includes("I live") || content.includes("I graduated")) {
+        facts.push(content);
+      }
+    });
+    
+    if (previousSummary) {
+      return `${previousSummary}\n\nAdditional context: ${facts.slice(0, 5).join('. ')}`;
+    }
+    
+    return facts.slice(0, 10).join('. ');
   }
 
   async clear(): Promise<void> {
@@ -52,6 +187,7 @@ export interface RedisSessionConfig {
   keyPrefix?: string;
   ttl?: number; // Time to live in seconds
   maxMessages?: number; // Maximum number of messages to keep
+  summarization?: SummarizationConfig;
 }
 
 export class RedisSession<TContext = any> implements Session<TContext> {
@@ -60,6 +196,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
   private keyPrefix: string;
   private ttl: number;
   private maxMessages?: number;
+  private summarizationConfig?: SummarizationConfig;
 
   constructor(id: string, config: RedisSessionConfig) {
     this.id = id;
@@ -67,6 +204,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     this.keyPrefix = config.keyPrefix || 'agent:session:';
     this.ttl = config.ttl || 3600; // Default 1 hour
     this.maxMessages = config.maxMessages;
+    this.summarizationConfig = config.summarization;
   }
 
   private getMessagesKey(): string {
@@ -94,8 +232,12 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     // Add new messages
     existingMessages.push(...messages);
     
-    // Trim if needed
-    if (this.maxMessages && existingMessages.length > this.maxMessages) {
+    // Check if we should summarize
+    if (this.summarizationConfig?.enabled) {
+      existingMessages = await this.checkAndSummarize(existingMessages);
+    }
+    // Otherwise, use simple sliding window
+    else if (this.maxMessages && existingMessages.length > this.maxMessages) {
       existingMessages = existingMessages.slice(-this.maxMessages);
     }
     
@@ -105,6 +247,128 @@ export class RedisSession<TContext = any> implements Session<TContext> {
       this.ttl,
       JSON.stringify(existingMessages)
     );
+  }
+
+  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+    if (!this.summarizationConfig) return messages;
+    
+    const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
+    
+    // Count non-system messages (exclude existing summaries)
+    const nonSystemMessages = messages.filter(msg => 
+      !(msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary'))
+    );
+    
+    // Only summarize if we exceed threshold
+    if (nonSystemMessages.length <= messageThreshold) {
+      return messages;
+    }
+    
+    try {
+      // Find existing summary (if any)
+      const existingSummaryIndex = messages.findIndex(msg =>
+        msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary')
+      );
+      
+      let existingSummary: string | undefined;
+      if (existingSummaryIndex >= 0) {
+        const summaryMsg = messages[existingSummaryIndex];
+        existingSummary = typeof summaryMsg.content === 'string' 
+          ? summaryMsg.content.replace('Previous conversation summary:\n', '')
+          : undefined;
+        // Remove old summary
+        messages.splice(existingSummaryIndex, 1);
+      }
+      
+      // Messages to summarize (all except recent ones)
+      const toSummarize = messages.slice(0, -keepRecentMessages);
+      const recentMessages = messages.slice(-keepRecentMessages);
+      
+      // Generate summary
+      const newSummary = await this.generateSummary(toSummarize, existingSummary);
+      
+      // Create summary as system message
+      const summaryMessage: CoreMessage = {
+        role: 'system',
+        content: `Previous conversation summary:\n${newSummary}`
+      };
+      
+      console.log(`📝 [Redis] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      
+      // Return: [summary, recent messages]
+      return [summaryMessage, ...recentMessages];
+      
+    } catch (error: any) {
+      console.error(`⚠️  [Redis] Summarization failed: ${error.message}`);
+      // Fallback to sliding window
+      if (this.maxMessages && messages.length > this.maxMessages) {
+        return messages.slice(-this.maxMessages);
+      }
+      return messages;
+    }
+  }
+
+  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+    if (!this.summarizationConfig) {
+      throw new Error('Summarization config not set');
+    }
+    
+    // Build conversation text
+    const conversationText = messages
+      .map(msg => `${msg.role}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`)
+      .join('\n\n');
+    
+    // Use custom prompt or default
+    const summaryPrompt = this.summarizationConfig.summaryPrompt || 
+      `Summarize the following conversation concisely, preserving all important facts, context, and information about the user. Focus on:
+- User's identity (name, job, background)
+- Key facts mentioned
+- Topics discussed
+- Important context
+
+Conversation:
+${conversationText}
+
+Summary (2-3 paragraphs):`;
+
+    // If previous summary exists, include it
+    const fullPrompt = previousSummary 
+      ? `Previous summary:\n${previousSummary}\n\n${summaryPrompt}`
+      : summaryPrompt;
+    
+    // Use the provided model or create simple summary
+    if (this.summarizationConfig.model) {
+      const { generateText } = await import('ai');
+      const result = await generateText({
+        model: this.summarizationConfig.model,
+        prompt: fullPrompt,
+        maxTokens: 500,
+      });
+      return result.text;
+    } else {
+      // Simple fallback
+      return this.createSimpleSummary(messages, previousSummary);
+    }
+  }
+
+  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+    const facts: string[] = [];
+    
+    messages.forEach(msg => {
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      
+      if (content.includes("I'm") || content.includes("I am") || 
+          content.includes("My name") || content.includes("I work") ||
+          content.includes("I live") || content.includes("I graduated")) {
+        facts.push(content);
+      }
+    });
+    
+    if (previousSummary) {
+      return `${previousSummary}\n\nAdditional context: ${facts.slice(0, 5).join('. ')}`;
+    }
+    
+    return facts.slice(0, 10).join('. ');
   }
 
   async clear(): Promise<void> {
@@ -158,6 +422,7 @@ export interface DatabaseSessionConfig {
   db: any; // MongoDB Database instance
   collectionName?: string;
   maxMessages?: number;
+  summarization?: SummarizationConfig;
 }
 
 export class DatabaseSession<TContext = any> implements Session<TContext> {
@@ -165,12 +430,14 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
   private db: any;
   private collectionName: string;
   private maxMessages?: number;
+  private summarizationConfig?: SummarizationConfig;
 
   constructor(id: string, config: DatabaseSessionConfig) {
     this.id = id;
     this.db = config.db;
     this.collectionName = config.collectionName || 'agent_sessions';
     this.maxMessages = config.maxMessages;
+    this.summarizationConfig = config.summarization;
   }
 
   private getCollection() {
@@ -202,8 +469,12 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
     // Add new messages
     session.messages.push(...messages);
     
-    // Trim if needed
-    if (this.maxMessages && session.messages.length > this.maxMessages) {
+    // Check if we should summarize
+    if (this.summarizationConfig?.enabled) {
+      session.messages = await this.checkAndSummarize(session.messages);
+    }
+    // Otherwise, use simple sliding window
+    else if (this.maxMessages && session.messages.length > this.maxMessages) {
       session.messages = session.messages.slice(-this.maxMessages);
     }
     
@@ -215,6 +486,128 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
       { $set: session },
       { upsert: true }
     );
+  }
+
+  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+    if (!this.summarizationConfig) return messages;
+    
+    const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
+    
+    // Count non-system messages (exclude existing summaries)
+    const nonSystemMessages = messages.filter(msg => 
+      !(msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary'))
+    );
+    
+    // Only summarize if we exceed threshold
+    if (nonSystemMessages.length <= messageThreshold) {
+      return messages;
+    }
+    
+    try {
+      // Find existing summary (if any)
+      const existingSummaryIndex = messages.findIndex(msg =>
+        msg.role === 'system' && typeof msg.content === 'string' && msg.content.includes('Previous conversation summary')
+      );
+      
+      let existingSummary: string | undefined;
+      if (existingSummaryIndex >= 0) {
+        const summaryMsg = messages[existingSummaryIndex];
+        existingSummary = typeof summaryMsg.content === 'string' 
+          ? summaryMsg.content.replace('Previous conversation summary:\n', '')
+          : undefined;
+        // Remove old summary
+        messages.splice(existingSummaryIndex, 1);
+      }
+      
+      // Messages to summarize (all except recent ones)
+      const toSummarize = messages.slice(0, -keepRecentMessages);
+      const recentMessages = messages.slice(-keepRecentMessages);
+      
+      // Generate summary
+      const newSummary = await this.generateSummary(toSummarize, existingSummary);
+      
+      // Create summary as system message
+      const summaryMessage: CoreMessage = {
+        role: 'system',
+        content: `Previous conversation summary:\n${newSummary}`
+      };
+      
+      console.log(`📝 [MongoDB] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
+      
+      // Return: [summary, recent messages]
+      return [summaryMessage, ...recentMessages];
+      
+    } catch (error: any) {
+      console.error(`⚠️  [MongoDB] Summarization failed: ${error.message}`);
+      // Fallback to sliding window
+      if (this.maxMessages && messages.length > this.maxMessages) {
+        return messages.slice(-this.maxMessages);
+      }
+      return messages;
+    }
+  }
+
+  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+    if (!this.summarizationConfig) {
+      throw new Error('Summarization config not set');
+    }
+    
+    // Build conversation text
+    const conversationText = messages
+      .map(msg => `${msg.role}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`)
+      .join('\n\n');
+    
+    // Use custom prompt or default
+    const summaryPrompt = this.summarizationConfig.summaryPrompt || 
+      `Summarize the following conversation concisely, preserving all important facts, context, and information about the user. Focus on:
+- User's identity (name, job, background)
+- Key facts mentioned
+- Topics discussed
+- Important context
+
+Conversation:
+${conversationText}
+
+Summary (2-3 paragraphs):`;
+
+    // If previous summary exists, include it
+    const fullPrompt = previousSummary 
+      ? `Previous summary:\n${previousSummary}\n\n${summaryPrompt}`
+      : summaryPrompt;
+    
+    // Use the provided model or create simple summary
+    if (this.summarizationConfig.model) {
+      const { generateText } = await import('ai');
+      const result = await generateText({
+        model: this.summarizationConfig.model,
+        prompt: fullPrompt,
+        maxTokens: 500,
+      });
+      return result.text;
+    } else {
+      // Simple fallback
+      return this.createSimpleSummary(messages, previousSummary);
+    }
+  }
+
+  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+    const facts: string[] = [];
+    
+    messages.forEach(msg => {
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      
+      if (content.includes("I'm") || content.includes("I am") || 
+          content.includes("My name") || content.includes("I work") ||
+          content.includes("I live") || content.includes("I graduated")) {
+        facts.push(content);
+      }
+    });
+    
+    if (previousSummary) {
+      return `${previousSummary}\n\nAdditional context: ${facts.slice(0, 5).join('. ')}`;
+    }
+    
+    return facts.slice(0, 10).join('. ');
   }
 
   async clear(): Promise<void> {
@@ -264,6 +657,7 @@ export interface HybridSessionConfig {
   dbCollectionName?: string;
   maxMessages?: number;
   syncToDBInterval?: number; // Sync to DB every N messages
+  summarization?: SummarizationConfig;
 }
 
 export class HybridSession<TContext = any> implements Session<TContext> {
@@ -280,13 +674,15 @@ export class HybridSession<TContext = any> implements Session<TContext> {
       redis: config.redis,
       keyPrefix: config.redisKeyPrefix,
       ttl: config.redisTTL,
-      maxMessages: config.maxMessages
+      maxMessages: config.maxMessages,
+      summarization: config.summarization
     });
     
     this.dbSession = new DatabaseSession(id, {
       db: config.db,
       collectionName: config.dbCollectionName,
-      maxMessages: config.maxMessages
+      maxMessages: config.maxMessages,
+      summarization: config.summarization
     });
     
     this.syncToDBInterval = config.syncToDBInterval || 5;
@@ -381,6 +777,23 @@ export class HybridSession<TContext = any> implements Session<TContext> {
 // SESSION MANAGER (for easy session creation)
 // ============================================
 
+export interface SummarizationConfig {
+  /** Enable auto-summarization */
+  enabled: boolean;
+  
+  /** Trigger summarization when message count exceeds this */
+  messageThreshold: number; // Default: 10
+  
+  /** Number of recent messages to keep verbatim */
+  keepRecentMessages: number; // Default: 3
+  
+  /** Model to use for summarization (optional, uses default if not set) */
+  model?: any; // LanguageModelV1
+  
+  /** System prompt for summarization */
+  summaryPrompt?: string;
+}
+
 export interface SessionManagerConfig {
   type: 'memory' | 'redis' | 'database' | 'hybrid';
   redis?: Redis;
@@ -390,6 +803,9 @@ export interface SessionManagerConfig {
   dbCollectionName?: string;
   maxMessages?: number;
   syncToDBInterval?: number;
+  
+  /** Auto-summarization configuration */
+  summarization?: SummarizationConfig;
 }
 
 export class SessionManager {
@@ -414,7 +830,11 @@ export class SessionManager {
 
     switch (this.config.type) {
       case 'memory':
-        session = new MemorySession<TContext>(sessionId);
+        session = new MemorySession<TContext>(
+          sessionId, 
+          this.config.maxMessages,
+          this.config.summarization
+        );
         break;
 
       case 'redis':
@@ -425,7 +845,8 @@ export class SessionManager {
           redis: this.config.redis,
           keyPrefix: this.config.redisKeyPrefix,
           ttl: this.config.redisTTL,
-          maxMessages: this.config.maxMessages
+          maxMessages: this.config.maxMessages,
+          summarization: this.config.summarization
         });
         break;
 
@@ -436,7 +857,8 @@ export class SessionManager {
         session = new DatabaseSession<TContext>(sessionId, {
           db: this.config.db,
           collectionName: this.config.dbCollectionName,
-          maxMessages: this.config.maxMessages
+          maxMessages: this.config.maxMessages,
+          summarization: this.config.summarization
         });
         break;
 
@@ -451,7 +873,8 @@ export class SessionManager {
           redisTTL: this.config.redisTTL,
           dbCollectionName: this.config.dbCollectionName,
           maxMessages: this.config.maxMessages,
-          syncToDBInterval: this.config.syncToDBInterval
+          syncToDBInterval: this.config.syncToDBInterval,
+          summarization: this.config.summarization
         });
         break;
 
