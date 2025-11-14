@@ -84,6 +84,8 @@ export interface RunResult<TOutput = string> {
     totalToolCalls?: number;  // NEW: Total tool calls in entire run
     handoffChain?: string[];  // NEW: Chain of agents involved
     agentMetrics?: AgentMetric[];  // NEW: Per-agent metrics
+    raceParticipants?: string[];  // NEW: For raceAgents - all participating agents
+    raceWinners?: string[];       // NEW: For raceAgents - winning agent(s)
   };
 }
 

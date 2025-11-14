@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/atawk/agents-sdk.git"
+    "url": "https://github.com/Manoj-tawk/tawk-agents-sdk.git"
   },
-  "homepage": "https://github.com/atawk/agents-sdk#readme",
+  "homepage": "https://github.com/Manoj-tawk/tawk-agents-sdk#readme",
   "bugs": {
-    "url": "https://github.com/atawk/agents-sdk/issues"
+    "url": "https://github.com/Manoj-tawk/tawk-agents-sdk/issues"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -49,22 +49,24 @@
   "scripts": {
     "build": "tsc",
     "build:check": "tsc --noEmit",
-    "test": "ts-node tests/run-all-tests.ts",
-    "test:basic": "ts-node tests/01-basic-agent.test.ts",
-    "test:multi": "ts-node tests/02-multi-agent.test.ts",
-    "test:stream": "ts-node tests/03-streaming.test.ts",
-    "test:guards": "ts-node tests/04-guardrails.test.ts",
-    "test:sessions": "ts-node tests/05-sessions.test.ts",
-    "test:langfuse": "ts-node tests/06-langfuse-tracing.test.ts",
-    "test:output": "ts-node tests/09-structured-output.test.ts",
-    "test:storage": "ts-node tests/17-session-storage-e2e.test.ts",
-    "test:summarization": "ts-node tests/16-auto-summarization.test.ts",
-    "test:multi-model": "ts-node tests/14-multi-model-handoff.test.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:basic": "jest 01-basic-agent",
+    "test:multi": "jest 02-multi-agent",
+    "test:stream": "jest 03-streaming",
+    "test:guards": "jest 04-guardrails",
+    "test:sessions": "jest 05-sessions",
+    "test:langfuse": "jest 06-langfuse-tracing",
+    "test:advanced": "jest 07-advanced-tool-calling",
+    "test:race": "jest 08-race-agents",
+    "e2e:basic": "ts-node tests/e2e/01-basic-e2e.test.ts",
+    "e2e:multi": "ts-node tests/e2e/02-multi-agent-e2e.test.ts",
+    "e2e:stream": "ts-node tests/e2e/03-streaming-sessions-e2e.test.ts",
+    "e2e": "npm run e2e:basic && npm run e2e:multi && npm run e2e:stream",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down -v",
     "docker:logs": "docker-compose logs -f",
-    "test:errors": "ts-node tests/10-error-handling.test.ts",
-    "test:watch": "nodemon --watch src --watch tests --ext ts --exec ts-node tests/run-all-tests.ts",
     "example": "ts-node examples/complete-examples.ts",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -98,13 +100,17 @@
     "mongodb": "^6.12.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
     "dotenv": "^16.4.7",
     "eslint": "^9.17.0",
+    "jest": "^30.2.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   }

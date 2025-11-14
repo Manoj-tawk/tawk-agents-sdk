@@ -16,11 +16,13 @@ import { run } from './agent';
  * @param agents - Array of agents to race
  * @param input - Input message or messages
  * @param options - Run options
- * @returns First successful result
+ * @returns First successful result with winningAgent
  * 
  * @example
  * ```typescript
  * const result = await raceAgents([agent1, agent2, agent3], 'Query');
+ * console.log(result.winningAgent.name);
+ * console.log(result.metadata.raceParticipants);
  * ```
  */
 export async function raceAgents<TContext = any, TOutput = string>(
@@ -34,7 +36,15 @@ export async function raceAgents<TContext = any, TOutput = string>(
 
   if (agents.length === 1) {
     const result = await run(agents[0], input, options);
-    return { ...result, winningAgent: agents[0] };
+    return { 
+      ...result, 
+      winningAgent: agents[0],
+      metadata: {
+        ...result.metadata,
+        raceWinners: [agents[0].name],
+        raceParticipants: [agents[0].name],
+      }
+    };
   }
 
   // Execute all agents in parallel
@@ -70,10 +80,9 @@ export async function raceAgents<TContext = any, TOutput = string>(
         winningAgent: agent,
         metadata: {
           ...result!.metadata,
-          // Add race info to metadata (extend existing metadata)
           raceWinners: [agent.name],
           raceParticipants: agents.map(a => a.name),
-        } as any // Type assertion for extended metadata
+        }
       };
     }
   }

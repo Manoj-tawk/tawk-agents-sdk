@@ -32,8 +32,15 @@
     "removeComments": false,
     
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    
+    // Path mapping - allows using @tawk-agents-sdk/core everywhere
+    "baseUrl": ".",
+    "paths": {
+      "@tawk-agents-sdk/core": ["./src/index.ts"],
+      "@tawk-agents-sdk/core/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "examples", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["node_modules", "dist"]
 }

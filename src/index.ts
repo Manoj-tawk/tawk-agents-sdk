@@ -139,6 +139,13 @@ export {
   piiDetectionGuardrail,
   lengthGuardrail,
   contentSafetyGuardrail,
+  topicRelevanceGuardrail,
+  formatValidationGuardrail,
+  customGuardrail,
+  rateLimitGuardrail,
+  languageGuardrail,
+  sentimentGuardrail,
+  toxicityGuardrail,
 } from './guardrails';
 
 export type {
