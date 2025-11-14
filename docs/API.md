@@ -101,6 +101,79 @@ interface StreamResult {
 }
 ```
 
+### `raceAgents(agents, input, options?)`
+
+Execute multiple agents in parallel and return the first successful result. Useful for fallback patterns, redundancy, and performance optimization.
+
+**Parameters:**
+- `agents: Agent[]` - Array of agents to race
+- `input: string | CoreMessage[]` - User input
+- `options?: RunOptions` - Optional configuration
+
+**Returns:** `Promise<RunResult & { winningAgent: Agent }>`
+
+**Example:**
+```typescript
+import { Agent, raceAgents } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
+
+// Create multiple agents with different models
+const gptAgent = new Agent({
+  name: 'GPT Agent',
+  model: openai('gpt-4o-mini'),
+  instructions: 'Answer concisely',
+});
+
+const claudeAgent = new Agent({
+  name: 'Claude Agent',
+  model: anthropic('claude-3-haiku-20240307'),
+  instructions: 'Answer concisely',
+});
+
+// Race them - fastest response wins
+const result = await raceAgents(
+  [gptAgent, claudeAgent],
+  'What is TypeScript?'
+);
+
+console.log('Winner:', result.winningAgent.name);
+console.log('Answer:', result.finalOutput);
+console.log('Participants:', result.metadata.raceParticipants);
+```
+
+**Use Cases:**
+- **Fallback Pattern**: Primary agent with backup agents
+- **Performance**: Use fastest available model
+- **Redundancy**: Increase reliability with multiple providers
+- **Cost Optimization**: Race cheap model vs expensive model
+
+**Result Metadata:**
+```typescript
+interface RaceResult extends RunResult {
+  winningAgent: Agent;           // Agent that completed first
+  metadata: {
+    ...RunResult.metadata,
+    raceWinners: string[];       // Winning agent names
+    raceParticipants: string[];  // All participating agent names
+  }
+}
+```
+
+**Error Handling:**
+If all agents fail, throws an error with details:
+```typescript
+try {
+  const result = await raceAgents([agent1, agent2], 'Query');
+} catch (error) {
+  // Error message includes failure details from all agents
+  console.error(error.message);
+  // "All agents failed in race:
+  //   GPT Agent: Rate limit exceeded
+  //   Claude Agent: Network timeout"
+}
+```
+
 ### `tool(config)`
 
 Define a tool that agents can use.

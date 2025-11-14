@@ -10,6 +10,24 @@ This guide will help you get started with Tawk Agents SDK in minutes.
 
 ## Installation
 
+> **Note:** This package is currently in development. For now, clone the repository and build locally:
+
+```bash
+# Clone and build
+git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
+cd tawk-agents-sdk
+npm install
+npm run build
+
+# Link for local development
+npm link
+
+# In your project
+npm link @tawk-agents-sdk/core
+npm install ai @ai-sdk/openai zod
+```
+
+**When published to npm:**
 ```bash
 npm install @tawk-agents-sdk/core ai @ai-sdk/openai zod
 ```
@@ -160,6 +178,6 @@ If you get import errors, check your `tsconfig.json`:
 ## Need Help?
 
 - 📚 [Full Documentation](../README.md)
-- 💬 [GitHub Issues](https://github.com/tawk/agents-sdk/issues)
+- 💬 [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
 - 📧 support@tawk.to
 

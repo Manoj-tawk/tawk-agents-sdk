@@ -492,7 +492,7 @@ See the complete working examples in:
 ## Support
 
 For questions or issues:
-1. Check [GitHub Issues](https://github.com/tawk/agents-sdk/issues)
+1. Check [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
 2. Read [Core Concepts](./CORE_CONCEPTS.md)
 3. See [API Documentation](./API.md)
 

@@ -71,17 +71,11 @@ npx ts-node tests/05-sessions.test.ts
 # Langfuse tracing
 npx ts-node tests/06-langfuse-tracing.test.ts
 
-# Structured output
-npx ts-node tests/09-structured-output.test.ts
+# Advanced tool calling patterns
+npx ts-node tests/07-advanced-tool-calling.test.ts
 
-# Error handling
-npx ts-node tests/10-error-handling.test.ts
-
-# Complete integration
-npx ts-node tests/11-complete-integration.test.ts
-
-# Complex real-world scenarios
-npx ts-node tests/12-complex-scenarios.test.ts
+# Race agents pattern
+npx ts-node tests/08-race-agents.test.ts
 ```
 
 ## Test Coverage
@@ -94,41 +88,61 @@ npx ts-node tests/12-complex-scenarios.test.ts
 | `02-multi-agent.test.ts` | Multi-Agent | Agent handoffs, specialized agents, coordination |
 | `03-streaming.test.ts` | Streaming | Real-time responses, token streaming |
 | `04-guardrails.test.ts` | Safety | Input validation, PII detection, content safety |
-| `05-sessions.test.ts` | Sessions | Memory management, Redis, MongoDB backends |
+| `05-sessions.test.ts` | Sessions | Memory management, conversation history |
 | `06-langfuse-tracing.test.ts` | Observability | Automatic tracing, spans, generations |
-| `09-structured-output.test.ts` | Parsing | Zod schema validation, typed responses |
-| `10-error-handling.test.ts` | Errors | Graceful degradation, error recovery |
-| `11-complete-integration.test.ts` | Integration | End-to-end workflows |
-| `12-complex-scenarios.test.ts` | Real-World | Shopping cart, permissions, concurrency |
+| `07-advanced-tool-calling.test.ts` | Advanced Tools | Sequential and parallel tool execution patterns |
+| `08-race-agents.test.ts` | Race Pattern | Parallel agent execution, fallback patterns, performance |
 
-### Complex Scenarios (Test 12)
+### Test Scenarios
 
-This test validates real-world production scenarios:
+**Test 01: Basic Agent**
+- Simple agent creation
+- Tool calling
+- Token tracking
+- Context passing
 
-1. **Multi-Agent Shopping Workflow**
-   - Context passing to tools
-   - Cart state management
-   - Agent coordination
+**Test 02: Multi-Agent**
+- Agent handoffs
+- Coordinator patterns
+- Specialized agents
+- Hierarchical tracing
 
-2. **Session-Based Conversations**
-   - Memory persistence
-   - Context continuity
-   - Multiple turns
+**Test 03: Streaming**
+- Real-time text streaming
+- Token-by-token output
+- Stream interruption handling
 
-3. **Permission-Based Security**
-   - User role validation
-   - Action authorization
-   - Guardrails integration
+**Test 04: Guardrails**
+- Content safety validation
+- PII detection
+- Input/output filtering
+- Custom guardrails
 
-4. **Streaming with Error Recovery**
-   - Real-time responses
-   - Graceful failures
-   - Auto-recovery
+**Test 05: Sessions**
+- Memory storage
+- Conversation continuity
+- Multiple turns
+- Session management
 
-5. **Concurrent Operations**
-   - Multiple simultaneous requests
-   - Resource management
-   - Race condition handling
+**Test 06: Langfuse Tracing**
+- Automatic trace creation
+- Span generation
+- Token usage tracking
+- Trace visualization
+
+**Test 07: Advanced Tool Calling**
+- Sequential tool execution
+- Parallel tool calls
+- Tool result dependencies
+- Complex workflows
+
+**Test 08: Race Agents**
+- Multiple agents racing in parallel
+- Fallback patterns with primary/backup
+- Performance optimization
+- Error handling when all agents fail
+- Context passing in races
+- Tool usage in racing agents
 
 ## Expected Results
 
@@ -206,9 +220,11 @@ jobs:
 ### Template
 
 ```typescript
-import { Agent, tool } from '../src';
-import { z } from 'zod';
+import { Agent, run, setDefaultModel } from '@tawk-agents-sdk/core';
 import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+setDefaultModel(openai('gpt-4o-mini'));
 
 async function testNewFeature() {
   console.log('🧪 Testing: New Feature');

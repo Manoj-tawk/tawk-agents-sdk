@@ -4,9 +4,8 @@
  * Demonstrates all features with production-ready patterns
  */
 
-import { Agent, run, runStream, setDefaultModel, tool } from '../src/agent';
-import { SessionManager } from '../src/session';
-import { guardrails } from '../src/guardrails';
+import { Agent, run, runStream, setDefaultModel, tool } from '@tawk-agents-sdk/core';
+import { SessionManager, guardrails } from '@tawk-agents-sdk/core';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';

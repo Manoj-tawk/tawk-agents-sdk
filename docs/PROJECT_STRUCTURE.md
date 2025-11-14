@@ -18,8 +18,15 @@ tawk-agents-sdk/
 │   └── types.ts           # TypeScript types
 │
 ├── tests/                  # Test suite
-│   ├── test-all.ts        # Complete test suite
-│   ├── test-langfuse.ts   # Langfuse-specific tests
+│   ├── run-all-tests.ts   # Test runner
+│   ├── 01-basic-agent.test.ts
+│   ├── 02-multi-agent.test.ts
+│   ├── 03-streaming.test.ts
+│   ├── 04-guardrails.test.ts
+│   ├── 05-sessions.test.ts
+│   ├── 06-langfuse-tracing.test.ts
+│   ├── 07-advanced-tool-calling.test.ts
+│   ├── 08-race-agents.test.ts
 │   └── README.md          # Testing documentation
 │
 ├── examples/              # Example code
@@ -112,27 +119,19 @@ tawk-agents-sdk/
 
 **run-all-tests.ts**
 - Test runner that executes all test suites
-- 19 comprehensive test files covering all features
+- 8 comprehensive test files covering all major features
 
 **Test Files:**
-- `01-basic-agent.test.ts` - Basic agent operations
-- `02-multi-agent.test.ts` - Multi-agent coordination
-- `03-streaming.test.ts` - Streaming responses
-- `04-guardrails.test.ts` - Guardrails validation
-- `05-sessions.test.ts` - Session management
-- `06-langfuse-tracing.test.ts` - Langfuse integration
-- `09-structured-output.test.ts` - Structured output parsing
-- `10-error-handling.test.ts` - Error handling
-- `11-complete-integration.test.ts` - Complete integration scenarios
-- `12-complex-scenarios.test.ts` - Complex use cases
-- `13-multi-turn-multi-model.test.ts` - Multi-turn conversations
-- `14-multi-model-handoff.test.ts` - Multi-model handoffs
-- `16-auto-summarization.test.ts` - Auto-summarization feature
-- `17-session-storage-e2e.test.ts` - End-to-end storage testing
-- `18-performance-benchmark.test.ts` - Performance benchmarks
-- `19-model-speed-comparison.test.ts` - Model speed comparison
+- `01-basic-agent.test.ts` - Basic agent operations, tool calling, token tracking
+- `02-multi-agent.test.ts` - Multi-agent coordination and handoffs
+- `03-streaming.test.ts` - Streaming responses and real-time output
+- `04-guardrails.test.ts` - Guardrails validation and content safety
+- `05-sessions.test.ts` - Session management and memory persistence
+- `06-langfuse-tracing.test.ts` - Langfuse integration and automatic tracing
+- `07-advanced-tool-calling.test.ts` - Sequential and parallel tool execution patterns
+- `08-race-agents.test.ts` - Parallel agent execution, fallback patterns, race conditions
 
-All tests include real API calls and comprehensive coverage.
+All tests include real API calls with OpenAI gpt-4o-mini model.
 
 ### `/examples`
 
@@ -269,12 +268,12 @@ Runs example code
 
 ## File Sizes
 
-Approximate sizes:
+Accurate counts (as of latest):
 
-- Total source code: ~3,500 lines
-- Tests: ~700 lines
-- Documentation: ~15,000 words
-- Examples: ~600 lines
+- Total source code: **6,470 lines** (src/*.ts)
+- Tests: **8 test files** with comprehensive coverage
+- Documentation: **4,301 lines** across 9 markdown files
+- Examples: 1 complete example file
 
 ## Dependencies
 

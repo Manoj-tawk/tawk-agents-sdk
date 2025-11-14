@@ -4,25 +4,44 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/@tawk-agents-sdk/core.svg)](https://nodejs.org)
 
-Production-ready AI agent framework built on Vercel AI SDK with comprehensive multi-agent orchestration, handoffs, guardrails, and observability.
-
-**🏆 Performance Leader**: 10x faster handoffs, 95% cost reduction vs OpenAI Agents SDK
+Production-ready AI agent framework built on Vercel AI SDK with comprehensive multi-agent orchestration, intelligent handoffs, guardrails, and enterprise-grade observability.
 
 ## Features
 
 - 🤖 **Multi-Agent Orchestration**: Coordinate multiple specialized agents with seamless handoffs
-- ⚡ **10x Performance**: Optimized handoffs with 95% cost reduction (vs OpenAI Agents SDK)
+- ⚡ **High Performance**: 10x faster handoffs, 95% cost reduction vs OpenAI Agents SDK
 - 🔧 **Tool Calling**: Native support for function tools with automatic context injection
-- 🛡️ **Guardrails**: Input/output validation and content safety (built-in PII, safety, length)
-- 📊 **Langfuse Tracing**: Built-in observability and performance monitoring
-- 💬 **Session Management**: In-memory, Redis, and MongoDB session storage
+- 🛡️ **Guardrails**: Built-in input/output validation and content safety (PII detection, length limits, content filtering)
+- 📊 **Langfuse Tracing**: Comprehensive observability and performance monitoring
+- 💬 **Session Management**: Multiple storage options (in-memory, Redis, MongoDB)
 - 🔄 **Streaming Support**: Real-time response streaming
-- 🚀 **Multi-Provider**: OpenAI, Anthropic, Google, Groq, Mistral, and any Vercel AI SDK provider
-- 🎯 **TypeScript First**: Full type safety and IntelliSense support
-- 🏗️ **Simple Architecture**: Single-loop design vs complex multi-phase patterns
+- 🚀 **Multi-Provider Support**: OpenAI, Anthropic, Google, Groq, Mistral, and any Vercel AI SDK provider
+- 🎯 **TypeScript First**: Complete type safety and IntelliSense support
+- 🏗️ **Simple Architecture**: Optimized single-loop design
 
 ## Installation
 
+> **Note:** This package is currently in development. For local installation:
+
+```bash
+# Clone the repository
+git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
+cd tawk-agents-sdk
+
+# Install dependencies and build
+npm install
+npm run build
+
+# Link for local use
+npm link
+
+# In your project directory
+cd /path/to/your/project
+npm link @tawk-agents-sdk/core
+npm install ai zod @ai-sdk/openai
+```
+
+**Once published to npm:**
 ```bash
 npm install @tawk-agents-sdk/core ai zod
 ```
@@ -47,7 +66,7 @@ import { Agent, run, setDefaultModel, tool } from '@tawk-agents-sdk/core';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
-// Set default model
+// Configure default model
 setDefaultModel(openai('gpt-4o-mini'));
 
 // Create an agent with tools
@@ -67,19 +86,19 @@ const agent = new Agent({
   }
 });
 
-// Run the agent
+// Execute the agent
 const result = await run(agent, 'What is 15 * 23?');
 console.log(result.finalOutput);
 ```
 
 ## Multi-Agent Workflows
 
-Create specialized agents that can hand off tasks to each other:
+Coordinate specialized agents with intelligent task delegation:
 
 ```typescript
 const mathAgent = new Agent({
   name: 'MathExpert',
-  instructions: 'You are a math expert. Solve mathematical problems.',
+  instructions: 'You are a mathematics expert. Solve mathematical problems accurately.',
   tools: {
     calculate: tool({
       description: 'Calculate mathematical expressions',
@@ -93,10 +112,10 @@ const mathAgent = new Agent({
 
 const writerAgent = new Agent({
   name: 'WriterExpert',
-  instructions: 'You are a professional writer.',
+  instructions: 'You are a professional content writer.',
   tools: {
     writeContent: tool({
-      description: 'Write professional content',
+      description: 'Create professional content',
       parameters: z.object({
         topic: z.string()
       }),
@@ -108,25 +127,25 @@ const writerAgent = new Agent({
 const coordinator = new Agent({
   name: 'Coordinator',
   instructions: `You coordinate tasks between specialized agents.
-  - For math problems, use handoff_to_mathexpert
-  - For writing tasks, use handoff_to_writerexpert`,
+  - For mathematics problems, delegate to MathExpert
+  - For writing tasks, delegate to WriterExpert`,
   handoffs: [mathAgent, writerAgent]
 });
 
-// Coordinator automatically routes to appropriate agent
+// Coordinator automatically routes to the appropriate agent
 const result = await run(coordinator, 'Calculate 123 * 456');
 ```
 
 ## Session Management
 
-Maintain conversation history across multiple turns:
+Maintain conversation history across multiple interactions:
 
 ```typescript
 import { Agent, run, SessionManager } from '@tawk-agents-sdk/core';
 
 const agent = new Agent({
   name: 'Assistant',
-  instructions: 'You are a helpful assistant with memory.'
+  instructions: 'You are a helpful assistant with conversation memory.'
 });
 
 const sessionManager = new SessionManager({ type: 'memory' });
@@ -135,14 +154,14 @@ const session = await sessionManager.getOrCreate('user-123');
 // First message
 await run(agent, 'My name is Alice', { session });
 
-// Second message - agent remembers context
+// Second message - context is maintained
 const result = await run(agent, 'What is my name?', { session });
 console.log(result.finalOutput); // "Your name is Alice"
 ```
 
 ## Guardrails
 
-Add input/output validation and content safety:
+Implement input/output validation and content safety:
 
 ```typescript
 import { Agent, run, guardrails } from '@tawk-agents-sdk/core';
@@ -163,7 +182,7 @@ const agent = new Agent({
 Enable comprehensive observability:
 
 ```bash
-# Set environment variables
+# Configure environment variables
 export LANGFUSE_PUBLIC_KEY=your_public_key
 export LANGFUSE_SECRET_KEY=your_secret_key
 export LANGFUSE_BASE_URL=https://cloud.langfuse.com
@@ -180,7 +199,7 @@ await withTrace(
   }
 );
 
-// View traces at https://cloud.langfuse.com
+// View detailed traces at https://cloud.langfuse.com
 ```
 
 ## Streaming
@@ -209,14 +228,14 @@ console.log('\nTokens used:', completed.metadata.totalTokens);
 
 ### Tool Context Injection
 
-Tools automatically receive run context:
+Tools automatically receive execution context:
 
 ```typescript
 const agent = new Agent({
   name: 'Assistant',
   tools: {
     getUserData: tool({
-      description: 'Get user data',
+      description: 'Retrieve user data',
       parameters: z.object({
         userId: z.string()
       }),
@@ -244,32 +263,6 @@ const agent = new Agent({
 });
 ```
 
-### Handoff Descriptions
-
-Help the LLM understand when to handoff to specific agents:
-
-```typescript
-const mathAgent = new Agent({
-  name: 'MathExpert',
-  handoffDescription: 'Expert in solving mathematical problems, calculations, and equations',
-  instructions: 'You are a math expert. Solve problems accurately.',
-  tools: { /* ... */ }
-});
-
-const writerAgent = new Agent({
-  name: 'Writer',
-  handoffDescription: 'Professional writer for creating content, articles, and documentation',
-  instructions: 'You are a professional writer.',
-  tools: { /* ... */ }
-});
-
-const coordinator = new Agent({
-  name: 'Coordinator',
-  instructions: 'Route tasks to the appropriate specialist.',
-  handoffs: [mathAgent, writerAgent]  // Handoff descriptions help LLM choose correctly
-});
-```
-
 ### Structured Output
 
 Parse agent output with Zod schemas:
@@ -286,45 +279,11 @@ const analysisSchema = z.object({
 const agent = new Agent({
   name: 'Analyzer',
   instructions: 'Analyze text and return structured JSON matching the schema.',
-  outputSchema: analysisSchema  // or use outputType (alias)
+  outputSchema: analysisSchema
 });
 
 const result = await run(agent, 'I love this product!');
-// result.finalOutput is type-safe and validated:
-// { sentiment: 'positive', confidence: 0.95, topics: ['product', 'satisfaction'] }
-```
-
-### MCP (Model Context Protocol)
-
-Integrate with MCP servers:
-
-```typescript
-import { registerMCPServer, getMCPTools } from '@tawk-agents-sdk/core';
-
-await registerMCPServer({
-  name: 'filesystem',
-  command: 'npx',
-  args: ['-y', '@modelcontextprotocol/server-filesystem', '/path/to/files']
-});
-
-const mcpTools = await getMCPTools('filesystem');
-```
-
-### Human-in-the-Loop
-
-Require approval for sensitive operations:
-
-```typescript
-import { Agent, run, getGlobalApprovalManager, createCLIApprovalHandler } from '@tawk-agents-sdk/core';
-
-const approvalManager = getGlobalApprovalManager();
-approvalManager.setHandler(createCLIApprovalHandler());
-
-// Require approval for specific tools
-approvalManager.requireApprovalForTool('deleteDatabase');
-
-const result = await run(agent, 'Delete the test database');
-// Prompts user for approval before executing
+// result.finalOutput is type-safe and validated
 ```
 
 ### Race Agents
@@ -336,13 +295,13 @@ import { Agent, raceAgents } from '@tawk-agents-sdk/core';
 
 const fastAgent = new Agent({
   name: 'Fast',
-  instructions: 'Answer quickly.',
+  instructions: 'Provide quick answers.',
   model: openai('gpt-3.5-turbo')
 });
 
 const smartAgent = new Agent({
   name: 'Smart',
-  instructions: 'Answer thoroughly.',
+  instructions: 'Provide comprehensive answers.',
   model: openai('gpt-4')
 });
 
@@ -351,42 +310,9 @@ const result = await raceAgents([fastAgent, smartAgent], 'What is AI?');
 console.log('Winner:', result.winningAgent.name);
 ```
 
-### Step Callbacks
-
-Monitor and react to each step of agent execution:
-
-```typescript
-const agent = new Agent({
-  name: 'Assistant',
-  instructions: 'You are a helpful assistant.',
-  tools: { /* ... */ },
-  onStepFinish: async (step) => {
-    console.log(`Step ${step.stepNumber}: ${step.toolCalls.length} tool calls`);
-    console.log('Finish reason:', step.finishReason);
-  }
-});
-```
-
-### Custom Finish Conditions
-
-Control when the agent should stop:
-
-```typescript
-const agent = new Agent({
-  name: 'DataCollector',
-  instructions: 'Collect data until you have 5 items.',
-  tools: { fetchData: /* ... */ },
-  shouldFinish: (context, toolResults) => {
-    // Stop when we've collected enough data
-    const items = toolResults.flatMap(r => r.items || []);
-    return items.length >= 5;
-  }
-});
-```
-
 ## Performance
 
-The SDK is heavily optimized for production use with **documented performance improvements**:
+The SDK is optimized for production deployments with documented performance improvements:
 
 ### Benchmark Results (vs OpenAI Agents SDK)
 
@@ -400,8 +326,8 @@ The SDK is heavily optimized for production use with **documented performance im
 ### Optimization Features
 
 - **Tool Wrapping Cache**: 10x faster repeated tool calls
-- **Single-Step Handoffs**: Coordinator agents optimized automatically (1 step instead of 10+)
-- **Map-based Lookups**: O(1) tool result matching instead of O(n²)
+- **Single-Step Handoffs**: Coordinator agents optimized automatically
+- **Map-based Lookups**: O(1) tool result matching
 - **Efficient Message Handling**: Optimized array operations
 - **Minimal Overhead**: Production-grade performance throughout
 
@@ -411,7 +337,7 @@ The SDK is heavily optimized for production use with **documented performance im
 
 #### `Agent`
 
-Main agent class for creating AI agents.
+Creates an AI agent with specific capabilities.
 
 ```typescript
 new Agent({
@@ -420,10 +346,10 @@ new Agent({
   model?: LanguageModel;
   tools?: Record<string, CoreTool>;
   handoffs?: Agent[];
-  handoffDescription?: string;  // Description for when to handoff to this agent
+  handoffDescription?: string;
   guardrails?: Guardrail[];
-  outputSchema?: z.ZodSchema<TOutput>;  // Parse output with Zod schema
-  outputType?: z.ZodSchema<TOutput>;    // Alias for outputSchema
+  outputSchema?: z.ZodSchema<TOutput>;
+  outputType?: z.ZodSchema<TOutput>;
   maxSteps?: number;
   modelSettings?: {
     temperature?: number;
@@ -443,17 +369,17 @@ Execute an agent and return the result.
 
 ```typescript
 const result = await run(agent, 'Hello', {
-  context?: TContext;           // Custom context data
-  session?: Session;            // Session for conversation history
-  maxTurns?: number;            // Maximum number of agent turns (default: 50)
-  stream?: boolean;             // Enable streaming (use runStream instead)
-  sessionInputCallback?: (history, newInput) => CoreMessage[];  // Transform session history
+  context?: TContext;
+  session?: Session;
+  maxTurns?: number;
+  stream?: boolean;
+  sessionInputCallback?: (history, newInput) => CoreMessage[];
 });
 ```
 
 #### `runStream(agent, input, options?)`
 
-Execute an agent with streaming.
+Execute an agent with streaming enabled.
 
 ```typescript
 const stream = await runStream(agent, 'Hello');
@@ -474,6 +400,15 @@ LANGFUSE_BASE_URL=https://cloud.langfuse.com
 NODE_ENV=development
 ```
 
+## Documentation
+
+- [Getting Started Guide](./docs/GETTING_STARTED.md)
+- [Core Concepts](./docs/CORE_CONCEPTS.md)
+- [API Reference](./docs/API.md)
+- [Testing Guide](./docs/TESTING.md)
+- [Langfuse Integration](./docs/LANGFUSE.md)
+- [Performance Optimization](./docs/PERFORMANCE_OPTIMIZATION.md)
+
 ## Examples
 
 See the [examples](./examples) directory for complete working examples:
@@ -482,27 +417,30 @@ See the [examples](./examples) directory for complete working examples:
 - Multi-agent workflows
 - Session management
 - Streaming responses
-- Guardrails
+- Guardrails implementation
 - MCP integration
-- Human-in-the-loop
+- Human-in-the-loop approvals
 
 ## Testing
 
 ```bash
-# Run all tests
+# Run all unit tests
 npm test
 
 # Run specific test suites
 npm run test:basic
 npm run test:multi
 npm run test:stream
-npm run test:sessions
-npm run test:langfuse
+
+# Run E2E tests
+npm run e2e:basic
+npm run e2e:multi
+npm run e2e:stream
 ```
 
-## Why Choose Tawk Agents SDK?
+## Why Tawk Agents SDK?
 
-### vs OpenAI Agents SDK
+### Comparison with OpenAI Agents SDK
 
 | Feature | OpenAI Agents | Tawk Agents | Winner |
 |---------|--------------|-------------|--------|
@@ -511,13 +449,9 @@ npm run test:langfuse
 | **Multi-Provider** | OpenAI only | OpenAI, Anthropic, Google, Groq, etc. | 🏆 Tawk |
 | **Architecture** | Complex (4+ files) | Simple (single-loop) | 🏆 Tawk |
 | **Storage** | Memory only | Memory, Redis, MongoDB | 🏆 Tawk |
-| **Guardrails** | Manual | Built-in (PII, safety, length) | 🏆 Tawk |
-| **Observability** | Custom | Langfuse (industry standard) | 🏆 Tawk |
-| **Learning Curve** | Steep (6 hours) | Gentle (30 minutes) | 🏆 Tawk |
-
-**Tawk wins 8/8 categories for most use cases**
-
-For detailed comparison, see [COMPARISON.md](./COMPARISON_OPENAI_VS_TAWK.md)
+| **Guardrails** | Manual implementation | Built-in (PII, safety, length) | 🏆 Tawk |
+| **Observability** | Custom required | Langfuse (industry standard) | 🏆 Tawk |
+| **Learning Curve** | Steep | Gentle | 🏆 Tawk |
 
 ## Contributing
 
@@ -530,8 +464,8 @@ MIT © [Tawk.to](https://www.tawk.to)
 ## Support
 
 - 📧 Email: support@tawk.to
-- 🐛 Issues: [GitHub Issues](https://github.com/atawk/agents-sdk/issues)
-- 📖 Documentation: [Full Docs](https://github.com/atawk/agents-sdk#readme)
+- 🐛 Issues: [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
+- 📖 Documentation: [Full Documentation](./docs)
 
 ## Acknowledgments
 
