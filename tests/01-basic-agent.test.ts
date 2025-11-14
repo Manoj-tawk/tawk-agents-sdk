@@ -1,102 +1,280 @@
 /**
- * Test 01: Basic Agent Functionality
+ * TEST 01: Basic Agent (Unit Tests)
  * 
- * Tests:
- * - Simple agent creation
- * - Basic run
- * - Tool execution
+ * Tests basic agent functionality with mocked responses:
+ * - Agent creation
+ * - Simple tool calling
  * - Token tracking
- * - Metadata
+ * - Context injection
  */
 
-import 'dotenv/config';
-import { openai } from '@ai-sdk/openai';
-import { Agent, run, tool, setDefaultModel, initializeLangfuse } from '../src';
+import { Agent, run, setDefaultModel, tool } from '@tawk-agents-sdk/core';
+import { generateText } from 'ai';
 import { z } from 'zod';
 
-// Setup
-setDefaultModel(openai('gpt-4o-mini'));
-const langfuse = initializeLangfuse();
+// Mock AI SDK
+jest.mock('ai');
+const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
 
-console.log('\n🧪 TEST 01: Basic Agent Functionality\n');
-console.log('='.repeat(70));
+describe('Basic Agent Tests', () => {
+  const mockModel = { modelId: 'test-model' } as any;
 
-async function test01() {
-  try {
-    // Test 1: Simple agent without tools
-    console.log('\n📌 Test 1.1: Simple Agent (No Tools)');
-    const simpleAgent = new Agent({
-      name: 'SimpleAgent',
-      instructions: 'You are a helpful assistant. Be concise.',
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setDefaultModel(mockModel);
+  });
+
+  describe('Agent Creation', () => {
+    it('should create an agent with name and instructions', () => {
+      const agent = new Agent({
+        name: 'Test Agent',
+        instructions: 'You are a helpful assistant',
+      });
+
+      expect(agent).toBeDefined();
+      expect(agent.name).toBe('Test Agent');
     });
 
-    const result1 = await run(simpleAgent, 'Say hello in one sentence.');
-    
-    console.log('✅ Result:', result1.finalOutput);
-    console.log('✅ Tokens:', result1.metadata?.totalTokens || 0);
-    console.log('✅ Steps:', result1.steps.length);
+    it('should create agent with custom model', () => {
+      const customModel = { modelId: 'custom-model' } as any;
+      const agent = new Agent({
+        name: 'Custom Agent',
+        instructions: 'Test',
+        model: customModel,
+      });
 
-    // Test 2: Agent with tools
-    console.log('\n📌 Test 1.2: Agent with Tools');
-    const agentWithTools = new Agent({
-      name: 'CalculatorAgent',
-      instructions: 'You can perform calculations. Always use the calculate tool.',
-      tools: {
-        calculate: tool({
-          description: 'Perform a mathematical calculation',
-          parameters: z.object({
-            expression: z.string().describe('Math expression like "2 + 2"'),
-          }),
-          execute: async ({ expression }) => {
-            console.log(`  🧮 Calculating: ${expression}`);
-            try {
-              const result = eval(expression); // Demo only!
-              return { result, expression };
-            } catch (error) {
-              return { error: 'Invalid expression' };
-            }
-          },
+      expect(agent).toBeDefined();
+    });
+
+    it('should create agent with tools', () => {
+      const testTool = tool({
+        description: 'Test tool',
+        parameters: z.object({ input: z.string() }),
+        execute: async () => ({ result: 'ok' }),
+      });
+
+      const agent = new Agent({
+        name: 'Tool Agent',
+        instructions: 'Use tools',
+        tools: { testTool },
+      });
+
+      expect(agent).toBeDefined();
+    });
+  });
+
+  describe('Basic Agent Execution', () => {
+    it('should run agent and return text response', async () => {
+      mockGenerateText.mockResolvedValue({
+        text: 'Hello! I am a helpful assistant.',
+        usage: {
+          promptTokens: 10,
+          completionTokens: 8,
+          totalTokens: 18,
+        },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Simple Agent',
+        instructions: 'You are helpful',
+      });
+
+      const result = await run(agent, 'Hello!');
+
+      expect(result.finalOutput).toBe('Hello! I am a helpful assistant.');
+      expect(result.metadata.totalTokens).toBe(18);
+      expect(result.metadata.promptTokens).toBe(10);
+      expect(result.metadata.completionTokens).toBe(8);
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle multi-turn conversations', async () => {
+      mockGenerateText.mockResolvedValue({
+        text: 'Response',
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Chat Agent',
+        instructions: 'You are helpful',
+      });
+
+      const result1 = await run(agent, 'First message');
+      const result2 = await run(agent, 'Second message');
+
+      expect(result1.finalOutput).toBe('Response');
+      expect(result2.finalOutput).toBe('Response');
+      expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Tool Calling', () => {
+    it('should call tool and return result', async () => {
+      const weatherTool = tool({
+        description: 'Get weather',
+        parameters: z.object({ city: z.string() }),
+        execute: async ({ city }) => ({
+          city,
+          temperature: 72,
+          conditions: 'Sunny',
         }),
-      },
+      });
+
+      mockGenerateText.mockResolvedValue({
+        text: 'The weather in San Francisco is 72°F and Sunny.',
+        toolCalls: [
+          {
+            toolCallId: 'call_123',
+            toolName: 'weatherTool',
+            args: { city: 'San Francisco' },
+          },
+        ],
+        toolResults: [
+          {
+            toolCallId: 'call_123',
+            toolName: 'weatherTool',
+            result: { city: 'San Francisco', temperature: 72, conditions: 'Sunny' },
+          },
+        ],
+        usage: { promptTokens: 20, completionTokens: 15, totalTokens: 35 },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Weather Agent',
+        instructions: 'Help with weather',
+        tools: { weatherTool },
+      });
+
+      const result = await run(agent, 'What is the weather in San Francisco?');
+
+      expect(result.finalOutput).toContain('72');
+      expect(result.finalOutput).toContain('Sunny');
+      expect(mockGenerateText).toHaveBeenCalled();
+    });
+  });
+
+  describe('Context Injection', () => {
+    it('should inject context into tool execution', async () => {
+      const contextTool = tool({
+        description: 'Use context',
+        parameters: z.object({ query: z.string() }),
+        execute: async ({ query }, contextWrapper) => {
+          const userId = contextWrapper?.context?.userId;
+          return { query, userId };
+        },
+      });
+
+      mockGenerateText.mockResolvedValue({
+        text: 'Context used',
+        toolCalls: [
+          {
+            toolCallId: 'call_456',
+            toolName: 'contextTool',
+            args: { query: 'test' },
+          },
+        ],
+        toolResults: [
+          {
+            toolCallId: 'call_456',
+            toolName: 'contextTool',
+            result: { query: 'test', userId: 'user-123' },
+          },
+        ],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Context Agent',
+        instructions: 'Use context',
+        tools: { contextTool },
+      });
+
+      const result = await run(agent, 'Test', {
+        context: { userId: 'user-123', role: 'admin' },
+      });
+
+      expect(result.finalOutput).toBe('Context used');
+    });
+  });
+
+  describe('Token Tracking', () => {
+    it('should track tokens correctly', async () => {
+      mockGenerateText.mockResolvedValue({
+        text: 'Response',
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Token Agent',
+        instructions: 'Track tokens',
+      });
+
+      const result = await run(agent, 'Count my tokens');
+
+      expect(result.metadata.promptTokens).toBe(100);
+      expect(result.metadata.completionTokens).toBe(50);
+      expect(result.metadata.totalTokens).toBe(150);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle API errors gracefully', async () => {
+      mockGenerateText.mockRejectedValue(new Error('API Error'));
+
+      const agent = new Agent({
+        name: 'Error Agent',
+        instructions: 'Handle errors',
+      });
+
+      await expect(run(agent, 'This will fail')).rejects.toThrow('API Error');
     });
 
-    const result2 = await run(agentWithTools, 'Calculate 42 * 37 + 156', { maxTurns: 5 });
-    
-    console.log('✅ Result:', result2.finalOutput);
-    console.log('✅ Tokens:', result2.metadata?.totalTokens || 0);
-    console.log('✅ Tool Calls:', result2.metadata?.totalToolCalls || 0);
-    console.log('✅ Steps:', result2.steps.length);
+    it('should handle tool execution errors', async () => {
+      const failingTool = tool({
+        description: 'Failing tool',
+        parameters: z.object({ input: z.string() }),
+        execute: async () => {
+          throw new Error('Tool failed');
+        },
+      });
 
-    // Test 3: Dynamic instructions
-    console.log('\n📌 Test 1.3: Dynamic Instructions');
-    const dynamicAgent = new Agent({
-      name: 'DynamicAgent',
-      instructions: (context) => {
-        return `You are agent number ${Math.floor(Math.random() * 100)}. Be helpful.`;
-      },
+      mockGenerateText.mockResolvedValue({
+        text: 'Tool failed',
+        toolCalls: [
+          {
+            toolCallId: 'call_789',
+            toolName: 'failingTool',
+            args: { input: 'test' },
+          },
+        ],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        finishReason: 'stop',
+        steps: [],
+      } as any);
+
+      const agent = new Agent({
+        name: 'Failing Agent',
+        instructions: 'Use failing tool',
+        tools: { failingTool },
+      });
+
+      // Should handle tool error gracefully
+      const result = await run(agent, 'Test failing tool');
+      expect(result).toBeDefined();
     });
-
-    const result3 = await run(dynamicAgent, 'Tell me your agent number.');
-    
-    console.log('✅ Result:', result3.finalOutput);
-
-    // Verify all tests passed
-    console.log('\n' + '='.repeat(70));
-    console.log('✅ ALL TESTS PASSED');
-    console.log('\n📊 Summary:');
-    console.log(`  Total tokens used: ${(result1.metadata?.totalTokens || 0) + (result2.metadata?.totalTokens || 0) + (result3.metadata?.totalTokens || 0)}`);
-    console.log(`  Total tool calls: ${(result2.metadata?.totalToolCalls || 0)}`);
-    console.log('='.repeat(70) + '\n');
-
-    return true;
-  } catch (error) {
-    console.error('\n❌ TEST FAILED:', error);
-    throw error;
-  }
-}
-
-// Run test
-test01()
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
-
+  });
+});

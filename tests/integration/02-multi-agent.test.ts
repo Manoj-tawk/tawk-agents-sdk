@@ -19,7 +19,7 @@ import {
   initializeLangfuse, 
   flushLangfuse,
   withTrace 
-} from '../src';
+} from '@tawk-agents-sdk/core';
 import { z } from 'zod';
 
 // Setup

@@ -6,8 +6,7 @@
  * - Parallel: Agent calls multiple tools simultaneously
  */
 
-import { Agent, run, setDefaultModel } from '../src/index';
-import { tool } from 'ai';
+import { Agent, run, setDefaultModel, tool } from '@tawk-agents-sdk/core';
 import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 

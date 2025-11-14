@@ -11,7 +11,7 @@
 
 import 'dotenv/config';
 import { openai } from '@ai-sdk/openai';
-import { Agent, run, setDefaultModel, piiDetectionGuardrail, lengthGuardrail } from '../src';
+import { Agent, run, setDefaultModel, piiDetectionGuardrail, lengthGuardrail } from '@tawk-agents-sdk/core';
 
 // Setup
 setDefaultModel(openai('gpt-4o-mini'));

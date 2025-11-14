@@ -20,7 +20,7 @@ import {
   initializeLangfuse, 
   flushLangfuse,
   isLangfuseEnabled 
-} from '../src';
+} from '@tawk-agents-sdk/core';
 import { z } from 'zod';
 
 // Setup

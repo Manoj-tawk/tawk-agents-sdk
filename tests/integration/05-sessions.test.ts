@@ -10,7 +10,7 @@
 
 import 'dotenv/config';
 import { openai } from '@ai-sdk/openai';
-import { Agent, run, setDefaultModel, SessionManager } from '../src';
+import { Agent, run, setDefaultModel, SessionManager } from '@tawk-agents-sdk/core';
 
 // Setup
 setDefaultModel(openai('gpt-4o-mini'));

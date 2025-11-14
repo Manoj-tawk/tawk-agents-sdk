@@ -10,7 +10,7 @@
 
 import 'dotenv/config';
 import { openai } from '@ai-sdk/openai';
-import { Agent, runStream, tool, setDefaultModel, initializeLangfuse } from '../src';
+import { Agent, runStream, tool, setDefaultModel, initializeLangfuse } from '@tawk-agents-sdk/core';
 import { z } from 'zod';
 
 // Setup
