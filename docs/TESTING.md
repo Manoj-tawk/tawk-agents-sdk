@@ -78,6 +78,43 @@ npx ts-node tests/07-advanced-tool-calling.test.ts
 npx ts-node tests/08-race-agents.test.ts
 ```
 
+## Performance Testing
+
+### Latency Testing
+
+Comprehensive performance benchmarking to measure SDK latency from basic to complex multi-agent scenarios.
+
+```bash
+# Run full latency test suite
+npm run test:latency
+
+# View results report
+npm run perf:report
+```
+
+**What It Tests:**
+- Basic single agent (simple prompts)
+- Agent with tool calling
+- Multi-turn conversations
+- Multi-agent handoffs
+- Race agents (parallel execution)
+- Complex multi-agent workflows
+- Streaming vs non-streaming comparison
+- Guardrails overhead
+
+**Output:**
+- Console report with detailed metrics
+- `latency-results.json` - Raw performance data
+- `latency-report.md` - Markdown report with visualizations
+
+**Typical Results:**
+- Basic operations: 500-1500ms
+- Tool calling: 1000-2500ms
+- Multi-agent: 2000-4000ms
+- Race agents: 800-2000ms (fastest wins)
+
+See [Performance Testing Guide](../tests/performance/README.md) for detailed information.
+
 ## Test Coverage
 
 ### Core Features

@@ -4,8 +4,7 @@
  * Allows agents to request approval before executing sensitive tools
  */
 
-import type { ApprovalConfig, ApprovalResponse, PendingApproval, ApprovalRequiredError as ApprovalRequiredErrorType } from './types';
-import { ApprovalRequiredError } from './types';
+import type { ApprovalConfig, ApprovalResponse, PendingApproval } from './types';
 import { randomBytes } from 'crypto';
 
 // ============================================
@@ -56,7 +55,7 @@ export class ApprovalManager {
       this.approvalResponses.set(approvalToken, response);
 
       return response;
-    } catch (error) {
+    } catch {
       pending.status = 'timeout';
       throw new Error(`Approval timeout for tool: ${toolName}`);
     }
@@ -195,7 +194,7 @@ export function createWebhookApprovalHandler(
  * Create an approval handler that always approves (for testing)
  */
 export function createAutoApproveHandler(): ApprovalConfig['requestApproval'] {
-  return async (toolName: string, args: any): Promise<ApprovalResponse> => {
+  return async (toolName: string, _args: any): Promise<ApprovalResponse> => {
     console.log(`✅ Auto-approved: ${toolName}`);
     return { approved: true };
   };
@@ -205,7 +204,7 @@ export function createAutoApproveHandler(): ApprovalConfig['requestApproval'] {
  * Create an approval handler that always rejects (for testing)
  */
 export function createAutoRejectHandler(): ApprovalConfig['requestApproval'] {
-  return async (toolName: string, args: any): Promise<ApprovalResponse> => {
+  return async (toolName: string, _args: any): Promise<ApprovalResponse> => {
     console.log(`❌ Auto-rejected: ${toolName}`);
     return { approved: false, reason: 'Auto-rejected for testing' };
   };

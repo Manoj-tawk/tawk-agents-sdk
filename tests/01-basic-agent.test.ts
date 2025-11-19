@@ -68,8 +68,8 @@ describe('Basic Agent Tests', () => {
       mockGenerateText.mockResolvedValue({
         text: 'Hello! I am a helpful assistant.',
         usage: {
-          promptTokens: 10,
-          completionTokens: 8,
+          inputTokens: 10,
+          outputTokens: 8,
           totalTokens: 18,
         },
         finishReason: 'stop',
@@ -93,7 +93,7 @@ describe('Basic Agent Tests', () => {
     it('should handle multi-turn conversations', async () => {
       mockGenerateText.mockResolvedValue({
         text: 'Response',
-        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
         finishReason: 'stop',
         steps: [],
       } as any);
@@ -140,7 +140,7 @@ describe('Basic Agent Tests', () => {
             result: { city: 'San Francisco', temperature: 72, conditions: 'Sunny' },
           },
         ],
-        usage: { promptTokens: 20, completionTokens: 15, totalTokens: 35 },
+        usage: { inputTokens: 20, outputTokens: 15, totalTokens: 35 },
         finishReason: 'stop',
         steps: [],
       } as any);
@@ -186,7 +186,7 @@ describe('Basic Agent Tests', () => {
             result: { query: 'test', userId: 'user-123' },
           },
         ],
-        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
         finishReason: 'stop',
         steps: [],
       } as any);
@@ -210,8 +210,8 @@ describe('Basic Agent Tests', () => {
       mockGenerateText.mockResolvedValue({
         text: 'Response',
         usage: {
-          promptTokens: 100,
-          completionTokens: 50,
+          inputTokens: 100,
+          outputTokens: 50,
           totalTokens: 150,
         },
         finishReason: 'stop',
@@ -261,7 +261,7 @@ describe('Basic Agent Tests', () => {
             args: { input: 'test' },
           },
         ],
-        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
         finishReason: 'stop',
         steps: [],
       } as any);

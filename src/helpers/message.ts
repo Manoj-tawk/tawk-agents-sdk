@@ -45,7 +45,7 @@ export function system(content: string): CoreMessage {
 export function toolMessage(content: string): CoreMessage {
   return {
     role: 'tool',
-    content: [{ type: 'tool-result' as any, toolCallId: '', toolName: '', result: content }],
+    content: [{ type: 'tool-result', toolCallId: '', toolName: '', result: content } as any],
   };
 }
 

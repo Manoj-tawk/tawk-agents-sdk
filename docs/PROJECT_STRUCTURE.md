@@ -18,16 +18,32 @@ tawk-agents-sdk/
 │   └── types.ts           # TypeScript types
 │
 ├── tests/                  # Test suite
-│   ├── run-all-tests.ts   # Test runner
-│   ├── 01-basic-agent.test.ts
-│   ├── 02-multi-agent.test.ts
-│   ├── 03-streaming.test.ts
-│   ├── 04-guardrails.test.ts
-│   ├── 05-sessions.test.ts
-│   ├── 06-langfuse-tracing.test.ts
-│   ├── 07-advanced-tool-calling.test.ts
-│   ├── 08-race-agents.test.ts
-│   └── README.md          # Testing documentation
+│   ├── setup.ts           # Jest global setup
+│   ├── helpers.ts         # Test helper functions
+│   ├── 01-basic-agent.test.ts  # Unit tests (Jest)
+│   ├── README.md          # Testing documentation
+│   │
+│   ├── e2e/              # End-to-end tests (real API calls)
+│   │   ├── 01-basic-e2e.test.ts
+│   │   ├── 02-multi-agent-e2e.test.ts
+│   │   ├── 03-streaming-sessions-e2e.test.ts
+│   │   └── README.md
+│   │
+│   ├── integration/      # Integration tests (comprehensive)
+│   │   ├── run-all-tests.ts
+│   │   ├── 02-multi-agent.test.ts
+│   │   ├── 03-streaming.test.ts
+│   │   ├── 04-guardrails.test.ts
+│   │   ├── 05-sessions.test.ts
+│   │   ├── 06-langfuse-tracing.test.ts
+│   │   ├── 07-advanced-tool-calling.test.ts
+│   │   ├── 08-race-agents.test.ts
+│   │   └── README.md
+│   │
+│   └── performance/      # Performance benchmarks
+│       ├── latency-test.ts
+│       ├── visualize-results.ts
+│       └── README.md
 │
 ├── examples/              # Example code
 │   └── complete-examples.ts

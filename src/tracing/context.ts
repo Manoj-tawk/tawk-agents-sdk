@@ -51,7 +51,7 @@ export async function withTrace<T>(
   name: string,
   fn: (trace: any) => Promise<T>,
   options: {
-    input?: any; // NEW: Accept input for trace
+    input?: any; // Input data for trace context
     metadata?: Record<string, any>;
     tags?: string[];
     sessionId?: string;
@@ -71,7 +71,7 @@ export async function withTrace<T>(
   // Create new trace with input
   const trace = createTrace({
     name,
-    input: options.input, // NEW: Forward input to trace
+    input: options.input, // Forward input to trace
     metadata: options.metadata,
     tags: options.tags,
     sessionId: options.sessionId,
@@ -109,7 +109,7 @@ export async function withTrace<T>(
     
     return result;
   } finally {
-    // CRITICAL: Always update trace with output when function completes
+    // Update trace with output when function completes
     if (trace && output !== null) {
       try {
         trace.update({

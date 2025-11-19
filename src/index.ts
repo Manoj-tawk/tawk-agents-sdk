@@ -30,7 +30,7 @@ export {
   setDefaultModel,
 } from './agent';
 
-// NEW: Race agents pattern
+// Race agents pattern for parallel execution
 export { raceAgents } from './race-agents';
 
 // Usage tracking
@@ -81,6 +81,17 @@ export type { SafeExecuteResult } from './utils/safe-execute';
 
 // Message helpers
 export { user, assistant, system, toolMessage, getLastTextContent, filterMessagesByRole, extractAllText } from './helpers/message';
+
+// TOON format helpers (for efficient LLM token usage)
+export { 
+  encodeTOON, 
+  decodeTOON, 
+  formatToolResultTOON, 
+  formatToolResultsBatch,
+  isTOONFormat,
+  smartDecode,
+  calculateTokenSavings
+} from './helpers/toon';
 
 // Type utilities
 export type {

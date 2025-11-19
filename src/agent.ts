@@ -21,9 +21,16 @@
  */
 
 import { generateText, streamText, type CoreMessage, type LanguageModel } from 'ai';
-import type { CoreTool } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
+
+// Type alias for tool definitions (v5 compatibility)
+type ToolDefinition = {
+  description?: string;
+  parameters?: z.ZodSchema<any>;
+  execute: (args: any, context?: any) => Promise<any> | any;
+};
+type CoreTool = ToolDefinition;
 import {
   createTrace,
   formatMessagesForLangfuse,
@@ -47,7 +54,7 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   model?: LanguageModel;
   tools?: Record<string, CoreTool>;
   handoffs?: Agent<TContext, any>[];
-  handoffDescription?: string;  // NEW: Description for LLM to know when to handoff to this agent
+  handoffDescription?: string;  // Description for when to delegate to this agent
   guardrails?: Guardrail<TContext>[];
   outputSchema?: z.ZodSchema<TOutput>;
   outputType?: z.ZodSchema<TOutput>;  // Alias for outputSchema
@@ -81,15 +88,15 @@ export interface RunResult<TOutput = string> {
     promptTokens?: number;
     completionTokens?: number;
     finishReason?: string;
-    totalToolCalls?: number;  // NEW: Total tool calls in entire run
-    handoffChain?: string[];  // NEW: Chain of agents involved
-    agentMetrics?: AgentMetric[];  // NEW: Per-agent metrics
-    raceParticipants?: string[];  // NEW: For raceAgents - all participating agents
-    raceWinners?: string[];       // NEW: For raceAgents - winning agent(s)
+    totalToolCalls?: number;  // Total tool calls across all steps
+    handoffChain?: string[];  // Chain of agents involved in execution
+    agentMetrics?: AgentMetric[];  // Per-agent performance metrics
+    raceParticipants?: string[];  // All agents in race execution
+    raceWinners?: string[];       // Winning agent(s) from race
   };
 }
 
-// NEW: Per-agent metrics for tracing
+// Per-agent metrics for tracing
 export interface AgentMetric {
   agentName: string;
   turns: number;
@@ -156,7 +163,7 @@ export interface RunContextWrapper<TContext> {
 // SESSION INTERFACE
 // ============================================
 
-export interface Session<TContextType = any> {
+export interface Session<_TContextType = any> {
   /**
    * Unique identifier for this session
    */
@@ -213,7 +220,7 @@ export interface GuardrailResult {
 
 export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext, TOutput> {
   public readonly name: string;
-  public handoffDescription?: string;  // NEW: Description for LLM to know when to handoff
+  public handoffDescription?: string;  // Description for agent delegation
   private instructions: string | ((context: RunContextWrapper<TContext>) => string | Promise<string>);
   private model: LanguageModel;
   private tools: Record<string, CoreTool>;
@@ -224,17 +231,19 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   private modelSettings?: AgentConfig<TContext, TOutput>['modelSettings'];
   private onStepFinish?: (step: StepResult) => void | Promise<void>;
   private shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
+  // Cached static instructions
+  private cachedInstructions?: string;
 
   constructor(config: AgentConfig<TContext, TOutput>) {
     super(); // Initialize EventEmitter
     this.name = config.name;
-    this.handoffDescription = config.handoffDescription;  // NEW
+    this.handoffDescription = config.handoffDescription;
     this.instructions = config.instructions;
     this.model = config.model || getDefaultModel();
     this.tools = config.tools || {};
     this.handoffs = config.handoffs || [];
     this.guardrails = config.guardrails || [];
-    this.outputSchema = config.outputSchema || config.outputType;  // NEW: Support both
+    this.outputSchema = config.outputSchema || config.outputType;  // Support both formats
     this.maxSteps = config.maxSteps || 10;
     this.modelSettings = config.modelSettings;
     this.onStepFinish = config.onStepFinish;
@@ -271,7 +280,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
           reason: z.string().describe('Reason for handing off to this agent'),
           context: z.string().optional().describe('Additional context for the handoff')
         }),
-        execute: async ({ reason, context: handoffContext }) => {
+        execute: async ({ reason, context: handoffContext }: { reason: string; context?: string }) => {
           // Return a special marker with agent NAME only (not reference)
           // The Runner will resolve the actual agent
           return {
@@ -287,12 +296,22 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
 
   /**
    * Get system instructions (supports dynamic functions)
+   * Caches static string instructions, evaluates functions on each call
    */
   async getInstructions(context: RunContextWrapper<TContext>): Promise<string> {
+    // Return cached if static instructions
+    if (this.cachedInstructions !== undefined) {
+      return this.cachedInstructions;
+    }
+    
     if (typeof this.instructions === 'function') {
+      // ✅ SAFE: Always call function (context might change)
       return await this.instructions(context);
     }
-    return this.instructions;
+    
+    // ✅ SAFE: Cache static string instructions
+    this.cachedInstructions = this.instructions;
+    return this.cachedInstructions;
   }
 
   /**
@@ -329,7 +348,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       parameters: z.object({
         query: z.string().describe('Query or request for the agent')
       }),
-      execute: async ({ query }, context) => {
+      execute: async ({ query }: { query: string }, context: any) => {
         // Run the agent and return its output
         const result = await run(this, query, {
           context: context as TContext
@@ -420,6 +439,12 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private trace: any = null; // Langfuse trace
   private currentAgentSpan: any = null; // Current agent span for nesting
   private wrappedToolsCache: Map<string, Record<string, CoreTool>> = new Map(); // Cache wrapped tools per agent
+  // Reusable objects for memory efficiency
+  private reusableUsage: Usage = new Usage(); // Single Usage instance
+  private contextWrapperCache: RunContextWrapper<TContext> | null = null; // Context wrapper cache
+  // Message formatting cache for Langfuse tracing
+  private formattedMessagesCache: any[] | null = null;
+  private lastMessageCount = 0;
 
   constructor(agent: Agent<TContext, TOutput>, options: RunOptions<TContext>) {
     super(); // Initialize EventEmitter
@@ -430,9 +455,51 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   /**
-   * Wrap tools to automatically inject context (similar to OpenAI Agents SDK's RunContext)
-   * This allows tools to access context without manual workarounds
-   * OPTIMIZED: Cache wrapped tools per agent
+   * Get or create context wrapper for tool execution
+   */
+  private getContextWrapper(agent: Agent<TContext, any>, messages: CoreMessage[]): RunContextWrapper<TContext> {
+    // Update usage values
+    this.reusableUsage.inputTokens = this.promptTokens;
+    this.reusableUsage.outputTokens = this.completionTokens;
+    this.reusableUsage.totalTokens = this.totalTokens;
+    
+    // Reuse or create wrapper
+    if (!this.contextWrapperCache) {
+      this.contextWrapperCache = {
+        context: this.context,
+        agent,
+        messages,
+        usage: this.reusableUsage,
+      };
+    } else {
+      // Just update references (much faster than creating new object)
+      this.contextWrapperCache.agent = agent;
+      this.contextWrapperCache.messages = messages;
+    }
+    
+    return this.contextWrapperCache;
+  }
+
+  /**
+   * Get formatted messages for Langfuse tracing
+   * Messages are cached since they only grow during execution
+   */
+  private getFormattedMessages(messages: CoreMessage[]): any[] {
+    // Check if we can use cache
+    if (this.formattedMessagesCache && messages.length === this.lastMessageCount) {
+      return this.formattedMessagesCache;
+    }
+    
+    // Format and cache
+    this.formattedMessagesCache = formatMessagesForLangfuse(messages);
+    this.lastMessageCount = messages.length;
+    return this.formattedMessagesCache;
+  }
+
+  /**
+   * Wrap tools to automatically inject context for execution
+   * Tools can access run context without manual setup
+   * Wrapped tools are cached per agent
    */
   private wrapToolsWithContext(
     agentName: string,
@@ -456,7 +523,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       const originalExecute = tool.execute;
       const wrappedTool = {
         ...tool,
-        execute: async (args: any, options: any) => {
+        execute: async (args: any, _options: any) => {
           // Get current context from wrapper
           const ctx = (wrappedTool as any)._contextWrapper;
           if (originalExecute) {
@@ -496,7 +563,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     this.trace = trace;
 
     // Prepare messages
-    let messages = await this.prepareMessages(input);
+    const messages = await this.prepareMessages(input);
     let currentAgent = this.agent;
     let stepNumber = resumeState?.stepNumber || 0;
 
@@ -505,7 +572,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       await this.runInputGuardrails(messages);
     }
 
-    // CRITICAL: Wrap entire execution in try-finally to GUARANTEE span cleanup
+    // Wrap execution in try-finally to ensure proper cleanup
     try {
     // Main agent loop
     while (stepNumber < (this.options.maxTurns || 50)) {
@@ -516,7 +583,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // End previous agent span if exists (with full output)
         if (this.currentAgentSpan) {
           const prevAgentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const tokensDelta = {
+          const _tokensDelta = {
             prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
             completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
             total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
@@ -538,12 +605,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         }
 
         // Emit agent_start event
-        const contextWrapper: RunContextWrapper<TContext> = {
-          context: this.context,
-          agent: currentAgent,
-          messages,
-          usage: new Usage(),
-        };
+        const contextWrapper = this.getContextWrapper(currentAgent, messages);
         this.emit('agent_start', contextWrapper, currentAgent);
         currentAgent.emit('agent_start', contextWrapper, currentAgent);
 
@@ -555,7 +617,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           this.currentAgentSpan = parent.span({
             name: `Agent: ${currentAgent.name}`,
             input: {
-              messages: formatMessagesForLangfuse(messages),
+              messages: this.getFormattedMessages(messages),
               stepNumber,
               turnNumber: stepNumber,
             },
@@ -584,26 +646,17 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Get system instructions
-      const contextWrapper: RunContextWrapper<TContext> = {
-        context: this.context,
-        agent: currentAgent,
-        messages,
-        usage: new Usage({
-          promptTokens: this.promptTokens,
-          completionTokens: this.completionTokens,
-        }),
-      };
-      
+      const contextWrapper = this.getContextWrapper(currentAgent, messages);
       const systemMessage = await currentAgent.getInstructions(contextWrapper);
 
-      // Create generation span NESTED under agent span
-      // OPTIMIZED: Only create if span exists (avoid unnecessary checks)
+      // Create generation span nested under agent span
+      // Only created when Langfuse tracing is enabled
       let generation: any = null;
-      if (this.currentAgentSpan) {
+      if (isLangfuseEnabled() && this.currentAgentSpan) {
         generation = this.currentAgentSpan.generation({
           name: `Generation - Step ${stepNumber}`,
           model: extractModelName(currentAgent._model),
-          input: formatMessagesForLangfuse(messages),
+          input: this.getFormattedMessages(messages),
           metadata: {
             stepNumber,
             agentName: currentAgent.name,
@@ -615,34 +668,34 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       // Wrap tools to inject context automatically (similar to OpenAI Agents SDK)
       const wrappedTools = this.wrapToolsWithContext(currentAgent.name, currentAgent._tools, contextWrapper);
 
-      // For coordinator agents with ONLY handoff tools, force tool usage and limit to 1 step
+      // For coordinator agents with only handoff tools, require tool selection
       const hasOnlyHandoffTools = Object.keys(wrappedTools).every(name => name.startsWith('handoff_to_'));
       const toolChoice = hasOnlyHandoffTools && Object.keys(wrappedTools).length > 0 ? 'required' : undefined;
-      const maxSteps = hasOnlyHandoffTools ? 1 : currentAgent._maxSteps; // OPTIMIZATION: 1 step for handoffs
+      const _maxSteps = hasOnlyHandoffTools ? 1 : currentAgent._maxSteps; // Single step for handoffs
 
       // Execute agent step
       const result = await generateText({
         model: currentAgent._model,
         system: systemMessage,
         messages,
-        tools: wrappedTools,
+        tools: wrappedTools as any,
         toolChoice: toolChoice as any,
-        maxSteps: maxSteps,
+        // Note: v5 handles multi-step automatically
         temperature: currentAgent._modelSettings?.temperature,
         topP: currentAgent._modelSettings?.topP,
         maxTokens: currentAgent._modelSettings?.maxTokens,
         presencePenalty: currentAgent._modelSettings?.presencePenalty,
         frequencyPenalty: currentAgent._modelSettings?.frequencyPenalty
-      });
+      } as any);
 
       // Extract tool results from the AI SDK response
-      // OPTIMIZED: Use Map for O(1) lookup instead of nested loops
-      let toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
+      // Uses efficient Map lookups for tool call matching
+      const toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
       
       if (result.response?.messages) {
         const msgs = result.response.messages;
         
-        // Build a map of toolCallId -> result for O(1) lookup
+        // Build a map of toolCallId to result for efficient lookup
         const resultMap = new Map<string, any>();
         for (const msg of msgs) {
           if (msg.role === 'tool' && Array.isArray(msg.content)) {
@@ -676,15 +729,15 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
       // Update token usage and metrics
       if (result.usage) {
-        this.totalTokens += result.usage.totalTokens;
-        this.promptTokens += result.usage.promptTokens;
-        this.completionTokens += result.usage.completionTokens;
+        this.totalTokens += result.usage.totalTokens || 0;
+        this.promptTokens += result.usage.inputTokens || 0;
+        this.completionTokens += result.usage.outputTokens || 0;
         
         // Record agent-specific usage with tool count
         this.recordAgentUsage(currentAgent.name, {
-          prompt: result.usage.promptTokens,
-          completion: result.usage.completionTokens,
-          total: result.usage.totalTokens,
+          prompt: result.usage.inputTokens || 0,
+          completion: result.usage.outputTokens || 0,
+          total: result.usage.totalTokens || 0,
         }, toolCalls.length);
 
         // Update and END Langfuse generation with usage data
@@ -697,9 +750,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           generation.end({
             output: generationOutput,
             usage: {
-              input: result.usage.promptTokens,
-              output: result.usage.completionTokens,
-              total: result.usage.totalTokens,
+              input: result.usage.inputTokens || 0,
+              output: result.usage.outputTokens || 0,
+              total: result.usage.totalTokens || 0,
             },
             metadata: {
               finishReason: result.finishReason,
@@ -714,46 +767,16 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       const handoff = this.detectHandoff(toolCalls, currentAgent);
       if (handoff) {
         // Emit agent_handoff event
-        const contextWrapper: RunContextWrapper<TContext> = {
-          context: this.context,
-          agent: currentAgent,
-          messages,
-          usage: new Usage(),
-        };
+        const contextWrapper = this.getContextWrapper(currentAgent, messages);
         this.emit('agent_handoff', contextWrapper, handoff.agent);
         currentAgent.emit('agent_handoff', contextWrapper, handoff.agent);
 
-        // CRITICAL: Close current agent span before switching
+        // Close current agent span before switching agents
+        // Ensures proper trace hierarchy during handoffs
         if (this.currentAgentSpan && !this.currentAgentSpan._ended) {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const tokensDelta = {
-            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
-            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
-            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
-          };
 
-          // Create handoff span NESTED under current agent span
-          const handoffSpan = this.currentAgentSpan.span({
-            name: `Handoff: ${currentAgent.name} → ${handoff.agent.name}`,
-            input: { 
-              from: currentAgent.name, 
-              to: handoff.agent.name, 
-              reason: handoff.reason 
-            },
-            metadata: { 
-              type: 'handoff',
-              fromAgent: currentAgent.name,
-              toAgent: handoff.agent.name,
-              handoffReason: handoff.reason 
-            },
-          });
-          if (handoffSpan) {
-            handoffSpan.end({
-              output: { success: true, nextAgent: handoff.agent.name },
-            });
-          }
-
-          // End current agent span with handoff info
+          // End current agent span with handoff info (no intermediate span needed)
           this.currentAgentSpan.end({
             output: {
               handoffTo: handoff.agent.name,
@@ -767,6 +790,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
               totalToolCalls: agentMetric?.toolCalls || 0,
               handoffTo: handoff.agent.name,
               handoffReason: handoff.reason,
+              type: 'handoff', // Mark as handoff exit
             },
           });
           this.currentAgentSpan._ended = true;
@@ -805,8 +829,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         await currentAgent._onStepFinish(step);
       }
 
-      // Add messages from result (includes assistant + tool messages if tools were called)
-      // OPTIMIZED: Only add new messages, avoid slice operation
+      // Add messages from result (includes assistant and tool messages)
+      // Appends new messages without modifying existing history
       if (result.response && result.response.messages) {
         const responseMessages = result.response.messages;
         const startIdx = messages.length;
@@ -849,7 +873,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // End current agent span with full output
         if (this.currentAgentSpan) {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const tokensDelta = {
+          const _tokensDelta = {
             prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
             completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
             total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
@@ -894,7 +918,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     // End current agent span before throwing (max turns)
     if (this.currentAgentSpan) {
       const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-      const tokensDelta = {
+      const _tokensDelta = {
         prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
         completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
         total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
@@ -917,12 +941,12 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     throw new Error('Max turns exceeded');
     
     } finally {
-      // CRITICAL: Always cleanup spans, even on errors/interruptions
-      // This ensures Langfuse traces are ALWAYS properly closed
+      // Cleanup spans in all cases (success, error, interruption)
+      // Ensures Langfuse traces are properly closed
       if (this.currentAgentSpan) {
         try {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const tokensDelta = {
+          const _tokensDelta = {
             prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
             completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
             total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
@@ -956,13 +980,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     // Run input guardrails
     await this.runInputGuardrails(messages);
 
-    const contextWrapper: RunContextWrapper<TContext> = {
-      context: this.context,
-      agent: this.agent,
-      messages,
-      usage: new Usage(),
-    };
-    
+    const contextWrapper = this.getContextWrapper(this.agent, messages);
     const systemMessage = await this.agent.getInstructions(contextWrapper);
 
     // Wrap tools to inject context automatically (same as non-streaming)
@@ -972,12 +990,12 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       model: this.agent._model,
       system: systemMessage,
       messages,
-      tools: wrappedTools,
-      maxSteps: this.agent._maxSteps,
+      tools: wrappedTools as any,
+      // Note: v5 handles multi-step automatically
       temperature: this.agent._modelSettings?.temperature,
       topP: this.agent._modelSettings?.topP,
       maxTokens: this.agent._modelSettings?.maxTokens
-    });
+    } as any);
 
     // Create text stream
     const textStream = result.textStream;
@@ -1118,21 +1136,34 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private async runInputGuardrails(messages: CoreMessage[]): Promise<void> {
     const inputGuardrails = this.agent._guardrails.filter(g => g.type === 'input');
     
-    for (const guardrail of inputGuardrails) {
-      const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-      if (lastUserMessage && typeof lastUserMessage.content === 'string') {
-        const contextWrapper: RunContextWrapper<TContext> = {
-          context: this.context,
-          agent: this.agent,
-          messages,
-          usage: new Usage(),
-        };
-        
-        const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
-        
-        if (!result.passed) {
-          throw new Error(`Input guardrail "${guardrail.name}" failed: ${result.message}`);
-        }
+    if (inputGuardrails.length === 0) return;
+    
+    // Find the last user message from conversation history
+    let lastUserMessage: CoreMessage | undefined;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMessage = messages[i];
+        break;
+      }
+    }
+    
+    if (!lastUserMessage || typeof lastUserMessage.content !== 'string') return;
+    
+    const contextWrapper = this.getContextWrapper(this.agent, messages);
+    
+    // Execute all guardrails concurrently
+    const results = await Promise.allSettled(
+      inputGuardrails.map(g => g.validate(lastUserMessage.content as string, contextWrapper))
+    );
+    
+    // Check all results
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'rejected') {
+        throw new Error(`Input guardrail "${inputGuardrails[i].name}" failed: ${result.reason}`);
+      }
+      if (!result.value.passed) {
+        throw new Error(`Input guardrail "${inputGuardrails[i].name}" failed: ${result.value.message}`);
       }
     }
   }
@@ -1140,18 +1171,23 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private async runOutputGuardrails(output: string): Promise<void> {
     const outputGuardrails = this.agent._guardrails.filter(g => g.type === 'output');
     
-    for (const guardrail of outputGuardrails) {
-      const contextWrapper: RunContextWrapper<TContext> = {
-        context: this.context,
-        agent: this.agent,
-        messages: [],
-        usage: new Usage(),
-      };
-      
-      const result = await guardrail.validate(output, contextWrapper);
-      
-      if (!result.passed) {
-        throw new Error(`Output guardrail "${guardrail.name}" failed: ${result.message}`);
+    if (outputGuardrails.length === 0) return;
+    
+    const contextWrapper = this.getContextWrapper(this.agent, []); // Empty messages for output
+    
+    // Execute all guardrails concurrently
+    const results = await Promise.allSettled(
+      outputGuardrails.map(g => g.validate(output, contextWrapper))
+    );
+    
+    // Check all results
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'rejected') {
+        throw new Error(`Output guardrail "${outputGuardrails[i].name}" failed: ${result.reason}`);
+      }
+      if (!result.value.passed) {
+        throw new Error(`Output guardrail "${outputGuardrails[i].name}" failed: ${result.value.message}`);
       }
     }
   }
@@ -1181,8 +1217,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   /**
-   * Record agent usage for metrics
-   * OPTIMIZED: Cache last step tool count to avoid array lookup
+   * Record agent usage metrics for tracking
    */
   private recordAgentUsage(agentName: string, tokens: { prompt: number; completion: number; total: number }, toolCallCount: number = 0): void {
     const existing = this.agentMetrics.get(agentName);

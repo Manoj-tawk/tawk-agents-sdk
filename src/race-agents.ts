@@ -89,7 +89,7 @@ export async function raceAgents<TContext = any, TOutput = string>(
 
   // If all failed, throw error with details
   const errors = results
-    .map((r, i) => r.status === 'fulfilled' && !r.value.success ? r.value.error : null)
+    .map((r, _i) => r.status === 'fulfilled' && !r.value.success ? r.value.error : null)
     .filter(Boolean);
   
   throw new Error(

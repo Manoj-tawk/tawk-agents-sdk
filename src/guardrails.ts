@@ -25,7 +25,7 @@ export function contentSafetyGuardrail<TContext = any>(config: {
   return {
     name: config.name || 'content_safety',
     type: config.type,
-    validate: async (content: string, context: RunContextWrapper<TContext>) => {
+    validate: async (content: string, _context: RunContextWrapper<TContext>) => {
       const categories = config.categories || [
         'hate speech',
         'violence',
@@ -41,17 +41,17 @@ export function contentSafetyGuardrail<TContext = any>(config: {
         tools: {
           classify: {
             description: 'Classify content safety',
-            parameters: z.object({
+            inputSchema: z.object({
               isSafe: z.boolean(),
               detectedCategories: z.array(z.string()),
               confidence: z.number()
             }),
-            execute: async (args) => args
+            execute: async (args: any) => args
           }
-        }
+        } as any
       });
 
-      const classification = result.toolCalls?.[0]?.args;
+      const classification = result.toolCalls?.[0]?.input as any;
 
       if (!classification || classification.isSafe) {
         return { passed: true };
@@ -59,7 +59,7 @@ export function contentSafetyGuardrail<TContext = any>(config: {
 
       return {
         passed: false,
-        message: `Content contains: ${classification.detectedCategories.join(', ')}`,
+        message: `Content contains: ${classification.detectedCategories?.join(', ') || 'unsafe content'}`,
         metadata: classification
       };
     }
@@ -202,18 +202,18 @@ export function topicRelevanceGuardrail<TContext = any>(config: {
         tools: {
           rate_relevance: {
             description: 'Rate topic relevance',
-            parameters: z.object({
+            inputSchema: z.object({
               isRelevant: z.boolean(),
               relevanceScore: z.number(),
               matchedTopics: z.array(z.string()),
               reasoning: z.string()
             }),
-            execute: async (args) => args
+            execute: async (args: any) => args
           }
-        }
+        } as any
       });
 
-      const rating = result.toolCalls?.[0]?.args;
+      const rating = result.toolCalls?.[0]?.input as any;
       const threshold = config.threshold || 5;
 
       if (!rating || !rating.isRelevant || rating.relevanceScore < threshold) {
@@ -379,21 +379,21 @@ export function languageGuardrail<TContext = any>(config: {
         tools: {
           detect_language: {
             description: 'Detect language',
-            parameters: z.object({
+            inputSchema: z.object({
               language: z.string(),
               confidence: z.number()
             }),
-            execute: async (args) => args
+            execute: async (args: any) => args
           }
-        }
+        } as any
       });
 
-      const detection = result.toolCalls?.[0]?.args;
+      const detection = result.toolCalls?.[0]?.input as any;
 
       if (!detection || !config.allowedLanguages.includes(detection.language)) {
         return {
           passed: false,
-          message: `Language not allowed: ${detection?.language}. Allowed: ${config.allowedLanguages.join(', ')}`,
+          message: `Language not allowed: ${detection?.language || 'unknown'}. Allowed: ${config.allowedLanguages.join(', ')}`,
           metadata: detection
         };
       }
@@ -428,30 +428,30 @@ export function sentimentGuardrail<TContext = any>(config: {
         tools: {
           analyze_sentiment: {
             description: 'Analyze sentiment',
-            parameters: z.object({
+            inputSchema: z.object({
               sentiment: z.enum(['positive', 'negative', 'neutral']),
               confidence: z.number(),
               reasoning: z.string()
             }),
-            execute: async (args) => args
+            execute: async (args: any) => args
           }
-        }
+        } as any
       });
 
-      const sentiment = result.toolCalls?.[0]?.args;
+      const sentiment = result.toolCalls?.[0]?.input as any;
 
-      if (config.blockedSentiments?.includes(sentiment.sentiment)) {
+      if (config.blockedSentiments?.includes(sentiment?.sentiment)) {
         return {
           passed: false,
-          message: `Sentiment not allowed: ${sentiment.sentiment}`,
+          message: `Sentiment not allowed: ${sentiment?.sentiment || 'unknown'}`,
           metadata: sentiment
         };
       }
 
-      if (config.allowedSentiments && !config.allowedSentiments.includes(sentiment.sentiment)) {
+      if (config.allowedSentiments && !config.allowedSentiments.includes(sentiment?.sentiment)) {
         return {
           passed: false,
-          message: `Sentiment not in allowed list: ${sentiment.sentiment}`,
+          message: `Sentiment not in allowed list: ${sentiment?.sentiment || 'unknown'}`,
           metadata: sentiment
         };
       }
@@ -485,23 +485,23 @@ export function toxicityGuardrail<TContext = any>(config: {
         tools: {
           rate_toxicity: {
             description: 'Rate toxicity',
-            parameters: z.object({
+            inputSchema: z.object({
               toxicityScore: z.number(),
               categories: z.array(z.string()),
               explanation: z.string()
             }),
-            execute: async (args) => args
+            execute: async (args: any) => args
           }
-        }
+        } as any
       });
 
-      const rating = result.toolCalls?.[0]?.args;
+      const rating = result.toolCalls?.[0]?.input as any;
       const threshold = config.threshold || 5;
 
       if (rating && rating.toxicityScore > threshold) {
         return {
           passed: false,
-          message: `Content toxicity too high: ${rating.toxicityScore} (threshold: ${threshold})`,
+          message: `Content toxicity too high: ${rating.toxicityScore || 0} (threshold: ${threshold})`,
           metadata: rating
         };
       }

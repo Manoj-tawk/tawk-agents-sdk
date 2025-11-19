@@ -382,7 +382,7 @@ export interface RunState {
   traceId?: string;
 }
 
-export interface Session<TContext = any> {
+export interface Session<_TContext = any> {
   id: string;
   getHistory(): Promise<Message[]>;
   addMessages(messages: Message[]): Promise<void>;

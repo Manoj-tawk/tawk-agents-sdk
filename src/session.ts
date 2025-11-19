@@ -140,7 +140,7 @@ Summary (2-3 paragraphs):`;
         model: this.summarizationConfig.model,
         prompt: fullPrompt,
         maxTokens: 500,
-      });
+      } as any);
       return result.text;
     } else {
       // Simple fallback
@@ -220,7 +220,23 @@ export class RedisSession<TContext = any> implements Session<TContext> {
   }
 
   async getHistory(): Promise<CoreMessage[]> {
-    const messagesJson = await this.redis.get(this.getMessagesKey());
+    const key = this.getMessagesKey();
+    
+    // Use list operations for efficient message retrieval
+    if (!this.summarizationConfig?.enabled) {
+      const range = this.maxMessages ? -this.maxMessages : 0;
+      const messagesJson = await this.redis.lrange(key, range, -1);
+      
+      if (!messagesJson || messagesJson.length === 0) {
+        return [];
+      }
+      
+      // Parse all at once
+      return messagesJson.map(json => JSON.parse(json));
+    }
+    
+    // Legacy path for summarization (uses single JSON blob)
+    const messagesJson = await this.redis.get(key);
     if (!messagesJson) {
       return [];
     }
@@ -228,29 +244,46 @@ export class RedisSession<TContext = any> implements Session<TContext> {
   }
 
   async addMessages(messages: CoreMessage[]): Promise<void> {
+    if (messages.length === 0) return;
+    
     const key = this.getMessagesKey();
-    
-    // Get existing messages
-    let existingMessages = await this.getHistory();
-    
-    // Add new messages
-    existingMessages.push(...messages);
     
     // Check if we should summarize
     if (this.summarizationConfig?.enabled) {
+      // Get existing messages for summarization
+      let existingMessages = await this.getHistory();
+      existingMessages.push(...messages);
       existingMessages = await this.checkAndSummarize(existingMessages);
+      
+      // Save back to Redis with TTL
+      await this.redis.setex(
+        key,
+        this.ttl,
+        JSON.stringify(existingMessages)
+      );
+    } else {
+      // Use Redis pipeline for atomic batch operations
+      const pipeline = this.redis.pipeline();
+      
+      // Serialize messages once
+      const serialized = messages.map(m => JSON.stringify(m));
+      
+      // Append all messages at once
+      if (serialized.length > 0) {
+        pipeline.rpush(key, ...serialized);
+      }
+      
+      // Trim to max length
+      if (this.maxMessages) {
+        pipeline.ltrim(key, -this.maxMessages, -1);
+      }
+      
+      // Set TTL
+      pipeline.expire(key, this.ttl);
+      
+      // Execute all commands in one round-trip
+      await pipeline.exec();
     }
-    // Otherwise, use simple sliding window
-    else if (this.maxMessages && existingMessages.length > this.maxMessages) {
-      existingMessages = existingMessages.slice(-this.maxMessages);
-    }
-    
-    // Save back to Redis with TTL
-    await this.redis.setex(
-      key,
-      this.ttl,
-      JSON.stringify(existingMessages)
-    );
   }
 
   private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
@@ -351,7 +384,7 @@ Summary (2-3 paragraphs):`;
         model: this.summarizationConfig.model,
         prompt: fullPrompt,
         maxTokens: 500,
-      });
+      } as any);
       return result.text;
     } else {
       // Simple fallback
@@ -458,40 +491,66 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
   }
 
   async addMessages(messages: CoreMessage[]): Promise<void> {
+    if (messages.length === 0) return;
+    
     const collection = this.getCollection();
-    
-    // Get existing session
-    let session = await collection.findOne({ sessionId: this.id });
-    
-    if (!session) {
-      // Create new session
-      session = {
-        sessionId: this.id,
-        messages: [],
-        metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-    }
-    
-    // Add new messages
-    session.messages.push(...messages);
     
     // Check if we should summarize
     if (this.summarizationConfig?.enabled) {
-      session.messages = await this.checkAndSummarize(session.messages);
-    }
-    // Otherwise, use simple sliding window
-    else if (this.maxMessages && session.messages.length > this.maxMessages) {
-      session.messages = session.messages.slice(-this.maxMessages);
+      // Get current count first to check threshold
+      const session = await collection.findOne(
+        { sessionId: this.id }, 
+        { projection: { messages: 1 } }
+      );
+      
+      if (session?.messages) {
+        const totalMessages = session.messages.length + messages.length;
+        
+        if (totalMessages > this.summarizationConfig.messageThreshold) {
+          // Fetch, summarize, then update
+          const allMessages = [...session.messages, ...messages];
+          const summarized = await this.checkAndSummarize(allMessages);
+          
+          await collection.updateOne(
+            { sessionId: this.id },
+            { 
+              $set: { 
+                messages: summarized, 
+                updatedAt: new Date() 
+              } 
+            },
+            { upsert: true }
+          );
+          return;
+        }
+      }
     }
     
-    session.updatedAt = new Date();
+    // Atomic operation using MongoDB's $push, $each, and $slice operators
+    const updateDoc: any = {
+      $push: {
+        messages: {
+          $each: messages,
+          $position: -1, // Append at end
+        }
+      },
+      $set: { updatedAt: new Date() },
+      $setOnInsert: {
+        sessionId: this.id,
+        metadata: {},
+        createdAt: new Date()
+      }
+    };
     
-    // Upsert
+    // Apply max messages limit atomically
+    if (this.maxMessages) {
+      updateDoc.$push.messages.$slice = -this.maxMessages;
+    }
+    
+    // Single atomic operation (no read required)
     await collection.updateOne(
       { sessionId: this.id },
-      { $set: session },
+      updateDoc,
       { upsert: true }
     );
   }
@@ -594,7 +653,7 @@ Summary (2-3 paragraphs):`;
         model: this.summarizationConfig.model,
         prompt: fullPrompt,
         maxTokens: 500,
-      });
+      } as any);
       return result.text;
     } else {
       // Simple fallback

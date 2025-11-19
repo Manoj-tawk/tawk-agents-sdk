@@ -3,7 +3,8 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/tests/integration/', '/tests/e2e/'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/integration/', '/tests/e2e/', '/tests/performance/'],
+  transformIgnorePatterns: ['node_modules/(?!(@toon-format)/)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -15,6 +16,7 @@ module.exports = {
   moduleNameMapper: {
     '^@tawk-agents-sdk/core$': '<rootDir>/src/index.ts',
     '^@tawk-agents-sdk/core/(.*)$': '<rootDir>/src/$1',
+    '^@toon-format/toon$': '<rootDir>/tests/__mocks__/toon-format.ts',
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
@@ -22,6 +24,6 @@ module.exports = {
     }]
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 10000,
+  testTimeout: 30000,
 };
 

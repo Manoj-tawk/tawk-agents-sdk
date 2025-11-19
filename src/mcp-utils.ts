@@ -74,7 +74,7 @@ export function mcpToFunctionTool(mcpTool: MCPTool): ToolDefinition {
   return {
     description: mcpTool.description,
     parameters: convertMCPSchemaToZod(mcpTool.inputSchema),
-    execute: async (args: any) => {
+    execute: async (_args: any) => {
       // This would call the MCP server
       // Implementation depends on MCP server integration
       throw new Error('MCP tool execution not implemented');

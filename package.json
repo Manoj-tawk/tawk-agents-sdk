@@ -1,7 +1,7 @@
 {
   "name": "@tawk-agents-sdk/core",
   "version": "1.0.0",
-  "description": "Production-ready AI agent framework with multi-agent orchestration, handoffs, guardrails, and observability. Built on Vercel AI SDK.",
+  "description": "Production-ready AI agent framework with multi-agent orchestration, tool calling, guardrails, and observability.",
   "author": "Tawk.to <support@tawk.to>",
   "license": "MIT",
   "repository": {
@@ -74,7 +74,8 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^2.0.29",
-    "ai": "^4.0.0",
+    "@toon-format/toon": "^1.0.0",
+    "ai": "^5.0.93",
     "langfuse": "^3.30.3",
     "zod": "^3.25.40"
   },
@@ -100,6 +101,9 @@
     "mongodb": "^6.12.0"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^2.0.45",
+    "@ai-sdk/google": "^2.0.34",
+    "@ai-sdk/openai": "^2.0.68",
     "@jest/globals": "^30.2.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.2",
