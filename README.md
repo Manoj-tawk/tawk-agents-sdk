@@ -1,8 +1,6 @@
 # Tawk Agents SDK
 
-[![npm version](https://img.shields.io/npm/v/@tawk-agents-sdk/core.svg)](https://www.npmjs.com/package/@tawk-agents-sdk/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/@tawk-agents-sdk/core.svg)](https://nodejs.org)
 
 Production-ready AI agent framework with multi-agent orchestration, tool calling, guardrails, and enterprise observability.
 
@@ -18,14 +16,19 @@ Production-ready AI agent framework with multi-agent orchestration, tool calling
 - 🚀 **Multi-Provider** - OpenAI, Anthropic, Google, Groq, Mistral
 - 🎯 **TypeScript First** - Complete type safety
 - ⚡ **High Performance** - Parallel execution, smart caching, optimized I/O
+- 🔍 **AI Features** - Embeddings, Image Generation, Audio (TTS/STT), Reranking
 
 ## Installation
 
+Clone the repository and install dependencies:
+
 ```bash
-npm install @tawk-agents-sdk/core ai zod
+git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
+cd tawk-agents-sdk
+npm install
 ```
 
-Install your preferred AI provider:
+Install your preferred AI provider (optional):
 
 ```bash
 # OpenAI
@@ -120,7 +123,7 @@ const coordinator = new Agent({
   name: 'coordinator',
   model: openai('gpt-4o'),
   instructions: 'You coordinate between research and writing agents.',
-  handoffAgents: [researchAgent, writerAgent]
+  handoffs: [researchAgent, writerAgent]
 });
 
 const result = await run(coordinator, 'Write an article about AI agents');
@@ -129,7 +132,7 @@ const result = await run(coordinator, 'Write an article about AI agents');
 ### Streaming Responses
 
 ```typescript
-import { Agent, stream } from '@tawk-agents-sdk/core';
+import { Agent, runStream } from '@tawk-agents-sdk/core';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -138,7 +141,7 @@ const agent = new Agent({
   instructions: 'You are a helpful assistant.'
 });
 
-const streamResult = await stream(agent, 'Tell me a story');
+const streamResult = await runStream(agent, 'Tell me a story');
 
 // Stream text chunks
 for await (const chunk of streamResult.textStream) {
@@ -167,7 +170,7 @@ const agent = new Agent({
   
   // Optional
   tools: { /* tool definitions */ },
-  handoffAgents: [agent1, agent2],
+  handoffs: [agent1, agent2],
   handoffDescription: 'When to use this agent',
   maxSteps: 10,
   modelSettings: {
@@ -183,21 +186,13 @@ const agent = new Agent({
 ```typescript
 const result = await run(agent, 'User message', {
   // Session for conversation history
-  session: new MemorySession(),
+  session: new MemorySession('session-id', 50),
   
   // Custom context (dependency injection)
   context: { userId: '123', db: database },
   
-  // Guardrails
-  inputGuardrails: [contentSafetyGuardrail, piiDetectionGuardrail],
-  outputGuardrails: [lengthGuardrail],
-  
-  // Message history
-  messages: existingMessages,
-  
-  // Callbacks
-  onStepFinish: (step) => console.log('Step done:', step),
-  onToolCall: (tool) => console.log('Tool called:', tool)
+  // Max turns
+  maxTurns: 10
 });
 ```
 
@@ -248,28 +243,39 @@ import {
   toxicityGuardrail
 } from '@tawk-agents-sdk/core';
 
-const result = await run(agent, userMessage, {
-  inputGuardrails: [
+// Guardrails are configured in AgentConfig, not RunOptions
+const agent = new Agent({
+  name: 'safe-agent',
+  model: openai('gpt-4o'),
+  instructions: 'You are a helpful assistant.',
+  guardrails: [
     contentSafetyGuardrail({ 
+      type: 'input',
       model: openai('gpt-4o-mini'),
       categories: ['violence', 'hate-speech']
     }),
     piiDetectionGuardrail({ 
-      model: openai('gpt-4o-mini')
+      type: 'input',
+      block: true
     }),
     languageGuardrail({
+      type: 'input',
       model: openai('gpt-4o-mini'),
       allowedLanguages: ['en', 'es']
-    })
-  ],
-  outputGuardrails: [
-    lengthGuardrail({ maxLength: 1000 }),
+    }),
+    lengthGuardrail({ 
+      type: 'output',
+      maxLength: 1000 
+    }),
     formatValidationGuardrail({ 
+      type: 'output',
       format: 'json',
       schema: outputSchema 
     })
   ]
 });
+
+const result = await run(agent, userMessage);
 ```
 
 #### Custom Guardrails
@@ -300,7 +306,7 @@ const businessHoursGuardrail = customGuardrail({
 ```typescript
 import { MemorySession } from '@tawk-agents-sdk/core';
 
-const session = new MemorySession();
+const session = new MemorySession('user-123', 50); // id, maxMessages
 
 await run(agent, 'Hello', { session });
 await run(agent, 'What did I just say?', { session });
@@ -313,9 +319,8 @@ import { RedisSession } from '@tawk-agents-sdk/core';
 import Redis from 'ioredis';
 
 const redis = new Redis();
-const session = new RedisSession({
+const session = new RedisSession('user-123', {
   redis,
-  sessionId: 'user-123',
   maxMessages: 50,
   ttl: 3600
 });
@@ -332,9 +337,9 @@ import { MongoClient } from 'mongodb';
 const client = new MongoClient(mongoUrl);
 const db = client.db('myapp');
 
-const session = new DatabaseSession({
-  collection: db.collection('sessions'),
-  sessionId: 'user-123',
+const session = new DatabaseSession('user-123', {
+  db,
+  collectionName: 'sessions',
   maxMessages: 100
 });
 
@@ -346,11 +351,11 @@ await run(agent, 'Hello', { session });
 ```typescript
 import { HybridSession } from '@tawk-agents-sdk/core';
 
-const session = new HybridSession({
+const session = new HybridSession('user-123', {
   redis,
-  collection: db.collection('sessions'),
-  sessionId: 'user-123',
-  redisTtl: 3600,
+  db,
+  dbCollectionName: 'sessions',
+  redisTTL: 3600,
   maxMessages: 100
 });
 ```
@@ -369,11 +374,8 @@ initializeLangfuse({
   baseUrl: process.env.LANGFUSE_BASE_URL
 });
 
-// Tracing happens automatically
-const result = await run(agent, 'Hello', {
-  traceName: 'user-conversation',
-  traceMetadata: { userId: '123', channel: 'web' }
-});
+// Tracing happens automatically for all agent runs
+const result = await run(agent, 'Hello');
 ```
 
 View traces in Langfuse dashboard with:
@@ -406,7 +408,7 @@ const triageAgent = new Agent({
   name: 'triage',
   model: openai('gpt-4o'),
   instructions: 'You route users to the right agent.',
-  handoffAgents: [salesAgent, supportAgent]
+  handoffs: [salesAgent, supportAgent]
 });
 
 // Agent will automatically handoff based on query
@@ -423,6 +425,8 @@ Run multiple agents in parallel and use the fastest response:
 
 ```typescript
 import { raceAgents } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
 
 const fastAgent = new Agent({
   name: 'fast',
@@ -448,8 +452,8 @@ const result = await raceAgents(
   { timeoutMs: 5000 }
 );
 
-console.log(`Winner: ${result.winnerAgent}`);
-console.log(result.output);
+console.log(`Winner: ${result.winningAgent.name}`);
+console.log(result.finalOutput);
 ```
 
 ### 7. TOON Format
@@ -516,6 +520,201 @@ await run(agent, 'Log my activity', {
 });
 ```
 
+### 9. AI Features
+
+#### Embeddings
+
+```typescript
+import { Agent, run, createEmbeddingTool } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+
+const agent = new Agent({
+  name: 'search-assistant',
+  model: openai('gpt-4o'),
+  instructions: 'You can generate embeddings for semantic search.',
+  tools: {
+    generateEmbedding: createEmbeddingTool(openai.embedding('text-embedding-3-small'))
+  }
+});
+
+const result = await run(agent, 'Generate an embedding for "machine learning"');
+```
+
+#### Image Generation
+
+```typescript
+import { Agent, run, createImageGenerationTool } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+
+const agent = new Agent({
+  name: 'image-creator',
+  model: openai('gpt-4o'),
+  instructions: 'You can generate images from text descriptions.',
+  tools: {
+    generateImage: createImageGenerationTool(openai('dall-e-3'))
+  }
+});
+
+const result = await run(agent, 'Generate an image of a sunset over mountains');
+```
+
+#### Audio Transcription
+
+```typescript
+import { Agent, run, createTranscriptionTool } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+import * as fs from 'fs';
+
+const agent = new Agent({
+  name: 'transcriber',
+  model: openai('gpt-4o'),
+  instructions: 'You can transcribe audio files to text.',
+  tools: {
+    transcribe: createTranscriptionTool(openai('whisper-1'))
+  }
+});
+
+const result = await run(agent, 'Transcribe this audio file', {
+  context: { audioFile: fs.readFileSync('audio.mp3') }
+});
+```
+
+#### Text-to-Speech
+
+```typescript
+import { Agent, run, createTextToSpeechTool } from '@tawk-agents-sdk/core';
+import { openai } from '@ai-sdk/openai';
+
+const agent = new Agent({
+  name: 'tts-assistant',
+  model: openai('gpt-4o'),
+  instructions: 'You can convert text to speech.',
+  tools: {
+    generateSpeech: createTextToSpeechTool(openai('tts-1'))
+  }
+});
+
+const result = await run(agent, 'Convert "Hello world" to speech');
+```
+
+#### Reranking
+
+```typescript
+import { Agent, run, createRerankTool } from '@tawk-agents-sdk/core';
+import { cohere } from '@ai-sdk/cohere';
+
+const agent = new Agent({
+  name: 'search-assistant',
+  model: openai('gpt-4o'),
+  instructions: 'You can rerank search results to find the most relevant documents.',
+  tools: {
+    rerank: createRerankTool(cohere.reranking('rerank-v3.5'))
+  }
+});
+
+const result = await run(agent, 'Rerank these documents for query "AI agents"');
+```
+
+### 10. MCP (Model Context Protocol)
+
+```typescript
+import { Agent, run, registerMCPServer, getMCPTools, getGlobalMCPManager } from '@tawk-agents-sdk/core';
+
+// Register an MCP server
+await registerMCPServer({
+  name: 'filesystem',
+  command: 'npx',
+  args: ['-y', '@modelcontextprotocol/server-filesystem'],
+  env: { ...process.env }
+});
+
+// Get tools from all registered MCP servers
+const mcpTools = await getMCPTools();
+
+// Or get tools from a specific server
+const manager = getGlobalMCPManager();
+const filesystemTools = await manager.getServerTools('filesystem');
+
+const agent = new Agent({
+  name: 'mcp-agent',
+  model: openai('gpt-4o'),
+  instructions: 'You have access to filesystem tools via MCP.',
+  tools: {
+    ...mcpTools
+  }
+});
+
+const result = await run(agent, 'List files in the current directory');
+```
+
+### 11. Tool Approval (Human-in-the-Loop)
+
+```typescript
+import { Agent, run, createCLIApprovalHandler, getGlobalApprovalManager } from '@tawk-agents-sdk/core';
+
+const agent = new Agent({
+  name: 'approval-agent',
+  model: openai('gpt-4o'),
+  instructions: 'You can perform actions that require approval.',
+  tools: {
+    deleteFile: {
+      description: 'Delete a file (requires approval)',
+      parameters: z.object({ path: z.string() }),
+      execute: async ({ path }) => {
+        // Request approval before executing
+        const approvalManager = getGlobalApprovalManager();
+        const approved = await approvalManager.requestApproval(
+          'deleteFile',
+          { path },
+          {
+            requiredForTools: ['deleteFile'],
+            requestApproval: createCLIApprovalHandler()
+          }
+        );
+        if (!approved.approved) {
+          throw new Error('Approval denied');
+        }
+        return `File ${path} deleted`;
+      }
+    }
+  }
+});
+
+const result = await run(agent, 'Delete important.txt');
+```
+
+### 12. Dynamic Instructions
+
+```typescript
+const agent = new Agent({
+  name: 'contextual-agent',
+  model: openai('gpt-4o'),
+  instructions: (context) => {
+    // Dynamic instructions based on context
+    return `You are helping user ${context.context.userId} at ${new Date().toLocaleTimeString()}`;
+  }
+});
+```
+
+### 13. Dynamic Tool Enabling
+
+```typescript
+const agent = new Agent({
+  name: 'conditional-tools',
+  model: openai('gpt-4o'),
+  tools: {
+    adminTool: {
+      description: 'Admin-only tool',
+      enabled: (context) => {
+        return context.context.userRole === 'admin';
+      },
+      parameters: z.object({ action: z.string() }),
+      execute: async ({ action }) => `Admin action: ${action}`
+    }
+  }
+});
+```
+
 ## API Reference
 
 ### Agent
@@ -524,8 +723,26 @@ await run(agent, 'Log my activity', {
 class Agent<TContext = any, TOutput = string> {
   constructor(config: AgentConfig<TContext, TOutput>)
   
+  // Static factory method
+  static create<TContext, TOutput>(
+    config: AgentConfig<TContext, TOutput>
+  ): Agent<TContext, TOutput>
+  
   // Convert agent to a tool
-  asTool(description?: string): Tool
+  asTool(options?: {
+    toolName?: string;
+    toolDescription?: string;
+  }): CoreTool
+  
+  // Clone agent with overrides
+  clone(overrides: Partial<AgentConfig<TContext, TOutput>>): Agent<TContext, TOutput>
+  
+  // Get/set handoffs
+  get handoffs(): Agent<TContext, any>[]
+  set handoffs(agents: Agent<TContext, any>[])
+  
+  readonly name: string
+  readonly handoffDescription?: string
 }
 ```
 
@@ -535,39 +752,66 @@ class Agent<TContext = any, TOutput = string> {
 // Basic execution
 function run<TContext, TOutput>(
   agent: Agent<TContext, TOutput>,
-  input: string,
+  input: string | CoreMessage[] | RunState,
   options?: RunOptions<TContext>
 ): Promise<RunResult<TOutput>>
 
 // Streaming
-function stream<TContext>(
-  agent: Agent<TContext>,
-  input: string,
+function runStream<TContext, TOutput>(
+  agent: Agent<TContext, TOutput>,
+  input: string | CoreMessage[],
   options?: RunOptions<TContext>
-): Promise<StreamResult>
+): Promise<StreamResult<TOutput>>
 
 // Race multiple agents
-function raceAgents<TContext>(
-  agents: Agent<TContext>[],
-  input: string,
+function raceAgents<TContext, TOutput>(
+  agents: Agent<TContext, TOutput>[],
+  input: string | CoreMessage[],
   options?: RunOptions<TContext> & { timeoutMs?: number }
-): Promise<RaceResult>
+): Promise<RunResult<TOutput> & { winningAgent: Agent<TContext, TOutput> }>
 ```
 
 ### Sessions
 
 ```typescript
-interface Session {
-  addMessages(messages: CoreMessage[]): Promise<void>
-  getHistory(): Promise<CoreMessage[]>
-  clear(): Promise<void>
+interface Session<TContext = any> {
+  readonly id: string;
+  addMessages(messages: CoreMessage[]): Promise<void>;
+  getHistory(): Promise<CoreMessage[]>;
+  clear(): Promise<void>;
+  getMetadata(): Promise<Record<string, any>>;
+  updateMetadata(metadata: Record<string, any>): Promise<void>;
 }
 
-class MemorySession implements Session
-class RedisSession implements Session
-class DatabaseSession implements Session
-class HybridSession implements Session
-class SessionManager // Multi-session management
+// In-memory (development/testing)
+class MemorySession<TContext> implements Session<TContext> {
+  constructor(id: string, maxMessages?: number, summarizationConfig?: SummarizationConfig)
+}
+
+// Redis-backed (production)
+class RedisSession<TContext> implements Session<TContext> {
+  constructor(id: string, config: RedisSessionConfig)
+  refreshTTL(): Promise<void> // Refresh time-to-live
+}
+
+// MongoDB-backed (production)
+class DatabaseSession<TContext> implements Session<TContext> {
+  constructor(id: string, config: DatabaseSessionConfig)
+}
+
+// Hybrid (Redis + MongoDB)
+class HybridSession<TContext> implements Session<TContext> {
+  constructor(id: string, config: HybridSessionConfig)
+  syncToDatabase(): Promise<void> // Manually sync Redis to MongoDB
+}
+
+// Session manager
+class SessionManager {
+  constructor(config: SessionManagerConfig)
+  getSession<TContext>(sessionId: string): Session<TContext>
+  deleteSession(sessionId: string): Promise<void>
+  clearCache(): void
+}
 ```
 
 ### Guardrails
@@ -576,37 +820,152 @@ class SessionManager // Multi-session management
 interface Guardrail<TContext = any> {
   name: string
   type: 'input' | 'output'
-  validate(content: string, context: RunContextWrapper<TContext>): Promise<GuardrailResult>
+  validate(content: string, context: RunContextWrapper<TContext>): Promise<GuardrailResult> | GuardrailResult
 }
 
-// Built-in guardrails
-function contentSafetyGuardrail(config): Guardrail
-function piiDetectionGuardrail(config): Guardrail
-function lengthGuardrail(config): Guardrail
-function topicRelevanceGuardrail(config): Guardrail
-function formatValidationGuardrail(config): Guardrail
-function rateLimitGuardrail(config): Guardrail
-function languageGuardrail(config): Guardrail
-function sentimentGuardrail(config): Guardrail
-function toxicityGuardrail(config): Guardrail
-function customGuardrail(config): Guardrail
+interface GuardrailResult {
+  passed: boolean
+  message?: string
+  metadata?: Record<string, any>
+}
+
+// Built-in guardrails (all require type: 'input' | 'output')
+function contentSafetyGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  categories?: string[];
+  threshold?: number;
+}): Guardrail<TContext>
+
+function piiDetectionGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  block?: boolean;
+  categories?: string[];
+}): Guardrail<TContext>
+
+function lengthGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  minLength?: number;
+  maxLength?: number;
+  unit?: 'characters' | 'words' | 'tokens';
+}): Guardrail<TContext>
+
+function topicRelevanceGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  allowedTopics: string[];
+  threshold?: number;
+}): Guardrail<TContext>
+
+function formatValidationGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  format: 'json' | 'xml' | 'yaml' | 'markdown';
+  schema?: z.ZodSchema;
+}): Guardrail<TContext>
+
+function rateLimitGuardrail<TContext>(config: {
+  name?: string;
+  storage: Map<string, { count: number; resetAt: number }>;
+  maxRequests: number;
+  windowMs: number;
+  keyExtractor: (context: RunContextWrapper<TContext>) => string;
+}): Guardrail<TContext>
+
+function languageGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  allowedLanguages: string[];
+}): Guardrail<TContext>
+
+function sentimentGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  blockedSentiments?: ('positive' | 'negative' | 'neutral')[];
+  allowedSentiments?: ('positive' | 'negative' | 'neutral')[];
+}): Guardrail<TContext>
+
+function toxicityGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  threshold?: number; // 0-10 scale
+}): Guardrail<TContext>
+
+function customGuardrail<TContext>(config: {
+  name: string;
+  type: 'input' | 'output';
+  validate: (content: string, context: RunContextWrapper<TContext>) => Promise<GuardrailResult> | GuardrailResult;
+}): Guardrail<TContext>
 ```
 
 ### TOON Format
+
+Efficient token encoding for 42% reduction vs JSON.
 
 ```typescript
 function encodeTOON(data: any): string
 function decodeTOON(toonString: string): any
 function formatToolResultTOON(toolName: string, result: any): string
-function calculateTokenSavings(data: any): TokenSavings
+function formatToolResultsBatch(results: Array<{ tool: string; result: any }>): string
+function isTOONFormat(str: string): boolean
+function smartDecode(str: string): any
+function calculateTokenSavings(data: any): { jsonTokens: number; toonTokens: number; savings: number; savingsPercent: number }
 ```
 
-### Langfuse
+### Langfuse Tracing
 
 ```typescript
-function initializeLangfuse(config: LangfuseConfig): void
+function initializeLangfuse(config: {
+  publicKey: string;
+  secretKey: string;
+  baseUrl?: string;
+}): Langfuse | null
+
 function shutdownLangfuse(): Promise<void>
 function isLangfuseEnabled(): boolean
+function flushLangfuse(): Promise<void>
+```
+
+### MCP Integration
+
+```typescript
+class MCPServerManager {
+  registerServer(config: MCPServerConfig): Promise<void>
+  getTools(): Promise<Record<string, ToolDefinition>>
+  getServerTools(serverName: string): Promise<Record<string, ToolDefinition>>
+  shutdown(): Promise<void>
+}
+
+function registerMCPServer(config: MCPServerConfig): Promise<void>
+function getMCPTools(): Promise<Record<string, ToolDefinition>>
+function getGlobalMCPManager(): MCPServerManager
+function shutdownMCPServers(): Promise<void>
+```
+
+### Approvals
+
+```typescript
+class ApprovalManager {
+  requiresApproval(toolName: string, config?: ApprovalConfig): boolean
+  requestApproval(toolName: string, args: any, config: ApprovalConfig): Promise<ApprovalResponse>
+  getPendingApproval(token: string): PendingApproval | undefined
+  submitApproval(token: string, response: ApprovalResponse): void
+  getPendingApprovals(): PendingApproval[]
+  clearExpired(maxAge?: number): void
+}
+
+function getGlobalApprovalManager(): ApprovalManager
+function createCLIApprovalHandler(): ApprovalConfig['requestApproval']
+function createWebhookApprovalHandler(webhookUrl: string, apiKey?: string): ApprovalConfig['requestApproval']
+function createAutoApproveHandler(): ApprovalConfig['requestApproval']
+function createAutoRejectHandler(): ApprovalConfig['requestApproval']
 ```
 
 ## Examples
@@ -648,7 +1007,6 @@ import type {
   RunOptions,
   RunResult,
   StreamResult,
-  Tool,
   Guardrail,
   GuardrailResult,
   Session,

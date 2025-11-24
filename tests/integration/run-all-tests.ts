@@ -17,12 +17,14 @@ import * as path from 'path';
 const execAsync = promisify(exec);
 
 const tests = [
-  '01-basic-agent.test.ts',
-  '02-multi-agent.test.ts',
-  '03-streaming.test.ts',
-  '04-guardrails.test.ts',
-  '05-sessions.test.ts',
-  '06-langfuse-tracing.test.ts',
+  { file: 'multi-agent.test.ts', name: 'Multi-Agent Tests' },
+  { file: 'streaming.test.ts', name: 'Streaming Tests' },
+  { file: 'guardrails.test.ts', name: 'Guardrails Tests' },
+  { file: 'sessions.test.ts', name: 'Sessions Tests' },
+  { file: 'tracing.test.ts', name: 'Tracing Tests' },
+  { file: 'tool-calling.test.ts', name: 'Tool Calling Tests' },
+  { file: 'race-agents.test.ts', name: 'Race Agents Tests' },
+  { file: 'content-creation.test.ts', name: 'Content Creation Tests' },
 ];
 
 interface TestResult {
@@ -32,24 +34,25 @@ interface TestResult {
   error?: string;
 }
 
-async function runTest(testFile: string): Promise<TestResult> {
+async function runTest(test: { file: string; name: string }): Promise<TestResult> {
   const start = Date.now();
-  const testPath = path.join(__dirname, testFile);
+  const testPath = path.join(__dirname, test.file);
   
   try {
     await execAsync(`npx ts-node ${testPath}`, {
-      cwd: path.join(__dirname, '..'),
+      cwd: path.join(__dirname, '../..'),
       env: { ...process.env },
+      timeout: 120000, // 2 minutes per test
     });
     
     return {
-      name: testFile,
+      name: test.name,
       passed: true,
       duration: Date.now() - start,
     };
   } catch (error: any) {
     return {
-      name: testFile,
+      name: test.name,
       passed: false,
       duration: Date.now() - start,
       error: error.message,
@@ -66,13 +69,13 @@ async function runAllTests() {
   const results: TestResult[] = [];
   
   for (let i = 0; i < tests.length; i++) {
-    const testFile = tests[i];
+    const test = tests[i];
     const testNum = i + 1;
     
-    console.log(`\n[${ testNum}/${tests.length}] Running ${testFile}...`);
+    console.log(`\n[${ testNum}/${tests.length}] Running ${test.name}...`);
     console.log('-'.repeat(80));
     
-    const result = await runTest(testFile);
+    const result = await runTest(test);
     results.push(result);
     
     if (result.passed) {

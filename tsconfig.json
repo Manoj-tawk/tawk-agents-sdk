@@ -34,7 +34,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     
-    // Path mapping - allows using @tawk-agents-sdk/core everywhere
+    // Path mapping - internal alias for @tawk-agents-sdk/core
     "baseUrl": ".",
     "paths": {
       "@tawk-agents-sdk/core": ["./src/index.ts"],

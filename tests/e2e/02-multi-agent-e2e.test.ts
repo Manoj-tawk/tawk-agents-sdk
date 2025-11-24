@@ -8,7 +8,7 @@
  */
 
 import 'dotenv/config';
-import { Agent, run, raceAgents, setDefaultModel } from '@tawk-agents-sdk/core';
+import { Agent, run, raceAgents, setDefaultModel } from '../../src';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 

@@ -10,7 +10,7 @@
  */
 
 import 'dotenv/config';
-import { Agent, run, setDefaultModel } from '@tawk-agents-sdk/core';
+import { Agent, run, setDefaultModel } from '../../src';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
@@ -52,7 +52,7 @@ async function test2_ToolCalling() {
 
   const calculator = {
     description: 'Perform mathematical calculations',
-    parameters: z.object({
+    inputSchema: z.object({
       operation: z.enum(['add', 'subtract', 'multiply', 'divide']),
       a: z.number().describe('First number'),
       b: z.number().describe('Second number'),
@@ -98,7 +98,7 @@ async function test3_ContextInjection() {
 
   const getUserInfo = {
     description: 'Get user information from context',
-    parameters: z.object({
+    inputSchema: z.object({
       field: z.string().describe('Field to retrieve: name, email, or role'),
     }),
     execute: async ({ field }: any, contextWrapper: any) => {
@@ -174,7 +174,7 @@ async function test5_ErrorHandling() {
 
   const failingTool = {
     description: 'A tool that sometimes fails',
-    parameters: z.object({
+    inputSchema: z.object({
       shouldFail: z.boolean(),
     }),
     execute: async ({ shouldFail }: any) => {

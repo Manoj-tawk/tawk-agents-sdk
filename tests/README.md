@@ -1,36 +1,78 @@
-# Tawk Agents SDK - Test Suite
+# 🧪 Tawk Agents SDK - Test Suite
 
-Comprehensive test suite with unit tests, E2E tests, and integration tests.
+Comprehensive test suite organized to match the source code structure.
 
-## Test Architecture
+---
 
-The SDK includes three types of tests for comprehensive quality assurance:
+## 📁 Directory Structure
 
-### Unit Tests (`/tests/*.test.ts`)
-- **Speed**: <1 second for all tests
-- **Requirements**: None (no API keys needed)
-- **Responses**: Mocked
-- **Results**: Deterministic
-- **Use Case**: Development and CI/CD
+```
+tests/
+├── README.md                 # This file
+├── STRUCTURE.md              # Structure documentation
+│
+├── unit/                     # Unit tests (mocked, fast)
+│   ├── __mocks__/           # Mock implementations
+│   ├── core/                # Core functionality tests
+│   │   ├── agent.test.ts
+│   │   ├── multi-agent.test.ts
+│   │   ├── race-agents.test.ts
+│   │   ├── streaming.test.ts
+│   │   ├── tool-calling.test.ts
+│   │   └── incremental.test.ts
+│   ├── tools/                # Tools tests
+│   │   └── content-creation.test.ts
+│   ├── sessions/             # Session management tests
+│   │   └── sessions.test.ts
+│   ├── guardrails/           # Guardrails tests
+│   │   └── guardrails.test.ts
+│   ├── tracing/              # Tracing tests
+│   │   └── tracing.test.ts
+│   ├── handoffs/             # Handoff tests (ready)
+│   ├── helpers/              # Helper tests (ready)
+│   ├── lifecycle/            # Lifecycle tests (ready)
+│   ├── approvals/            # Approval tests (ready)
+│   ├── mcp/                  # MCP tests (ready)
+│   └── types/                # Type tests (ready)
+│
+├── e2e/                      # End-to-end tests (real API)
+│   ├── 01-basic-e2e.test.ts
+│   ├── 02-multi-agent-e2e.test.ts
+│   ├── 03-streaming-sessions-e2e.test.ts
+│   └── README.md
+│
+├── integration/              # Integration tests (real API)
+│   ├── run-all-tests.ts
+│   └── README.md
+│
+└── utils/                    # Test utilities
+    ├── helpers.ts           # Test helpers and mocks
+    ├── setup.ts             # Jest setup
+    └── index.ts             # Exports
+```
 
-### E2E Tests (`/tests/e2e/*.test.ts`)
-- **Speed**: 3-5 seconds per test
-- **Requirements**: API keys required
-- **Responses**: Real API calls
-- **Cost**: ~$0.005 for all tests
-- **Use Case**: Validation and learning
+---
 
-### Integration Tests (`/tests/integration/*.test.ts`)
-- **Speed**: 30-60 seconds
-- **Requirements**: API keys required
-- **Responses**: Real API calls
-- **Cost**: ~$0.05 for all tests
-- **Use Case**: Pre-release validation
+## 🚀 Quick Start
 
-## Quick Start
+### Prerequisites
 
 ```bash
-# Run unit tests (fast, no API keys)
+# Install dependencies
+npm install
+
+# For unit tests (no API keys needed)
+npm test
+
+# For E2E/integration tests (API keys required)
+cp .env.example .env
+# Edit .env with your API keys
+```
+
+### Running Tests
+
+```bash
+# Run all unit tests (fast, mocked)
 npm test
 
 # Run with coverage
@@ -39,59 +81,185 @@ npm run test:coverage
 # Run in watch mode
 npm run test:watch
 
-# Run specific unit test
-npm run test:basic
+# Run specific test file
+npm test -- unit/core/agent.test.ts
+npm test -- unit/sessions/sessions.test.ts
 
 # Run E2E tests (requires API keys)
-npm run e2e:basic
-npm run e2e:multi
-npm run e2e:stream
+npm run e2e
+
+# Run integration tests (requires API keys)
+npm run integration
 ```
 
-## Unit Tests
+---
 
-### Available Tests
+## 📖 Test Categories
 
-**01-basic-agent.test.ts** - 10 passing tests
-- Agent creation and configuration (3 tests)
-- Basic execution (2 tests)
-- Tool calling (1 test)
-- Context injection (1 test)
-- Token tracking (1 test)
-- Error handling (2 tests)
+### Unit Tests (`unit/`)
 
-### Running Unit Tests
+**For:** Development and CI/CD
 
-```bash
-# All unit tests
-npm test
+- **Speed**: <1 second for all tests
+- **Requirements**: None (no API keys needed)
+- **Responses**: Mocked
+- **Results**: Deterministic
+- **Cost**: Free
 
-# Specific test file
-npm run test:basic
-npm run test:multi
-npm run test:stream
-npm run test:guards
-npm run test:sessions
-npm run test:langfuse
-npm run test:advanced
-npm run test:race
+**Structure matches `src/` directory:**
+- `unit/core/` - Tests for `src/core/`
+- `unit/tools/` - Tests for `src/tools/`
+- `unit/sessions/` - Tests for `src/sessions/`
+- `unit/guardrails/` - Tests for `src/guardrails/`
+- `unit/tracing/` - Tests for `src/tracing/`
+- And more...
 
-# Watch mode
-npm run test:watch
+### E2E Tests (`e2e/`)
 
-# Coverage report
-npm run test:coverage
-```
+**For:** Validation and learning
 
-### Writing Unit Tests
+- **Speed**: 3-5 seconds per test
+- **Requirements**: API keys required
+- **Responses**: Real API calls
+- **Cost**: ~$0.005 for all tests
+
+**Tests:**
+- Basic agent functionality
+- Multi-agent patterns
+- Streaming and sessions
+
+### Integration Tests (`integration/`)
+
+**For:** Pre-release validation
+
+- **Speed**: 30-60 seconds
+- **Requirements**: API keys required
+- **Responses**: Real API calls
+- **Cost**: ~$0.05 for all tests
+
+---
+
+## 🧪 Unit Tests by Module
+
+### Core (`unit/core/`)
+
+**agent.test.ts** - Basic agent functionality
+- Agent creation and configuration
+- Basic execution
+- Tool calling
+- Context injection
+- Token tracking
+- Error handling
+
+**multi-agent.test.ts** - Multi-agent systems
+- Agent handoffs
+- Multi-agent coordination
+- Trace management
+
+**race-agents.test.ts** - Parallel execution
+- Race agents pattern
+- Fastest response selection
+- Fallback patterns
+
+**streaming.test.ts** - Streaming responses
+- Real-time streaming
+- Stream events
+- Progressive output
+
+**tool-calling.test.ts** - Advanced tool calling
+- Complex tool scenarios
+- Tool chaining
+- Error handling
+
+**incremental.test.ts** - Incremental feature testing
+- Feature-by-feature validation
+- Breaking point identification
+
+### Tools (`unit/tools/`)
+
+**content-creation.test.ts** - AI tools
+- Embeddings
+- Image generation
+- Audio (TTS/STT)
+- Reranking
+
+### Sessions (`unit/sessions/`)
+
+**sessions.test.ts** - Session management
+- In-memory sessions
+- Session history
+- Context persistence
+- Multiple sessions
+
+### Guardrails (`unit/guardrails/`)
+
+**guardrails.test.ts** - Safety and validation
+- Input guardrails
+- Output guardrails
+- Content safety
+- PII detection
+- Length limits
+
+### Tracing (`unit/tracing/`)
+
+**tracing.test.ts** - Observability
+- Trace creation
+- Token tracking
+- Generation spans
+- Handoff spans
+- Metadata tracking
+
+---
+
+## 🛠️ Test Utilities
+
+### Helpers (`utils/helpers.ts`)
 
 ```typescript
-import { Agent, run } from '@tawk-agents-sdk/core';
-import { generateText } from 'ai';
-import { mockTextResponse } from './helpers';
+import { mockTextResponse, mockToolCallResponse } from '../utils/helpers';
 
-jest.mock('ai');
-const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
+// Mock text response
+mockTextResponse('Output text', { prompt: 10, completion: 5 });
+
+// Mock tool call response
+mockToolCallResponse('Text', [
+  { name: 'tool1', args: {}, result: {} }
+]);
+```
+
+### Setup (`utils/setup.ts`)
+
+Global Jest setup:
+- Environment variable mocks
+- Console suppression
+- Langfuse mocks
+- AI SDK mocks
+
+---
+
+## 📋 Test Standards
+
+### File Naming
+
+- Unit tests: `*.test.ts`
+- E2E tests: `*-e2e.test.ts`
+- Integration tests: `*.test.ts` (in integration/)
+
+### Import Paths
+
+```typescript
+// SDK imports (from unit/ directory)
+import { Agent, run } from '../../../src';
+
+// Utility imports
+import { mockTextResponse } from '../../utils/helpers';
+```
+
+### Test Structure
+
+```typescript
+import { Agent, run } from '../../../src';
+import { mockTextResponse } from '../../utils/helpers';
 
 describe('Feature Name', () => {
   beforeEach(() => {
@@ -99,117 +267,55 @@ describe('Feature Name', () => {
   });
 
   it('should behave correctly', async () => {
-    // Mock the AI response
-    mockGenerateText.mockResolvedValue(
-      mockTextResponse('Expected output', { prompt: 10, completion: 5 })
-    );
-
-    // Create and test agent
-    const agent = new Agent({
-      name: 'Test Agent',
-      instructions: 'Test instructions',
-    });
-
-    const result = await run(agent, 'Test input');
-
-    // Assertions
-    expect(result.finalOutput).toBe('Expected output');
-    expect(result.metadata.totalTokens).toBe(15);
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    // Test implementation
   });
 });
 ```
 
-### Test Utilities
+---
 
-The `/tests/helpers.ts` file provides utilities for mocking:
+## 🎯 Test Coverage
 
-- `mockTextResponse()` - Mock simple text responses
-- `mockToolCallResponse()` - Mock responses with tool calls
-- `createMockModel()` - Create mock language models
-- `createMockStream()` - Mock streaming responses
+### Current Coverage
 
-## E2E Tests
+- ✅ Core functionality (agent, run, streaming)
+- ✅ Multi-agent systems
+- ✅ Tool calling
+- ✅ Sessions
+- ✅ Guardrails
+- ✅ Tracing
+- ✅ Tools (embeddings, images, audio)
 
-E2E tests make real API calls to validate the SDK works correctly in production scenarios.
+### Missing Coverage
 
-### Available E2E Tests
+- ⚠️ Handoffs (tests needed)
+- ⚠️ MCP integration (tests needed)
+- ⚠️ Approvals (tests needed)
+- ⚠️ Helpers (tests needed)
+- ⚠️ Lifecycle (tests needed)
 
-**01-basic-e2e.test.ts** - Basic features
-- Simple questions
-- Tool calling
-- Context injection
-- Multi-turn conversations
-- Error handling
+---
 
-**02-multi-agent-e2e.test.ts** - Multi-agent patterns
-- Multi-agent handoffs
-- Race agents (parallel execution)
-- Fallback patterns
+## 🔧 Configuration
 
-**03-streaming-sessions-e2e.test.ts** - Streaming and sessions
-- Real-time streaming
-- Session memory
-- Multi-turn with context
+### Jest Configuration
 
-### Running E2E Tests
+Tests use Jest with TypeScript support. Configuration in `jest.config.js` or `package.json`.
 
-```bash
-# Set up API key
-echo "OPENAI_API_KEY=sk-your-key" > .env
+### Environment Variables
 
-# Run E2E tests
-npm run e2e:basic   # ~$0.001
-npm run e2e:multi   # ~$0.002
-npm run e2e:stream  # ~$0.002
-
-# Run all E2E tests
-npm run e2e         # ~$0.005 total
-```
-
-### E2E Test Output
+For E2E and integration tests:
 
 ```bash
-$ npm run e2e:basic
-
-🧪 E2E TEST 01: Basic Agent with Real API
-
-📍 Test 1: Simple Question
-✅ Agent: Simple Agent
-📝 Response: 2 + 2 equals 4.
-📊 Tokens used: 37
-💰 Cost: ~$ 0.000006
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ ALL E2E TESTS PASSED!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⏱️  Duration: 10.35s
-💰 Total cost: ~$0.000110
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
 ```
 
-## Integration Tests
+---
 
-Integration tests are located in `/tests/integration/` and require real API credentials.
-
-### Running Integration Tests
-
-```bash
-# Set up environment
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run specific integration test
-ts-node tests/integration/02-multi-agent.test.ts
-ts-node tests/integration/03-streaming.test.ts
-ts-node tests/integration/04-guardrails.test.ts
-ts-node tests/integration/05-sessions.test.ts
-ts-node tests/integration/06-langfuse-tracing.test.ts
-ts-node tests/integration/07-advanced-tool-calling.test.ts
-ts-node tests/integration/08-race-agents.test.ts
-```
-
-## Test Comparison
+## 📊 Test Comparison
 
 | Type | Speed | Cost | Network | API Keys | Purpose |
 |------|-------|------|---------|----------|---------|
@@ -217,54 +323,77 @@ ts-node tests/integration/08-race-agents.test.ts
 | **E2E** | 🏃 3-5s | ~$0.005 | ✅ Yes | ✅ Yes | Validation & demos |
 | **Integration** | 🐌 30-60s | ~$0.05 | ✅ Yes | ✅ Yes | Pre-release validation |
 
-## CI/CD Integration
+---
 
-```yaml
-# .github/workflows/test.yml
-name: Test
-on: [push, pull_request]
+## 💡 Best Practices
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-      - run: npm install
-      - run: npm test
-      - run: npm run test:coverage
+1. **Match Source Structure** - Tests mirror `src/` directory
+2. **Use Utilities** - Import from `utils/`
+3. **Mock External APIs** - Unit tests should be fast
+4. **Test Real APIs** - Use E2E/integration for validation
+5. **Keep Tests Focused** - One feature per test file
+6. **Update Tests** - Keep tests in sync with code
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"Module not found"**
+- Check import paths: `from '../../../src'`
+- Verify file structure matches `src/`
+
+**"Mock not working"**
+- Check `utils/setup.ts` is loaded
+- Verify Jest configuration
+
+**"API key missing"**
+- E2E/integration tests require API keys
+- Use `.env` file for configuration
+
+---
+
+## 📚 Related Resources
+
+- **[Examples](../examples/)** - Code examples
+- **[Documentation](../docs/)** - Complete documentation
+- **[Source Code](../src/)** - Source code structure
+
+---
+
+## 🤝 Contributing
+
+### Adding Tests
+
+1. **Choose Location** - Match `src/` structure
+2. **Use Utilities** - Import from `utils/`
+3. **Follow Naming** - Use `*.test.ts` convention
+4. **Update README** - Document new tests
+
+### Test Template
+
+```typescript
+import { Agent, run } from '../../../src';
+import { mockTextResponse } from '../../utils/helpers';
+
+describe('Feature Name', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should work correctly', async () => {
+    // Test implementation
+  });
+});
 ```
 
-## Coverage Reports
+---
 
-Generate and view test coverage:
+## 📝 License
 
-```bash
-npm run test:coverage
-```
+MIT © [Tawk.to](https://www.tawk.to)
 
-Coverage report is generated at: `coverage/index.html`
+---
 
-## Best Practices
-
-### For Development
-1. Run unit tests frequently (`npm test`)
-2. Use watch mode during development (`npm run test:watch`)
-3. Aim for high coverage (>80%)
-
-### For Validation
-1. Run E2E tests before commits (`npm run e2e`)
-2. Validate real API integration works
-3. Check performance and token usage
-
-### For Release
-1. Run all unit tests (`npm test`)
-2. Run all E2E tests (`npm run e2e`)
-3. Run integration tests for comprehensive validation
-4. Verify coverage meets requirements
-
-## Support
-
-- 📖 [Full Documentation](../README.md)
-- 💬 [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
-- 📧 support@tawk.to
+**Ready to test? Start with `npm test`!** 🧪

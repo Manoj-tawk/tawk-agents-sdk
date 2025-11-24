@@ -12,15 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-agent orchestration with seamless handoffs
 - Comprehensive tool calling with automatic context injection
 - Langfuse tracing integration for full observability
-- Session management (in-memory, Redis, MongoDB) with automatic summarization
+- Session management (in-memory, Redis, MongoDB, Hybrid) with automatic summarization
 - Input/output guardrails (PII detection, content safety, length limits, etc.)
 - Real-time streaming support
 - MCP (Model Context Protocol) integration
 - Human-in-the-loop approvals with multiple handlers
 - Multi-provider support (OpenAI, Anthropic, Google, Groq, Mistral, etc.)
 - Full TypeScript support with complete type safety
-- Comprehensive test suite (6 test suites, all passing)
+- Comprehensive test suite (unit, integration, E2E tests)
 - Production-ready performance optimizations
+- **AI Features**: Embeddings, Image Generation, Audio (TTS/STT), Reranking
+- **Reranking Support**: Document reranking for improved search relevance (`rerankDocuments`, `createRerankTool`)
 
 ### Core Features
 - **Agent Class**: Create specialized agents with instructions, tools, and handoffs

@@ -5,7 +5,7 @@
  * Flexible, multi-provider support with comprehensive features.
  * 
  * @packageDocumentation
- * @module @tawk-agents-sdk/core
+ * @module tawk-agents-sdk
  * @author Tawk.to
  * @license MIT
  * @version 1.0.0
@@ -28,21 +28,22 @@ export {
   
   // Utilities
   setDefaultModel,
-} from './agent';
+} from './core/agent';
 
 // Race agents pattern for parallel execution
-export { raceAgents } from './race-agents';
+export { raceAgents } from './core/race-agents';
+export type { RaceAgentsOptions } from './core/race-agents';
 
 // Usage tracking
-export { Usage } from './usage';
+export { Usage } from './core/usage';
 
 // Enhanced Result types (override agent.ts exports with richer versions)
-export { RunResult as EnhancedRunResult, StreamedRunResult } from './result';
+export { RunResult as EnhancedRunResult, StreamedRunResult } from './core/result';
 
 // Handoff system - DEPRECATED: Use transfers instead
 // Keeping exports for backward compatibility but marked as deprecated
-export { Handoff, handoff, getHandoff } from './handoff';
-export type { HandoffInputData, HandoffInputFilter, HandoffEnabledFunction } from './handoff';
+export { Handoff, handoff, getHandoff } from './handoffs';
+export type { HandoffInputData, HandoffInputFilter, HandoffEnabledFunction } from './handoffs';
 
 // Handoff extensions - DEPRECATED
 export {
@@ -51,10 +52,10 @@ export {
   keepLastMessage,
   keepMessagesOnly,
   createHandoffPrompt,
-} from './extensions/handoff-filters';
+} from './handoffs/filters';
 
 // Tracing utilities
-export { withFunctionSpan, withHandoffSpan, withGuardrailSpan } from './tracing-utils';
+export { withFunctionSpan, withHandoffSpan, withGuardrailSpan } from './tracing/tracing-utils';
 
 // Tracing context
 export { withTrace, getCurrentTrace, getCurrentSpan, setCurrentSpan, createContextualSpan, createContextualGeneration } from './tracing/context';
@@ -68,16 +69,16 @@ export {
   RunRawModelStreamEvent,
   RunItemStreamEvent,
   RunAgentUpdatedStreamEvent,
-} from './events';
-export type { RunItemStreamEventName, RunStreamEvent } from './events';
+} from './lifecycle/events';
+export type { RunItemStreamEventName, RunStreamEvent } from './lifecycle/events';
 
 // Lifecycle hooks
 export { AgentHooks, RunHooks } from './lifecycle';
 export type { AgentHookEvents, RunHookEvents } from './lifecycle';
 
 // Utilities
-export { safeExecute, safeExecuteWithTimeout } from './utils/safe-execute';
-export type { SafeExecuteResult } from './utils/safe-execute';
+export { safeExecute, safeExecuteWithTimeout } from './helpers/safe-execute';
+export type { SafeExecuteResult } from './helpers/safe-execute';
 
 // Message helpers
 export { user, assistant, system, toolMessage, getLastTextContent, filterMessagesByRole, extractAllText } from './helpers/message';
@@ -108,7 +109,7 @@ export type {
 } from './types/helpers';
 
 // Run state management
-export { RunState } from './runstate';
+export { RunState } from './core/runstate';
 export type {
   RunItem,
   RunItemType,
@@ -119,7 +120,7 @@ export type {
   RunHandoffOutputItem,
   RunGuardrailItem,
   ModelResponse,
-} from './runstate';
+} from './core/runstate';
 
 // Types from agent
 export type {
@@ -131,7 +132,7 @@ export type {
   Session,
   StepResult,
   RunContextWrapper,
-} from './agent';
+} from './core/agent';
 
 // ============================================
 // SESSION MANAGEMENT
@@ -139,7 +140,11 @@ export type {
 
 export {
   SessionManager,
-} from './session';
+  MemorySession,
+  RedisSession,
+  DatabaseSession,
+  HybridSession,
+} from './sessions';
 
 // ============================================
 // GUARDRAILS
@@ -162,7 +167,7 @@ export {
 export type {
   Guardrail,
   GuardrailResult,
-} from './agent';
+} from './core/agent';
 
 // ============================================
 // MCP (Model Context Protocol)
@@ -183,8 +188,8 @@ export {
   mcpToFunctionTool,
   normalizeMCPToolName,
   groupMCPToolsByServer,
-} from './mcp-utils';
-export type { MCPToolFilter } from './mcp-utils';
+} from './mcp/utils';
+export type { MCPToolFilter } from './mcp/utils';
 
 // ============================================
 // HUMAN-IN-THE-LOOP (Approvals)
@@ -209,11 +214,11 @@ export {
   setGlobalTraceCallback,
   createLangfuseCallback,
   createConsoleCallback,
-} from './tracing';
+} from './tracing/tracing';
 
 export type {
   Trace,
-} from './tracing';
+} from './tracing/tracing';
 
 // ============================================
 // LANGFUSE INTEGRATION
@@ -232,7 +237,7 @@ export {
   score,
   flushLangfuse,
   shutdownLangfuse,
-} from './langfuse';
+} from './lifecycle/langfuse';
 
 // ============================================
 // ERROR TYPES
@@ -246,11 +251,61 @@ export {
   ApprovalRequiredError,
   backgroundResult,
   isBackgroundResult,
-} from './types';
+} from './types/types';
 
 export type {
   BackgroundResult,
-} from './types';
+} from './types/types';
+
+// ============================================
+// AI TOOLS (Image, Audio, Embeddings, Reranking)
+// ============================================
+
+export {
+  // Image Generation
+  generateImageAI,
+  createImageGenerationTool,
+  
+  // Audio Transcription
+  transcribeAudioAI,
+  createTranscriptionTool,
+  
+  // Text-to-Speech
+  generateSpeechAI,
+  createTextToSpeechTool,
+  
+  // Embeddings
+  generateEmbeddingAI,
+  generateEmbeddingsAI,
+  cosineSimilarity,
+  createEmbeddingTool,
+  
+  // Reranking
+  rerankDocuments,
+  createRerankTool,
+} from './tools';
+
+export type {
+  // Image types
+  GenerateImageOptions,
+  GenerateImageResult,
+  
+  // Audio types
+  TranscribeAudioOptions,
+  TranscribeAudioResult,
+  GenerateSpeechOptions,
+  GenerateSpeechResult,
+  
+  // Embedding types
+  GenerateEmbeddingOptions,
+  GenerateEmbeddingsOptions,
+  EmbeddingResult,
+  EmbeddingsResult,
+  
+  // Reranking types
+  RerankOptions,
+  RerankResult,
+} from './tools';
 
 /**
  * Package version
@@ -260,4 +315,4 @@ export const VERSION = '1.0.0';
 /**
  * Default export for convenience
  */
-export { Agent as default } from './agent';
+export { Agent as default } from './core/agent';

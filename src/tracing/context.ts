@@ -66,7 +66,7 @@ export async function withTrace<T>(
   }
 
   // Import here to avoid circular dependency
-  const { createTrace } = await import('../langfuse');
+  const { createTrace } = await import('../lifecycle/langfuse');
 
   // Create new trace with input
   const trace = createTrace({
