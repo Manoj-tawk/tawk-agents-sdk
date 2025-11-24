@@ -27,7 +27,6 @@ import { Usage } from './usage';
 // Type alias for tool definitions (v5 compatibility)
 type ToolDefinition = {
   description?: string;
-  parameters?: z.ZodSchema<any>;
   inputSchema?: z.ZodSchema<any>; // AI SDK v5 standard
   execute: (args: any, context?: any) => Promise<any> | any;
   enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
@@ -66,7 +65,7 @@ import { AgentHooks, RunHooks } from '../lifecycle';
  * @property {z.ZodSchema} [outputSchema] - Schema for structured output parsing
  * @property {z.ZodSchema} [outputType] - Alias for outputSchema (for backward compatibility)
  * @property {number} [maxSteps] - Maximum number of steps before stopping (default: 10)
- * @property {Object} [modelSettings] - Model generation parameters
+ * @property {Object} [modelSettings] - Model generation inputSchema
  * @property {number} [modelSettings.temperature] - Sampling temperature (0-2)
  * @property {number} [modelSettings.topP] - Nucleus sampling parameter
  * @property {number} [modelSettings.maxTokens] - Maximum tokens to generate
@@ -575,7 +574,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
 
     return {
       description: toolDescription,
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Query or request for the agent')
       }),
       execute: async ({ query }: { query: string }, context: any) => {
@@ -964,7 +963,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         console.log('- First tool:', JSON.stringify({
           key: firstToolKey,
           hasDescription: !!firstTool?.description,
-          hasParameters: !!firstTool?.parameters,
+          hasinputSchema: !!firstTool?.inputSchema,
           hasInputSchema: !!(firstTool as any)?.inputSchema,
           inputSchemaType: (firstTool as any)?.inputSchema?.constructor?.name,
           hasExecute: typeof firstTool?.execute === 'function'
@@ -1614,14 +1613,14 @@ function getDefaultModel(): LanguageModel {
  * Create a tool definition from a function (similar to OpenAI's @function_tool).
  * This follows the AI SDK v5 tool format with inputSchema.
  * 
- * @template TParams - Zod schema type for tool parameters
+ * @template TParams - Zod schema type for tool inputSchema
  * 
  * @param {Object} config - Tool configuration
  * @param {string} [config.name] - Optional tool name (defaults to function name)
  * @param {string} config.description - Description of what the tool does
- * @param {z.ZodObject} config.parameters - Zod schema for parameter validation
+ * @param {z.ZodObject} config.inputSchema - Zod schema for parameter validation
  * @param {Function} config.execute - Tool execution function
- * @param {z.infer<TParams>} config.execute.args - Validated parameters
+ * @param {z.infer<TParams>} config.execute.args - Validated inputSchema
  * @param {RunContextWrapper} [config.execute.context] - Execution context (auto-injected)
  * @returns {CoreTool} Tool definition ready for use in agents
  * 
@@ -1629,7 +1628,7 @@ function getDefaultModel(): LanguageModel {
  * ```typescript
  * const calculator = tool({
  *   description: 'Perform mathematical calculations',
- *   parameters: z.object({
+ *   inputSchema: z.object({
  *     expression: z.string().describe('Mathematical expression to evaluate')
  *   }),
  *   execute: async ({ expression }) => {
@@ -1641,13 +1640,12 @@ function getDefaultModel(): LanguageModel {
 export function tool<TParams extends z.ZodObject<any>>(config: {
   name?: string;
   description: string;
-  parameters: TParams;
+  inputSchema: TParams;
   execute: (args: z.infer<TParams>, context?: any) => Promise<any> | any;
 }): CoreTool {
   return {
     description: config.description,
-    inputSchema: config.parameters, // AI SDK v5 uses inputSchema
-    parameters: config.parameters, // Keep for backward compatibility
+    inputSchema: config.inputSchema, // AI SDK v5 uses inputSchema
     execute: config.execute
   };
 }

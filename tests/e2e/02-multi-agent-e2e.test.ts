@@ -31,7 +31,7 @@ async function test1_MultiAgentHandoff() {
     tools: {
       calculate: {
         description: 'Perform calculations',
-        parameters: z.object({
+        inputSchema: z.object({
           expression: z.string(),
         }),
         execute: async ({ expression }: any) => {

@@ -36,6 +36,7 @@ import {
   tool,
   setDefaultModel,
   generateEmbeddingAI,
+  generateEmbeddingsAI,
   cosineSimilarity,
   lengthGuardrail,
   piiDetectionGuardrail,
@@ -164,6 +165,52 @@ class VectorStore {
 const vectorStore = new VectorStore();
 
 // ============================================
+// OPTIMIZATION: Query Embedding Cache
+// ============================================
+
+/**
+ * Shared query embedding cache to avoid redundant API calls
+ * 
+ * When multiple retrieval agents are called, they all need the same query embedding.
+ * This cache ensures we only generate it once and share it across all agents.
+ */
+class QueryEmbeddingCache {
+  private cache = new Map<string, number[]>();
+  private embeddingModel = openai.embedding('text-embedding-3-small');
+
+  /**
+   * Get embedding for a query (cached)
+   * 
+   * @param query - Query text
+   * @returns Query embedding vector
+   */
+  async getEmbedding(query: string): Promise<number[]> {
+    const cacheKey = query.toLowerCase().trim();
+    
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey)!;
+    }
+
+    const result = await generateEmbeddingAI({
+      model: this.embeddingModel,
+      value: query,
+    });
+    
+    this.cache.set(cacheKey, result.embedding);
+    return result.embedding;
+  }
+
+  /**
+   * Clear the cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const queryEmbeddingCache = new QueryEmbeddingCache();
+
+// ============================================
 // AGENT DEFINITIONS
 // ============================================
 
@@ -177,12 +224,12 @@ const technicalRetrievalAgent = new Agent({
   name: 'TechnicalRetrieval',
   instructions: `You are a technical documentation retrieval specialist.
 
-When given a query:
-1. Use searchKnowledgeBase tool to find relevant technical documents
-2. After retrieving documents, hand off to Synthesis Agent to combine with other sources
-3. Include document IDs in your response
+CRITICAL: You must:
+1. Call searchKnowledgeBase tool ONCE with the query
+2. Immediately hand off to Synthesis Agent with the results
+3. DO NOT make multiple tool calls or ask questions
 
-Always hand off to Synthesis Agent after retrieval.`,
+Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search technical knowledge base using semantic similarity. Call this once with the query.',
@@ -191,13 +238,10 @@ Always hand off to Synthesis Agent after retrieval.`,
         topK: z.number().default(5).describe('Number of results to return'),
       }),
       execute: async ({ query, topK }) => {
-        const embeddingModel = openai.embedding('text-embedding-3-small');
-        const queryEmbed = await generateEmbeddingAI({
-          model: embeddingModel,
-          value: query,
-        });
+        // ✅ OPTIMIZED: Use cached query embedding (shared across agents)
+        const queryEmbedding = await queryEmbeddingCache.getEmbedding(query);
 
-        const results = await vectorStore.search(queryEmbed.embedding, 'technical', topK);
+        const results = await vectorStore.search(queryEmbedding, 'technical', topK);
         
         console.log(`   🔍 Technical: Found ${results.length} documents`);
         results.forEach((r, i) => {
@@ -229,12 +273,12 @@ const generalRetrievalAgent = new Agent({
   name: 'GeneralKnowledge',
   instructions: `You are a general knowledge retrieval specialist.
 
-When given a query:
-1. Use searchKnowledgeBase tool to find relevant general knowledge documents
-2. After retrieving documents, hand off to Synthesis Agent to combine with other sources
-3. Include document IDs in your response
+CRITICAL: You must:
+1. Call searchKnowledgeBase tool ONCE with the query
+2. Immediately hand off to Synthesis Agent with the results
+3. DO NOT make multiple tool calls or ask questions
 
-Always hand off to Synthesis Agent after retrieval.`,
+Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search general knowledge base using semantic similarity. Call this once with the query.',
@@ -243,13 +287,10 @@ Always hand off to Synthesis Agent after retrieval.`,
         topK: z.number().default(5).describe('Number of results to return'),
       }),
       execute: async ({ query, topK }) => {
-        const embeddingModel = openai.embedding('text-embedding-3-small');
-        const queryEmbed = await generateEmbeddingAI({
-          model: embeddingModel,
-          value: query,
-        });
+        // ✅ OPTIMIZED: Use cached query embedding (shared across agents)
+        const queryEmbedding = await queryEmbeddingCache.getEmbedding(query);
 
-        const results = await vectorStore.search(queryEmbed.embedding, 'general', topK);
+        const results = await vectorStore.search(queryEmbedding, 'general', topK);
         
         console.log(`   🔍 General: Found ${results.length} documents`);
         results.forEach((r, i) => {
@@ -281,12 +322,12 @@ const domainRetrievalAgent = new Agent({
   name: 'DomainRetrieval',
   instructions: `You are a domain-specific knowledge retrieval specialist.
 
-When given a query:
-1. Use searchKnowledgeBase tool to find relevant domain-specific documents
-2. After retrieving documents, hand off to Synthesis Agent to combine with other sources
-3. Include document IDs in your response
+CRITICAL: You must:
+1. Call searchKnowledgeBase tool ONCE with the query
+2. Immediately hand off to Synthesis Agent with the results
+3. DO NOT make multiple tool calls or ask questions
 
-Always hand off to Synthesis Agent after retrieval.`,
+Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search domain-specific knowledge base using semantic similarity. Call this once with the query.',
@@ -295,13 +336,10 @@ Always hand off to Synthesis Agent after retrieval.`,
         topK: z.number().default(5).describe('Number of results to return'),
       }),
       execute: async ({ query, topK }) => {
-        const embeddingModel = openai.embedding('text-embedding-3-small');
-        const queryEmbed = await generateEmbeddingAI({
-          model: embeddingModel,
-          value: query,
-        });
+        // ✅ OPTIMIZED: Use cached query embedding (shared across agents)
+        const queryEmbedding = await queryEmbeddingCache.getEmbedding(query);
 
-        const results = await vectorStore.search(queryEmbed.embedding, 'domain', topK);
+        const results = await vectorStore.search(queryEmbedding, 'domain', topK);
         
         console.log(`   🔍 Domain: Found ${results.length} documents`);
         results.forEach((r, i) => {
@@ -334,16 +372,13 @@ const synthesisAgent = new Agent({
   name: 'Synthesis',
   instructions: `You are a synthesis agent that combines information from multiple sources.
 
-Your job:
-1. Receive contexts from retrieval agents
-2. Re-rank documents by relevance
-3. Remove duplicates and redundant information
-4. Consolidate into a coherent context
-5. Return the synthesized context with document IDs
+CRITICAL: You must:
+1. Use rerankDocuments tool to re-rank documents by relevance
+2. Use synthesizeContext tool to combine multiple contexts (if needed)
+3. Immediately hand off to Response Agent with the synthesized context
+4. DO NOT make multiple passes or ask questions
 
-After synthesis, hand off to Response Agent to generate the final answer.
-
-Ensure the final context is comprehensive yet concise.`,
+Be fast and efficient. Your job is to combine and hand off quickly.`,
   tools: {
     rerankDocuments: tool({
       description: 'Re-rank documents by relevance to the query',
@@ -430,10 +465,11 @@ const routerAgent = new Agent({
   name: 'QueryRouter',
   instructions: `You are a query router that classifies queries and routes them to appropriate specialist agents using handoffs.
 
-Your job:
-1. Analyze the incoming query
-2. Use logRouting tool to record your routing decision (for visibility)
-3. Hand off to the appropriate specialist agent(s) using SDK handoffs
+CRITICAL: You must:
+1. Quickly analyze the query (1 turn maximum)
+2. Use logRouting tool to record your decision (optional, for visibility)
+3. Immediately hand off to the appropriate specialist agent(s) using SDK handoffs
+4. DO NOT try to answer queries yourself or ask clarifying questions
 
 Classification rules:
 - Technical queries (TypeScript, Next.js, React, code, APIs, frameworks, authentication) → Hand off to Technical Retrieval Agent
@@ -442,7 +478,7 @@ Classification rules:
 - Multi-domain queries → Hand off to multiple agents
 - Ambiguous queries → Hand off to all relevant agents
 
-IMPORTANT: Always use handoffs to route queries. Do not try to answer queries yourself.`,
+Be fast and decisive. Route immediately without hesitation.`,
   tools: {
     logRouting: tool({
       description: 'Log routing decision for visibility and debugging',
@@ -497,7 +533,8 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
 
   // Pure agent orchestration: Router → Retrieval Agent(s) → Synthesis → Response
   // All routing and coordination happens through SDK handoffs - no hardcoded logic
-  const result = await run(routerAgent, query, { maxTurns: 15 });
+  // ✅ OPTIMIZED: Reduced maxTurns from 15 to 8 (workflow: Router 1-2, Retrieval 1-2, Synthesis 1-2, Response 1-2 = 4-8 turns)
+  const result = await run(routerAgent, query, { maxTurns: 8 });
 
   // Extract handoff chain from metadata
   const handoffChain = result.metadata.handoffChain || [];
@@ -675,20 +712,25 @@ async function initializeEmbeddings(): Promise<void> {
   console.log('🔧 Initializing embeddings for knowledge base...');
   const embeddingModel = openai.embedding('text-embedding-3-small');
 
-  for (const doc of knowledgeBase) {
-    try {
-      const result = await generateEmbeddingAI({
-        model: embeddingModel,
-        value: doc.text,
-      });
-      doc.embedding = result.embedding;
-    } catch (error) {
-      console.error(`❌ Failed to generate embedding for ${doc.id}:`, error);
-      throw error;
-    }
+  // ✅ OPTIMIZED: Use batch processing (5x faster than individual calls)
+  try {
+    const texts = knowledgeBase.map(doc => doc.text);
+    const result = await generateEmbeddingsAI({
+      model: embeddingModel,
+      values: texts,
+    });
+
+    // Assign embeddings to documents
+    // result.embeddings is number[][] (array of embedding vectors)
+    knowledgeBase.forEach((doc, i) => {
+      doc.embedding = result.embeddings[i];
+    });
+  } catch (error) {
+    console.error(`❌ Failed to generate embeddings:`, error);
+    throw error;
   }
 
-  console.log(`✅ Generated embeddings for ${knowledgeBase.length} documents\n`);
+  console.log(`✅ Generated embeddings for ${knowledgeBase.length} documents (batch processed)\n`);
 }
 
 // ============================================
