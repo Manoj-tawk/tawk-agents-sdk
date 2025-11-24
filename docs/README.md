@@ -15,7 +15,8 @@ docs/
 │
 ├── guides/                   # Intermediate guides
 │   ├── CORE_CONCEPTS.md     # Core concepts and patterns
-│   └── FEATURES.md          # Feature guide
+│   ├── FEATURES.md          # Feature guide
+│   └── AGENTIC_RAG.md       # Agentic RAG implementation guide
 │
 ├── reference/                # Reference documentation
 │   ├── API.md               # Complete API reference
@@ -49,19 +50,25 @@ docs/
    - Streaming
    - Advanced patterns
 
-4. **[API Reference](./reference/API.md)** - Complete API documentation
+4. **[Agentic RAG Guide](./guides/AGENTIC_RAG.md)** - Build production RAG systems
+   - Pure agent orchestration
+   - Multi-agent RAG workflow
+   - Semantic search with embeddings
+   - Context synthesis
+
+5. **[API Reference](./reference/API.md)** - Complete API documentation
    - All functions and classes
    - Type definitions
    - Usage examples
 
 ### For Advanced Users
 
-5. **[Architecture](./reference/ARCHITECTURE.md)** - System design
+6. **[Architecture](./reference/ARCHITECTURE.md)** - System design
    - Internal architecture
    - Data flow
    - Extension points
 
-6. **[Performance](./reference/PERFORMANCE.md)** - Optimization
+7. **[Performance](./reference/PERFORMANCE.md)** - Optimization
    - Best practices
    - Performance tips
    - Cost optimization
@@ -114,6 +121,7 @@ Architecture → API Reference → Performance
 **Files:**
 - [CORE_CONCEPTS.md](./guides/CORE_CONCEPTS.md) - Understanding the SDK
 - [FEATURES.md](./guides/FEATURES.md) - All features explained
+- [AGENTIC_RAG.md](./guides/AGENTIC_RAG.md) - Agentic RAG implementation guide
 
 ### Reference (`reference/`)
 
@@ -187,6 +195,7 @@ Tawk Agents SDK is a production-ready framework for building AI agents with:
 - [Streaming](./guides/FEATURES.md#streaming)
 
 **Building a RAG system**
+- [Agentic RAG Guide](./guides/AGENTIC_RAG.md) - Complete implementation guide
 - [Embeddings](./guides/FEATURES.md#embeddings)
 - [RAG Patterns](./reference/ARCHITECTURE.md#rag-patterns)
 
