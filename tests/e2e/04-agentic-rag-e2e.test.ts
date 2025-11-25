@@ -233,7 +233,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search technical knowledge base using semantic similarity. Call this once with the query.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query'),
         topK: z.number().default(5).describe('Number of results to return'),
       }),
@@ -282,7 +282,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search general knowledge base using semantic similarity. Call this once with the query.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query'),
         topK: z.number().default(5).describe('Number of results to return'),
       }),
@@ -331,7 +331,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search domain-specific knowledge base using semantic similarity. Call this once with the query.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query'),
         topK: z.number().default(5).describe('Number of results to return'),
       }),
@@ -382,7 +382,7 @@ Be fast and efficient. Your job is to combine and hand off quickly.`,
   tools: {
     rerankDocuments: tool({
       description: 'Re-rank documents by relevance to the query',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Original query'),
         documents: z.array(z.object({
           id: z.string(),
@@ -411,7 +411,7 @@ Be fast and efficient. Your job is to combine and hand off quickly.`,
     }),
     synthesizeContext: tool({
       description: 'Combine and deduplicate multiple contexts',
-      parameters: z.object({
+      inputSchema: z.object({
         contexts: z.array(z.string()).describe('Contexts to combine'),
       }),
       execute: async ({ contexts }) => {
@@ -482,7 +482,7 @@ Be fast and decisive. Route immediately without hesitation.`,
   tools: {
     logRouting: tool({
       description: 'Log routing decision for visibility and debugging',
-      parameters: z.object({
+      inputSchema: z.object({
         decision: z.string().describe('Routing decision explanation'),
         agents: z.array(z.string()).describe('Agent names being routed to'),
       }),

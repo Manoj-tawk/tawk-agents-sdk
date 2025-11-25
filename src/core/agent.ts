@@ -20,7 +20,7 @@
  * @license MIT
  */
 
-import { generateText, streamText, type CoreMessage, type LanguageModel } from 'ai';
+import { generateText, streamText, type ModelMessage, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
 
@@ -111,7 +111,7 @@ export interface RunOptions<TContext = any> {
   context?: TContext;
   session?: Session<TContext>;
   stream?: boolean;
-  sessionInputCallback?: (history: CoreMessage[], newInput: CoreMessage[]) => CoreMessage[];
+  sessionInputCallback?: (history: ModelMessage[], newInput: ModelMessage[]) => ModelMessage[];
   maxTurns?: number;
 }
 
@@ -121,7 +121,7 @@ export interface RunOptions<TContext = any> {
  * @template TOutput - Type of the final output
  * 
  * @property {TOutput} finalOutput - The agent's final response/output
- * @property {CoreMessage[]} messages - Complete conversation history including all turns
+ * @property {ModelMessage[]} messages - Complete conversation history including all turns
  * @property {StepResult[]} steps - Individual steps taken during execution
  * @property {RunState} [state] - Current execution state (for resuming)
  * @property {Object} metadata - Execution metadata and metrics
@@ -137,7 +137,7 @@ export interface RunOptions<TContext = any> {
  */
 export interface RunResult<TOutput = string> {
   finalOutput: TOutput;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   steps: StepResult[];
   state?: RunState;
   metadata: {
@@ -245,7 +245,7 @@ export interface StepResult {
  * Execution state for resuming a paused agent run (e.g., for human-in-the-loop).
  * 
  * @property {Agent} agent - The agent being executed
- * @property {CoreMessage[]} messages - Current conversation messages
+ * @property {ModelMessage[]} messages - Current conversation messages
  * @property {any} context - Execution context
  * @property {number} stepNumber - Current step number
  * @property {Array} [pendingApprovals] - Pending tool approval requests
@@ -255,7 +255,7 @@ export interface StepResult {
  */
 export interface RunState {
   agent: Agent<any, any>;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   context: any;
   stepNumber: number;
   pendingApprovals?: Array<{
@@ -272,13 +272,13 @@ export interface RunState {
  * 
  * @property {TContext} context - Request-scoped context (dependency injection)
  * @property {Agent} agent - The agent currently executing
- * @property {CoreMessage[]} messages - Current conversation history
+ * @property {ModelMessage[]} messages - Current conversation history
  * @property {Usage} usage - Token usage tracker for the current run
  */
 export interface RunContextWrapper<TContext> {
   context: TContext;
   agent: Agent<TContext, any>;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   usage: Usage;  // Track token usage across the run
 }
 
@@ -295,12 +295,12 @@ export interface Session<_TContextType = any> {
   /**
    * Load conversation history from storage
    */
-  getHistory(): Promise<CoreMessage[]>;
+  getHistory(): Promise<ModelMessage[]>;
 
   /**
    * Add new messages to the session
    */
-  addMessages(messages: CoreMessage[]): Promise<void>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
 
   /**
    * Clear session history
@@ -609,7 +609,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
  * @template TOutput - Type of output (defaults to string)
  * 
  * @param {Agent} agent - The agent to execute
- * @param {string | CoreMessage[] | RunState} input - User input as string, messages array, or state to resume
+ * @param {string | ModelMessage[] | RunState} input - User input as string, messages array, or state to resume
  * @param {RunOptions} [options] - Execution options
  * @returns {Promise<RunResult<TOutput>>} Execution result with final output and metadata
  * 
@@ -624,7 +624,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
  */
 export async function run<TContext = any, TOutput = string>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[] | RunState,
+  input: string | ModelMessage[] | RunState,
   options: RunOptions<TContext> = {}
 ): Promise<RunResult<TOutput>> {
   // Handle resuming from RunState
@@ -643,7 +643,7 @@ export async function run<TContext = any, TOutput = string>(
  * @template TOutput - Type of output (defaults to string)
  * 
  * @param {Agent} agent - The agent to execute
- * @param {string | CoreMessage[]} input - User input as string or messages array
+ * @param {string | ModelMessage[]} input - User input as string or messages array
  * @param {RunOptions} [options] - Execution options
  * @returns {Promise<StreamResult<TOutput>>} Streaming result with text stream and completion promise
  * 
@@ -660,7 +660,7 @@ export async function run<TContext = any, TOutput = string>(
  */
 export async function runStream<TContext = any, TOutput = string>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[],
+  input: string | ModelMessage[],
   options: RunOptions<TContext> = {}
 ): Promise<StreamResult<TOutput>> {
   const runner = new Runner(agent, { ...options, stream: true });
@@ -721,7 +721,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   /**
    * Get or create context wrapper for tool execution
    */
-  private getContextWrapper(agent: Agent<TContext, any>, messages: CoreMessage[]): RunContextWrapper<TContext> {
+  private getContextWrapper(agent: Agent<TContext, any>, messages: ModelMessage[]): RunContextWrapper<TContext> {
     // Update usage values
     this.reusableUsage.inputTokens = this.promptTokens;
     this.reusableUsage.outputTokens = this.completionTokens;
@@ -748,7 +748,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
    * Get formatted messages for Langfuse tracing
    * Messages are cached since they only grow during execution
    */
-  private getFormattedMessages(messages: CoreMessage[]): any[] {
+  private getFormattedMessages(messages: ModelMessage[]): any[] {
     // Check if we can use cache
     if (this.formattedMessagesCache && messages.length === this.lastMessageCount) {
       return this.formattedMessagesCache;
@@ -814,7 +814,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   async execute(
-    input: string | CoreMessage[],
+    input: string | ModelMessage[],
     resumeState?: RunState
   ): Promise<RunResult<TOutput>> {
     // Get or create Langfuse trace from context
@@ -1292,7 +1292,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   async executeStream(
-    input: string | CoreMessage[]
+    input: string | ModelMessage[]
   ): Promise<StreamResult<TOutput>> {
     const messages = await this.prepareMessages(input);
     
@@ -1366,7 +1366,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
   private async handleStreamCompletion(
     result: any,
-    messages: CoreMessage[]
+    messages: ModelMessage[]
   ): Promise<RunResult<TOutput>> {
     let fullText = '';
     const toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
@@ -1429,9 +1429,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   private async prepareMessages(
-    input: string | CoreMessage[]
-  ): Promise<CoreMessage[]> {
-    let newMessages: CoreMessage[];
+    input: string | ModelMessage[]
+  ): Promise<ModelMessage[]> {
+    let newMessages: ModelMessage[];
 
     if (typeof input === 'string') {
       newMessages = [{ role: 'user', content: input }];
@@ -1453,13 +1453,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     return newMessages;
   }
 
-  private async runInputGuardrails(messages: CoreMessage[]): Promise<void> {
+  private async runInputGuardrails(messages: ModelMessage[]): Promise<void> {
     const inputGuardrails = this.agent._guardrails.filter(g => g.type === 'input');
     
     if (inputGuardrails.length === 0) return;
     
     // Find the last user message from conversation history
-    let lastUserMessage: CoreMessage | undefined;
+    let lastUserMessage: ModelMessage | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'user') {
         lastUserMessage = messages[i];
