@@ -63,6 +63,37 @@ npm run e2e:stream
 
 **Cost:** ~$0.002 (~1000 tokens)
 
+### Test 04: Agentic RAG (Retrieval-Augmented Generation)
+```bash
+npm run e2e:rag
+```
+
+**Coverage:**
+- Multi-agent RAG workflow
+- Semantic search with embeddings
+- Document re-ranking
+- Multi-domain query handling
+- Context synthesis
+- Citation tracking
+
+**Cost:** ~$0.005 (~3000 tokens)
+
+### Test 05: E-Commerce Refund Escalation
+```bash
+npm run e2e:escalation
+```
+
+**Coverage:**
+- Automatic keyword detection (refund, return, money back)
+- Human escalation workflow
+- Multi-agent handoffs based on content
+- Context preservation during handoff
+- E-commerce customer support scenarios
+
+**Use Case:** As an e-commerce business owner, when a customer mentions "refund", automatically trigger human escalation.
+
+**Cost:** ~$0.004 (~2500 tokens)
+
 ## Requirements
 
 ### Essential
@@ -118,8 +149,10 @@ E2E tests make real API calls with associated costs:
 - Test 01 (Basic): ~$0.001
 - Test 02 (Multi-Agent): ~$0.002
 - Test 03 (Streaming): ~$0.002
+- Test 04 (Agentic RAG): ~$0.005
+- Test 05 (E-Commerce Escalation): ~$0.004
 
-**Total for all tests: ~$0.005** (less than 1 cent)
+**Total for all tests: ~$0.014** (less than 2 cents)
 
 Each test displays exact token usage and cost estimates.
 

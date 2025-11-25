@@ -64,6 +64,8 @@
     "e2e:basic": "ts-node tests/e2e/01-basic-e2e.test.ts",
     "e2e:multi": "ts-node tests/e2e/02-multi-agent-e2e.test.ts",
     "e2e:stream": "ts-node tests/e2e/03-streaming-sessions-e2e.test.ts",
+    "e2e:rag": "ts-node tests/e2e/04-agentic-rag-e2e.test.ts",
+    "e2e:escalation": "ts-node tests/e2e/05-ecommerce-refund-escalation-e2e.test.ts",
     "e2e": "npm run e2e:basic && npm run e2e:multi && npm run e2e:stream",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down -v",
