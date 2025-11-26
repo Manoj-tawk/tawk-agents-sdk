@@ -8,10 +8,13 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
+import type { Span, Context } from '@opentelemetry/api';
 
 type TraceContext = {
   trace: any;  // Langfuse trace
-  span: any;   // Current span
+  span: any;   // Current Langfuse span
+  otelSpan?: Span;  // OpenTelemetry span (optional)
+  otelContext?: Context;  // OpenTelemetry context (optional)
 };
 
 const traceStorage = new AsyncLocalStorage<TraceContext>();
@@ -39,6 +42,37 @@ export function setCurrentSpan(span: any): void {
   const context = traceStorage.getStore();
   if (context) {
     context.span = span;
+  }
+}
+
+/**
+ * Get the current OpenTelemetry span from context
+ */
+export function getCurrentOTelSpan(): Span | null {
+  const context = traceStorage.getStore();
+  return context?.otelSpan || null;
+}
+
+/**
+ * Get the current OpenTelemetry context from context
+ */
+export function getCurrentOTelContext(): Context | null {
+  const context = traceStorage.getStore();
+  return context?.otelContext || null;
+}
+
+/**
+ * Set the current OpenTelemetry span in context
+ */
+export function setCurrentOTelSpan(span: Span | null): void {
+  const context = traceStorage.getStore();
+  if (context) {
+    context.otelSpan = span || undefined;
+    if (span) {
+      // Import context API to get active context
+      const { context: otelContext } = require('@opentelemetry/api');
+      context.otelContext = otelContext.active();
+    }
   }
 }
 

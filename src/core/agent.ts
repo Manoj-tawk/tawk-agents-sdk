@@ -846,7 +846,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         ...tool,
         execute: async (args: any, _options: any) => {
           if (originalExecute) {
-            const result = await originalExecute(args, contextWrapper as any);
+            return await originalExecute(args, contextWrapper as any);
+          }
             
             // Auto-encode to TOON if enabled and result is an object/array
             // Performance: Skip encoding for small results to avoid overhead
@@ -919,9 +920,19 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         metadata: {
           agentName: this.agent.name,
           maxTurns: this.options.maxTurns || 50,
+          ...(otelRootSpan && { otelTraceId: otelRootSpan.spanContext().traceId }),
         },
         tags: ['agent', 'run'],
       });
+      
+      // Link Langfuse and OTel traces
+      if (otelRootSpan && trace) {
+        try {
+          otelRootSpan.setAttribute('langfuse.trace_id', trace.id || 'unknown');
+        } catch {
+          // Ignore if attribute setting fails
+        }
+      }
     }
     
     this.trace = trace;
@@ -1046,6 +1057,33 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             systemMessage,
           },
         });
+      }
+
+      // Create OpenTelemetry LLM span (opt-in, non-blocking)
+      let otelLLMSpan: any = null;
+      let llmStartTime = 0;
+      try {
+        const { isOpenTelemetryEnabled } = await import('../tracing/opentelemetry');
+        const { startLLMSpan } = await import('../tracing/spans/llm');
+        const { getCurrentOTelSpan } = await import('../tracing/context');
+        
+        if (isOpenTelemetryEnabled()) {
+          const parentSpan = getCurrentOTelSpan() || otelRootSpan;
+          if (parentSpan) {
+            const modelName = extractModelName(currentAgent._model);
+            const provider = (currentAgent._model as any)?.provider || 'unknown';
+            otelLLMSpan = startLLMSpan(parentSpan, modelName, provider, {
+              temperature: currentAgent._modelSettings?.temperature,
+              maxTokens: currentAgent._modelSettings?.maxTokens,
+              topP: currentAgent._modelSettings?.topP,
+              presencePenalty: currentAgent._modelSettings?.presencePenalty,
+              frequencyPenalty: currentAgent._modelSettings?.frequencyPenalty,
+            });
+            llmStartTime = Date.now();
+          }
+        }
+      } catch (error) {
+        // Silently fail - don't break existing functionality
       }
 
       // Wrap tools to inject context automatically (similar to OpenAI Agents SDK)
@@ -1213,6 +1251,29 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             },
           });
         }
+
+        // End OpenTelemetry LLM span (opt-in, non-blocking)
+        if (otelLLMSpan) {
+          try {
+            const { endLLMSpan } = await import('../tracing/spans/llm');
+            const modelName = extractModelName(currentAgent._model);
+            const provider = (currentAgent._model as any)?.provider || 'unknown';
+            const duration = llmStartTime > 0 ? Date.now() - llmStartTime : 0;
+            endLLMSpan(otelLLMSpan, {
+              tokens: {
+                input: result.usage.inputTokens || 0,
+                output: result.usage.outputTokens || 0,
+                total: result.usage.totalTokens || 0,
+              },
+              finishReason: result.finishReason || 'unknown',
+              duration,
+              model: modelName,
+              provider,
+            });
+          } catch (error) {
+            // Silently fail - don't break existing functionality
+          }
+        }
       }
 
       // Record step
@@ -1254,6 +1315,31 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       // Check for handoffs AFTER adding messages
       const handoff = this.detectHandoff(toolCalls, currentAgent);
       if (handoff) {
+        // Create OpenTelemetry handoff span (opt-in, non-blocking)
+        try {
+          const { isOpenTelemetryEnabled } = await import('../tracing/opentelemetry');
+          const { startHandoffSpan } = await import('../tracing/spans/agent');
+          const { getCurrentOTelSpan } = await import('../tracing/context');
+          
+          if (isOpenTelemetryEnabled()) {
+            const parentSpan = getCurrentOTelSpan() || otelRootSpan;
+            if (parentSpan) {
+              const handoffSpan = startHandoffSpan(
+                parentSpan,
+                currentAgent.name,
+                handoff.agent.name,
+                handoff.reason
+              );
+              // End handoff span immediately (it's a point-in-time event)
+              handoffSpan.setAttribute('handoff.chain_length', this.handoffChain.length + 1);
+              handoffSpan.setStatus({ code: require('@opentelemetry/api').SpanStatusCode.OK });
+              handoffSpan.end();
+            }
+          }
+        } catch (error) {
+          // Silently fail - don't break existing functionality
+        }
+
         // Emit agent_handoff event
         const contextWrapper = this.getContextWrapper(currentAgent, messages);
         this.emit('agent_handoff', contextWrapper, handoff.agent);
@@ -1439,6 +1525,27 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           }
         }
 
+        // End OpenTelemetry root span with metrics (opt-in, non-blocking)
+        if (otelRootSpan) {
+          try {
+            const { endAgentSpan } = await import('../tracing/spans/agent');
+            const runDuration = Date.now() - (otelRootSpan.startTime?.[0] || Date.now());
+            endAgentSpan(otelRootSpan, {
+              duration: runDuration,
+              tokens: {
+                input: this.promptTokens,
+                output: this.completionTokens,
+                total: this.totalTokens,
+              },
+              toolCalls: this.totalToolCallsCount,
+              handoffs: this.handoffChain.length,
+              steps: this.steps.length,
+            });
+          } catch (error) {
+            // Silently fail - don't break existing functionality
+          }
+        }
+
         return {
           finalOutput,
           messages,
@@ -1485,6 +1592,21 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     } finally {
       // Cleanup spans in all cases (success, error, interruption)
       // Ensures Langfuse traces are properly closed
+      
+      // End OpenTelemetry root span if still active (error case)
+      if (otelRootSpan) {
+        try {
+          const { endAgentSpanWithError } = await import('../tracing/spans/agent');
+          const { SpanStatusCode } = await import('@opentelemetry/api');
+          const error = new Error('Agent execution ended unexpectedly');
+          otelRootSpan.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          otelRootSpan.recordException(error);
+          endAgentSpanWithError(otelRootSpan, error);
+        } catch (error) {
+          // Silently fail - don't break existing functionality
+        }
+      }
+      
       if (this.currentAgentSpan) {
         try {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
