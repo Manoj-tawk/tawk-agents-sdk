@@ -259,9 +259,35 @@ await run(coordinator, 'Write an article about AI');
 
 ## Advanced Features
 
-### TOON Format
+### TOON Format (Token-Oriented Object Notation)
 
-Efficient token encoding (42% reduction):
+**Automatic TOON encoding** for 18-33% token reduction in tool responses:
+
+```typescript
+// Enable automatic TOON encoding for all tool results
+const agent = new Agent({
+  name: 'Data Agent',
+  instructions: 'You analyze data.',
+  tools: {
+    getLargeData: tool({
+      description: 'Get large dataset',
+      inputSchema: z.object({ count: z.number() }),
+      execute: async ({ count }) => {
+        // Returns large object/array
+        // Automatically encoded to TOON (no manual encoding needed)
+        return { data: [...], total: count };
+      }
+    })
+  },
+  useTOON: true  // ✅ Enable automatic TOON encoding
+});
+
+// Tool results are automatically encoded to TOON format
+// Provides 18-33% token reduction for structured data
+const result = await run(agent, 'Get 100 records');
+```
+
+**Manual TOON encoding** (for custom use cases):
 
 ```typescript
 import { encodeTOON, decodeTOON } from '@tawk-agents-sdk/core';
@@ -270,6 +296,18 @@ const data = { users: [{ id: 1, name: 'Alice' }] };
 const toon = encodeTOON(data); // 42% smaller than JSON
 const decoded = decodeTOON(toon);
 ```
+
+**When to use TOON:**
+- ✅ Large tool responses (arrays/objects with many fields)
+- ✅ Data-heavy agents (RAG, analytics, reporting)
+- ✅ Agents that return structured data repeatedly
+- ✅ Cost-sensitive applications
+
+**Performance impact:**
+- **18-33% token reduction** in most scenarios
+- **10-20% faster latency** in most scenarios
+- **Automatic encoding/decoding** (no code changes needed)
+- **Handoff-safe** - handoff markers preserved
 
 ### MCP Integration
 

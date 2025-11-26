@@ -122,6 +122,7 @@ Architecture → API Reference → Performance
 - [CORE_CONCEPTS.md](./guides/CORE_CONCEPTS.md) - Understanding the SDK
 - [FEATURES.md](./guides/FEATURES.md) - All features explained
 - [AGENTIC_RAG.md](./guides/AGENTIC_RAG.md) - Agentic RAG implementation guide
+- [TOON_OPTIMIZATION.md](./guides/TOON_OPTIMIZATION.md) - TOON token optimization guide
 
 ### Reference (`reference/`)
 
@@ -196,6 +197,7 @@ Tawk Agents SDK is a production-ready framework for building AI agents with:
 
 **Building a RAG system**
 - [Agentic RAG Guide](./guides/AGENTIC_RAG.md) - Complete implementation guide
+- [TOON Optimization](./guides/TOON_OPTIMIZATION.md) - 18-33% token reduction
 - [Embeddings](./guides/FEATURES.md#embeddings)
 - [RAG Patterns](./reference/ARCHITECTURE.md#rag-patterns)
 
@@ -205,6 +207,7 @@ Tawk Agents SDK is a production-ready framework for building AI agents with:
 
 **Optimizing performance**
 - [Performance Guide](./reference/PERFORMANCE.md)
+- [TOON Optimization](./guides/TOON_OPTIMIZATION.md) - 18-33% token reduction
 - [Best Practices](./reference/PERFORMANCE.md#best-practices)
 
 ---

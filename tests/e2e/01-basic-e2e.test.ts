@@ -15,7 +15,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 // Set model
-setDefaultModel(openai('gpt-4o-mini'));
+setDefaultModel(openai('gpt-5.1'));
 
 console.log('\n🧪 E2E TEST 01: Basic Agent with Real API\n');
 console.log('⚠️  This test makes REAL API calls and costs money!\n');
@@ -30,6 +30,8 @@ async function test1_SimpleQuestion() {
   const agent = new Agent({
     name: 'Simple Agent',
     instructions: 'You are a helpful assistant. Answer in one sentence.',
+    useTOON: true // Enable TOON encoding
+
   });
 
   const result = await run(agent, 'What is 2+2?');
@@ -75,6 +77,7 @@ async function test2_ToolCalling() {
     name: 'Calculator Agent',
     instructions: 'You are a calculator. Use the calculator tool to solve math problems. Show your work.',
     tools: { calculator },
+    useTOON: true // Enable TOON encoding
   });
 
   const result = await run(agent, 'What is 156 multiplied by 23?');
@@ -116,6 +119,7 @@ async function test3_ContextInjection() {
     name: 'Context Agent',
     instructions: 'Use the getUserInfo tool to answer questions about the current user.',
     tools: { getUserInfo },
+    useTOON: true // Enable TOON encoding
   });
 
   const result = await run(agent, 'What is my name and role?', {
@@ -146,7 +150,8 @@ async function test4_MultiTurn() {
 
   const agent = new Agent({
     name: 'Assistant',
-    instructions: 'You are a helpful assistant. Be concise.',
+    instructions: 'You are a helpful assistant. Be concise.', 
+    useTOON: true // Enable TOON encoding
   });
 
   // Turn 1
@@ -189,6 +194,7 @@ async function test5_ErrorHandling() {
     name: 'Resilient Agent',
     instructions: 'Try to use the tool. If it fails, handle it gracefully.',
     tools: { failingTool },
+    useTOON: true // Enable TOON encoding
   });
 
   try {

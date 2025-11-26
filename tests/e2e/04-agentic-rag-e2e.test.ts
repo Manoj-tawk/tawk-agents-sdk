@@ -20,7 +20,8 @@
  * - Citation tracking
  * 
  * Requirements:
- * - OPENAI_API_KEY in .env
+ * - ANTHROPIC_API_KEY in .env (for Claude models - main agent)
+ * - OPENAI_API_KEY in .env (for embeddings - optional, may be needed)
  * - Network connection
  * 
  * @example
@@ -41,11 +42,13 @@ import {
   lengthGuardrail,
   piiDetectionGuardrail,
 } from '../../src';
+import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
-// Set model
-setDefaultModel(openai('gpt-4o-mini'));
+// Set model - Using Claude's latest model (claude-3-5-sonnet-20241022)
+setDefaultModel(anthropic('claude-sonnet-4-5-20250929'));
+// setDefaultModel(openai('gpt-5.1'));
 
 console.log('\n🧪 E2E TEST 04: Agentic RAG with Multi-Agent Workflow\n');
 console.log('⚠️  This test makes REAL API calls and costs money!\n');
@@ -261,6 +264,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
     }),
   },
   handoffDescription: 'Handles technical queries about code, frameworks, and APIs',
+  useTOON: true // Enable TOON encoding
 });
 
 /**
@@ -310,6 +314,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
     }),
   },
   handoffDescription: 'Handles general knowledge queries and definitions',
+  useTOON: true // Enable TOON encoding
 });
 
 /**
@@ -359,6 +364,7 @@ Your job is ONLY to retrieve and hand off. Be fast and direct.`,
     }),
   },
   handoffDescription: 'Handles domain-specific queries about SDK and company-specific information',
+  useTOON: true // Enable TOON encoding
 });
 
 /**
@@ -427,6 +433,7 @@ Be fast and efficient. Your job is to combine and hand off quickly.`,
       },
     }),
   },
+  useTOON: true // Enable TOON encoding
 });
 
 /**
@@ -452,6 +459,7 @@ Format: Answer text with citations like [tech-1] [gen-2] at the end.`,
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
+  useTOON: true // Enable TOON encoding
 });
 
 /**
@@ -494,6 +502,7 @@ Be fast and decisive. Route immediately without hesitation.`,
     }),
   },
   handoffs: [technicalRetrievalAgent, generalRetrievalAgent, domainRetrievalAgent],
+  useTOON: true // Enable TOON encoding
 });
 
 // Configure handoff chain: Retrieval → Synthesis → Response
@@ -798,10 +807,15 @@ async function runAllTests(): Promise<void> {
 // ============================================
 
 // Validate environment
-if (!process.env.OPENAI_API_KEY) {
-  console.error('❌ Error: OPENAI_API_KEY not found in environment');
-  console.error('💡 Create a .env file with: OPENAI_API_KEY=sk-...\n');
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('❌ Error: ANTHROPIC_API_KEY not found in environment');
+  console.error('💡 Create a .env file with: ANTHROPIC_API_KEY=sk-ant-...\n');
   process.exit(1);
+}
+
+// Note: Embeddings may still use OpenAI, so OPENAI_API_KEY might be needed
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('⚠️  Warning: OPENAI_API_KEY not found. Embeddings may fail if OpenAI is used for embeddings.\n');
 }
 
 // Run all tests

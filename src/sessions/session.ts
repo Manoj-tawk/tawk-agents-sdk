@@ -4,7 +4,7 @@
  * Provides automatic conversation history management across agent runs.
  */
 
-import type { CoreMessage } from 'ai';
+import type {  ModelMessage } from 'ai';
 import type { Session } from '../core/agent';
 import { Redis } from 'ioredis';
 
@@ -26,7 +26,7 @@ import { Redis } from 'ioredis';
  */
 export class MemorySession<TContext = any> implements Session<TContext> {
   public readonly id: string;
-  private messages: CoreMessage[] = [];
+  private messages: ModelMessage[] = [];
   private metadata: Record<string, any> = {};
   private maxMessages?: number;
   private summarizationConfig?: SummarizationConfig;
@@ -44,11 +44,11 @@ export class MemorySession<TContext = any> implements Session<TContext> {
     this.summarizationConfig = summarizationConfig;
   }
 
-  async getHistory(): Promise<CoreMessage[]> {
+  async getHistory(): Promise<ModelMessage[]> {
     return [...this.messages];
   }
 
-  async addMessages(messages: CoreMessage[]): Promise<void> {
+  async addMessages(messages: ModelMessage[]): Promise<void> {
     this.messages.push(...messages);
     
     // Check if we should summarize
@@ -61,7 +61,7 @@ export class MemorySession<TContext = any> implements Session<TContext> {
     }
   }
 
-  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  private async checkAndSummarize(messages: ModelMessage[]): Promise<ModelMessage[]> {
     if (!this.summarizationConfig) return messages;
     
     const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
@@ -100,7 +100,7 @@ export class MemorySession<TContext = any> implements Session<TContext> {
       const newSummary = await this.generateSummary(toSummarize, existingSummary);
       
       // Create summary as system message
-      const summaryMessage: CoreMessage = {
+      const summaryMessage: ModelMessage = {
         role: 'system',
         content: `Previous conversation summary:\n${newSummary}`
       };
@@ -124,7 +124,7 @@ export class MemorySession<TContext = any> implements Session<TContext> {
     }
   }
 
-  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+  private async generateSummary(messages: ModelMessage[], previousSummary?: string): Promise<string> {
     if (!this.summarizationConfig) {
       throw new Error('Summarization config not set');
     }
@@ -167,7 +167,7 @@ Summary (2-3 paragraphs):`;
     }
   }
 
-  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+  private createSimpleSummary(messages: ModelMessage[], previousSummary?: string): string {
     const facts: string[] = [];
     
     messages.forEach(msg => {
@@ -264,7 +264,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     return `${this.keyPrefix}${this.id}:metadata`;
   }
 
-  async getHistory(): Promise<CoreMessage[]> {
+  async getHistory(): Promise<ModelMessage[]> {
     const key = this.getMessagesKey();
     
     // Use list operations for efficient message retrieval
@@ -288,7 +288,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     return JSON.parse(messagesJson);
   }
 
-  async addMessages(messages: CoreMessage[]): Promise<void> {
+  async addMessages(messages: ModelMessage[]): Promise<void> {
     if (messages.length === 0) return;
     
     const key = this.getMessagesKey();
@@ -331,7 +331,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     }
   }
 
-  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  private async checkAndSummarize(messages: ModelMessage[]): Promise<ModelMessage[]> {
     if (!this.summarizationConfig) return messages;
     
     const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
@@ -370,7 +370,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
       const newSummary = await this.generateSummary(toSummarize, existingSummary);
       
       // Create summary as system message
-      const summaryMessage: CoreMessage = {
+      const summaryMessage: ModelMessage = {
         role: 'system',
         content: `Previous conversation summary:\n${newSummary}`
       };
@@ -394,7 +394,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     }
   }
 
-  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+  private async generateSummary(messages: ModelMessage[], previousSummary?: string): Promise<string> {
     if (!this.summarizationConfig) {
       throw new Error('Summarization config not set');
     }
@@ -437,7 +437,7 @@ Summary (2-3 paragraphs):`;
     }
   }
 
-  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+  private createSimpleSummary(messages: ModelMessage[], previousSummary?: string): string {
     const facts: string[] = [];
     
     messages.forEach(msg => {
@@ -559,12 +559,12 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
     return this.db.collection(this.collectionName);
   }
 
-  async getHistory(): Promise<CoreMessage[]> {
+  async getHistory(): Promise<ModelMessage[]> {
     const session = await this.getCollection().findOne({ sessionId: this.id });
     return session?.messages || [];
   }
 
-  async addMessages(messages: CoreMessage[]): Promise<void> {
+  async addMessages(messages: ModelMessage[]): Promise<void> {
     if (messages.length === 0) return;
     
     const collection = this.getCollection();
@@ -629,7 +629,7 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
     );
   }
 
-  private async checkAndSummarize(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  private async checkAndSummarize(messages: ModelMessage[]): Promise<ModelMessage[]> {
     if (!this.summarizationConfig) return messages;
     
     const { messageThreshold, keepRecentMessages } = this.summarizationConfig;
@@ -668,7 +668,7 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
       const newSummary = await this.generateSummary(toSummarize, existingSummary);
       
       // Create summary as system message
-      const summaryMessage: CoreMessage = {
+      const summaryMessage: ModelMessage = {
         role: 'system',
         content: `Previous conversation summary:\n${newSummary}`
       };
@@ -692,7 +692,7 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
     }
   }
 
-  private async generateSummary(messages: CoreMessage[], previousSummary?: string): Promise<string> {
+  private async generateSummary(messages: ModelMessage[], previousSummary?: string): Promise<string> {
     if (!this.summarizationConfig) {
       throw new Error('Summarization config not set');
     }
@@ -735,7 +735,7 @@ Summary (2-3 paragraphs):`;
     }
   }
 
-  private createSimpleSummary(messages: CoreMessage[], previousSummary?: string): string {
+  private createSimpleSummary(messages: ModelMessage[], previousSummary?: string): string {
     const facts: string[] = [];
     
     messages.forEach(msg => {
@@ -862,7 +862,7 @@ export class HybridSession<TContext = any> implements Session<TContext> {
     this.syncToDBInterval = config.syncToDBInterval || 5;
   }
 
-  async getHistory(): Promise<CoreMessage[]> {
+  async getHistory(): Promise<ModelMessage[]> {
     // Try Redis first (fast)
     let messages = await this.redisSession.getHistory();
     
@@ -879,7 +879,7 @@ export class HybridSession<TContext = any> implements Session<TContext> {
     return messages;
   }
 
-  async addMessages(messages: CoreMessage[]): Promise<void> {
+  async addMessages(messages: ModelMessage[]): Promise<void> {
     // Always add to Redis (fast)
     await this.redisSession.addMessages(messages);
     

@@ -68,8 +68,13 @@ export function getLangfuse(): Langfuse | null {
 
 /**
  * Check if Langfuse tracing is enabled
+ * Auto-initializes Langfuse if credentials are available
  */
 export function isLangfuseEnabled(): boolean {
+  // Auto-initialize if not already done (lazy initialization)
+  if (!langfuseInstance) {
+    initializeLangfuse();
+  }
   return isEnabled && langfuseInstance !== null;
 }
 

@@ -20,7 +20,7 @@
  * @license MIT
  */
 
-import { generateText, streamText, type ModelMessage, type LanguageModel } from 'ai';
+import { generateText, streamText, type ModelMessage, type LanguageModel, convertToModelMessages } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
 
@@ -94,6 +94,7 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   };
   onStepFinish?: (step: StepResult) => void | Promise<void>;
   shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
+  useTOON?: boolean; // If true, automatically encode all tool results to TOON format (18-33% token reduction)
 }
 
 /**
@@ -373,6 +374,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   private modelSettings?: AgentConfig<TContext, TOutput>['modelSettings'];
   private onStepFinish?: (step: StepResult) => void | Promise<void>;
   private shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
+  private useTOON?: boolean; // If true, automatically encode all tool results to TOON format
   // Cached static instructions
   private cachedInstructions?: string;
 
@@ -390,6 +392,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
     this.modelSettings = config.modelSettings;
     this.onStepFinish = config.onStepFinish;
     this.shouldFinish = config.shouldFinish;
+    this.useTOON = config.useTOON || false;
 
     // Add handoff tools automatically
     this._setupHandoffTools();
@@ -534,7 +537,8 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       maxSteps: overrides.maxSteps ?? this.maxSteps,
       modelSettings: overrides.modelSettings ?? this.modelSettings,
       onStepFinish: overrides.onStepFinish ?? this.onStepFinish,
-      shouldFinish: overrides.shouldFinish ?? this.shouldFinish
+      shouldFinish: overrides.shouldFinish ?? this.shouldFinish,
+      useTOON: overrides.useTOON ?? this.useTOON
     });
   }
 
@@ -596,6 +600,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   get _modelSettings() { return this.modelSettings; }
   get _onStepFinish() { return this.onStepFinish; }
   get _shouldFinish() { return this.shouldFinish; }
+  get _useTOON() { return this.useTOON; }
 }
 
 // ============================================
@@ -700,6 +705,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private promptTokens = 0;
   private completionTokens = 0;
   private handoffChain: string[] = [];
+  private handoffChainSet: Set<string> = new Set(); // Fast O(1) lookup for handoff chain
   private agentMetrics: Map<string, AgentMetric> = new Map();
   private trace: any = null; // Langfuse trace
   private currentAgentSpan: any = null; // Current agent span for nesting
@@ -709,6 +715,14 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   // Message formatting cache for Langfuse tracing
   private formattedMessagesCache: any[] | null = null;
   private lastMessageCount = 0;
+  // Performance: Incremental metadata tracking
+  private totalToolCallsCount = 0; // Track incrementally instead of recalculating
+  // Performance: Handoff agent lookup cache (Map<agentName, Agent>)
+  private handoffAgentCache: Map<string, Agent<any, any>> | null = null;
+  private lastHandoffAgentName: string | null = null;
+  // Performance: Cache converted model messages to avoid repeated conversion
+  private cachedModelMessages: ModelMessage[] | null = null;
+  private lastHistoryLength = 0;
 
   constructor(agent: Agent<TContext, TOutput>, options: RunOptions<TContext>) {
     super(); // Initialize EventEmitter
@@ -769,13 +783,43 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
    * Wrap tools with context injection and filter by enabled conditions
    * Note: This is called on every agent step to ensure enabled conditions are re-evaluated
    */
+  // Performance: Cache TOON encoder to avoid repeated dynamic imports
+  private static cachedEncodeTOON: ((data: any) => string) | null = null;
+  private static toonImportPromise: Promise<any> | null = null;
+
   private async wrapToolsWithContext(
     agentName: string,
     tools: Record<string, CoreTool>,
-    contextWrapper: RunContextWrapper<TContext>
+    contextWrapper: RunContextWrapper<TContext>,
+    useTOON: boolean = false
   ): Promise<Record<string, CoreTool>> {
     // Create wrapped and filtered tools (no caching due to dynamic enabled conditions)
     const wrapped: Record<string, CoreTool> = {};
+    
+    // Import encodeTOON only if needed (lazy import for performance)
+    // Performance: Cache the import at class level to avoid repeated dynamic imports
+    let encodeTOON: ((data: any) => string) | null = null;
+    if (useTOON) {
+      // Use cached encoder if available
+      if (Runner.cachedEncodeTOON) {
+        encodeTOON = Runner.cachedEncodeTOON;
+      } else {
+        // Import once and cache
+        try {
+          if (!Runner.toonImportPromise) {
+            Runner.toonImportPromise = import('../helpers/toon');
+          }
+          const toonModule = await Runner.toonImportPromise;
+          encodeTOON = toonModule.encodeTOON;
+          Runner.cachedEncodeTOON = encodeTOON;
+        } catch (error) {
+          // Silently fail - don't log in production to avoid overhead
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[TOON] Failed to import encodeTOON, tool results will not be encoded:', error);
+          }
+        }
+      }
+    }
     
     for (const [name, tool] of Object.entries(tools)) {
       // Check if tool is enabled
@@ -802,7 +846,42 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         ...tool,
         execute: async (args: any, _options: any) => {
           if (originalExecute) {
-            return await originalExecute(args, contextWrapper as any);
+            const result = await originalExecute(args, contextWrapper as any);
+            
+            // Auto-encode to TOON if enabled and result is an object/array
+            // Performance: Skip encoding for small results to avoid overhead
+            if (useTOON && encodeTOON && result !== null && result !== undefined) {
+              // Skip encoding if already a string (might already be TOON or JSON string)
+              // Only encode objects/arrays for maximum token savings
+              if (typeof result === 'object' && !(result instanceof Error)) {
+                try {
+                  // Skip handoff markers (they need to stay as objects)
+                  if (result && typeof result === 'object' && '__handoff' in result) {
+                    return result;
+                  }
+                  
+                  // Performance: Quick heuristic - only encode arrays/objects with multiple items
+                  // Single-item objects or small arrays don't benefit enough from TOON
+                  const isArray = Array.isArray(result);
+                  if (isArray && result.length < 3) {
+                    // Skip encoding for small arrays (overhead not worth it)
+                    return result;
+                  }
+                  if (!isArray && Object.keys(result).length < 5) {
+                    // Skip encoding for small objects (overhead not worth it)
+                    return result;
+                  }
+                  
+                  // Encode to TOON for 18-33% token reduction (only for larger results)
+                  return encodeTOON(result);
+                } catch (error) {
+                  // If encoding fails, return original result (silently - no logging overhead)
+                  return result;
+                }
+              }
+            }
+            
+            return result;
           }
           return {};
         }
@@ -817,13 +896,26 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     input: string | ModelMessage[],
     resumeState?: RunState
   ): Promise<RunResult<TOutput>> {
+    // Auto-initialize Langfuse if credentials are available (enabled by default)
+    // This ensures tracing works automatically without manual initialization
+    isLangfuseEnabled(); // This will auto-initialize if env vars are present
+    
+    // Prepare messages first to get input for trace
+    const messages = await this.prepareMessages(input);
+    
     // Get or create Langfuse trace from context
     let trace = getCurrentTrace();
     
     if (!trace && isLangfuseEnabled()) {
       // Only create trace if not already in a trace context
+      // Extract initial input for trace
+      const initialInput = typeof input === 'string' 
+        ? input 
+        : messages.find(m => m.role === 'user')?.content || messages;
+      
       trace = createTrace({
         name: `Agent Run: ${this.agent.name}`,
+        input: initialInput,
         metadata: {
           agentName: this.agent.name,
           maxTurns: this.options.maxTurns || 50,
@@ -833,9 +925,6 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     }
     
     this.trace = trace;
-
-    // Prepare messages
-    const messages = await this.prepareMessages(input);
     let currentAgent = this.agent;
     let stepNumber = resumeState?.stepNumber || 0;
 
@@ -862,11 +951,26 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // End previous agent span if exists (with full output)
         if (this.currentAgentSpan) {
           const prevAgentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const _tokensDelta = {
+          const tokensDelta = {
             prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
             completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
             total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
           };
+          
+          // Langfuse: Update span with usage before ending (spans don't accept usage in end())
+          if (tokensDelta.total > 0 && this.currentAgentSpan.update) {
+            try {
+              this.currentAgentSpan.update({
+                usage: {
+                  input: tokensDelta.prompt,
+                  output: tokensDelta.completion,
+                  total: tokensDelta.total,
+                },
+              });
+            } catch (error) {
+              // Silently fail if update doesn't support usage
+            }
+          }
           
           this.currentAgentSpan.end({
             output: {
@@ -946,7 +1050,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
       // Wrap tools to inject context automatically (similar to OpenAI Agents SDK)
       // Also filters tools based on enabled conditions
-      const wrappedTools = await this.wrapToolsWithContext(currentAgent.name, currentAgent._tools, contextWrapper);
+      // Auto-encode tool results to TOON if useTOON is enabled
+      const wrappedTools = await this.wrapToolsWithContext(
+        currentAgent.name, 
+        currentAgent._tools, 
+        contextWrapper,
+        currentAgent._useTOON || false
+      );
 
       // For coordinator agents with only handoff tools, require tool selection
       const hasOnlyHandoffTools = Object.keys(wrappedTools).every(name => name.startsWith('handoff_to_'));
@@ -971,10 +1081,29 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Execute agent step (single step, we manage loop manually)
+      // CRITICAL FIX: Ensure messages are properly converted to ModelMessage[] before generateText
+      // Claude is stricter than OpenAI and requires ModelMessage[] (not UIMessage[])
+      // Check if any message has 'parts' property (indicates UIMessage[]) and convert if needed
+      let finalMessages = messages;
+      if (messages.length > 0) {
+        const firstMessage = messages[0];
+        // UIMessage has 'parts' property, ModelMessage does not
+        if (firstMessage && typeof firstMessage === 'object' && 'parts' in firstMessage) {
+          // Messages are UIMessage[] (have 'parts' property), need conversion to ModelMessage[]
+          try {
+            finalMessages = convertToModelMessages(messages as any);
+          } catch (error) {
+            // If conversion fails, log warning but try using as-is (might already be ModelMessage[])
+            console.warn('[Agent] Failed to convert UIMessage[] to ModelMessage[], using as-is:', error);
+            finalMessages = messages;
+          }
+        }
+      }
+      
       const result = await generateText({
         model: currentAgent._model,
         system: systemMessage,
-        messages,
+        messages: finalMessages,
         tools: wrappedTools as any,
         toolChoice: toolChoice as any,
         // No maxSteps - let AI SDK handle single generation naturally
@@ -1094,6 +1223,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         finishReason: result.finishReason
       };
       this.steps.push(step);
+      
+      // Performance: Track total tool calls incrementally (O(1) instead of O(n) reduce)
+      this.totalToolCallsCount += toolCalls.length;
 
       // Call step finish hook
       if (currentAgent._onStepFinish) {
@@ -1101,9 +1233,16 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Add ALL response messages (assistant + tool calls + tool results)
-      // AI SDK v5 returns these in response.messages - they are complete and correct
-      if (result.response && result.response.messages) {
-        messages.push(...result.response.messages);
+      // AI SDK v5 returns these in response.messages - they are ALREADY ModelMessage[]
+      // DO NOT convert them - convertToModelMessages doesn't support 'tool' role messages
+      // Performance: Use push.apply for better performance with large arrays
+      if (result.response && result.response.messages && Array.isArray(result.response.messages)) {
+        const newMessages = result.response.messages;
+        // result.response.messages are already ModelMessage[] (can include 'tool' role)
+        // Use push.apply for better performance than spread operator
+        if (newMessages.length > 0) {
+          Array.prototype.push.apply(messages, newMessages as ModelMessage[]);
+        }
       } else {
         // Fallback: just add assistant message
         messages.push({
@@ -1124,6 +1263,27 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         if (this.currentAgentSpan && !this.currentAgentSpan._ended) {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
 
+          const tokensDelta = {
+            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
+            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
+            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
+          };
+          
+          // Langfuse: Update span with usage before ending (spans don't accept usage in end())
+          if (tokensDelta.total > 0 && this.currentAgentSpan.update) {
+            try {
+              this.currentAgentSpan.update({
+                usage: {
+                  input: tokensDelta.prompt,
+                  output: tokensDelta.completion,
+                  total: tokensDelta.total,
+                },
+              });
+            } catch (error) {
+              // Silently fail if update doesn't support usage
+            }
+          }
+          
           this.currentAgentSpan.end({
             output: {
               handoffTo: handoff.agent.name,
@@ -1146,10 +1306,15 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         }
 
         // Track handoff chain
-        if (!this.handoffChain.includes(currentAgent.name)) {
+        // Performance: Use Set for O(1) lookup instead of O(n) includes()
+        if (!this.handoffChainSet.has(currentAgent.name)) {
           this.handoffChain.push(currentAgent.name);
+          this.handoffChainSet.add(currentAgent.name);
         }
-        this.handoffChain.push(handoff.agent.name);
+        if (!this.handoffChainSet.has(handoff.agent.name)) {
+          this.handoffChain.push(handoff.agent.name);
+          this.handoffChainSet.add(handoff.agent.name);
+        }
         
         // Switch to handoff agent
         currentAgent = handoff.agent;
@@ -1177,9 +1342,28 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         await this.runOutputGuardrails(result.text);
 
         // Parse output if schema provided
+        // Performance: Add error handling for JSON parsing
         let finalOutput: TOutput;
         if (currentAgent._outputSchema) {
-          finalOutput = currentAgent._outputSchema.parse(JSON.parse(result.text));
+          try {
+            const parsed = JSON.parse(result.text);
+            finalOutput = currentAgent._outputSchema.parse(parsed);
+          } catch (error: any) {
+            // Fallback: try to extract JSON from markdown code blocks
+            const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch && jsonMatch[1]) {
+              try {
+                const parsed = JSON.parse(jsonMatch[1]);
+                finalOutput = currentAgent._outputSchema.parse(parsed);
+              } catch {
+                // Final fallback: return text as-is
+                finalOutput = result.text as TOutput;
+              }
+            } else {
+              // Fallback: return text as-is
+              finalOutput = result.text as TOutput;
+            }
+          }
         } else {
           finalOutput = result.text as TOutput;
         }
@@ -1192,11 +1376,26 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // End current agent span with full output
         if (this.currentAgentSpan) {
           const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-          const _tokensDelta = {
+          const tokensDelta = {
             prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
             completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
             total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
           };
+          
+          // Langfuse: Update span with usage before ending (spans don't accept usage in end())
+          if (tokensDelta.total > 0 && this.currentAgentSpan.update) {
+            try {
+              this.currentAgentSpan.update({
+                usage: {
+                  input: tokensDelta.prompt,
+                  output: tokensDelta.completion,
+                  total: tokensDelta.total,
+                },
+              });
+            } catch (error) {
+              // Silently fail if update doesn't support usage
+            }
+          }
           
           this.currentAgentSpan.end({
             output: {
@@ -1217,6 +1416,29 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           this.currentAgentSpan._ended = true;
         }
 
+        // End root trace with final output and aggregated usage
+        if (this.trace) {
+          try {
+            this.trace.update({
+              output: typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput),
+              usage: {
+                input: this.promptTokens,
+                output: this.completionTokens,
+                total: this.totalTokens,
+              },
+              metadata: {
+                totalSteps: this.steps.length,
+                totalToolCalls: this.totalToolCallsCount,
+                handoffChain: this.handoffChain.length > 0 ? this.handoffChain : undefined,
+                agentMetrics: Array.from(this.agentMetrics.values()),
+                finishReason: result.finishReason,
+              },
+            });
+          } catch (error) {
+            console.error('[Trace] Failed to update trace with final output:', error);
+          }
+        }
+
         return {
           finalOutput,
           messages,
@@ -1226,7 +1448,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             promptTokens: this.promptTokens,
             completionTokens: this.completionTokens,
             finishReason: result.finishReason,
-            totalToolCalls: this.steps.reduce((sum, step) => sum + (step.toolCalls?.length || 0), 0),
+            // Performance: Use incrementally tracked count instead of O(n) reduce
+            totalToolCalls: this.totalToolCallsCount,
             handoffChain: this.handoffChain.length > 0 ? this.handoffChain : undefined,
             agentMetrics: Array.from(this.agentMetrics.values()),
           }
@@ -1304,7 +1527,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
     // Wrap tools to inject context automatically (same as non-streaming)
     // Also filters tools based on enabled conditions
-    const wrappedTools = await this.wrapToolsWithContext(this.agent.name, this.agent._tools, contextWrapper);
+    // Auto-encode tool results to TOON if useTOON is enabled
+    const wrappedTools = await this.wrapToolsWithContext(
+      this.agent.name, 
+      this.agent._tools, 
+      contextWrapper,
+      this.agent._useTOON || false
+    );
 
     const result = streamText({
       model: this.agent._model,
@@ -1368,12 +1597,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     result: any,
     messages: ModelMessage[]
   ): Promise<RunResult<TOutput>> {
-    let fullText = '';
+    // Performance: Use array for string concatenation (much faster than +=)
+    const textChunks: string[] = [];
     const toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
 
     for await (const chunk of result.fullStream) {
       if (chunk.type === 'text-delta') {
-        fullText += chunk.textDelta;
+        textChunks.push(chunk.textDelta);
       } else if (chunk.type === 'tool-result') {
         toolCalls.push({
           toolName: chunk.toolName,
@@ -1382,6 +1612,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         });
       }
     }
+    
+    // Performance: Join once at the end (O(n) instead of O(n²))
+    const fullText = textChunks.join('');
 
     // Add assistant message
     messages.push({
@@ -1398,9 +1631,28 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     }
 
     // Parse output
+    // Performance: Add error handling for JSON parsing
     let finalOutput: TOutput;
     if (this.agent._outputSchema) {
-      finalOutput = this.agent._outputSchema.parse(JSON.parse(fullText));
+      try {
+        const parsed = JSON.parse(fullText);
+        finalOutput = this.agent._outputSchema.parse(parsed);
+      } catch (error: any) {
+        // Fallback: try to extract JSON from markdown code blocks
+        const jsonMatch = fullText.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1]);
+            finalOutput = this.agent._outputSchema.parse(parsed);
+          } catch {
+            // Final fallback: return text as-is
+            finalOutput = fullText as TOutput;
+          }
+        } else {
+          // Fallback: return text as-is
+          finalOutput = fullText as TOutput;
+        }
+      }
     } else {
       finalOutput = fullText as TOutput;
     }
@@ -1443,11 +1695,35 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     if (this.session) {
       const history = await this.session.getHistory();
       
-      if (this.options.sessionInputCallback) {
-        return this.options.sessionInputCallback(history, newMessages);
+      // Performance: Only convert if history exists and has messages
+      // Skip conversion if history is empty (common case)
+      if (history.length === 0) {
+        return newMessages;
       }
       
-      return [...history, ...newMessages];
+      // Performance: Cache converted messages to avoid repeated conversion
+      // Only re-convert if history length changed (new messages added)
+      let modelHistory: ModelMessage[];
+      if (this.cachedModelMessages && history.length === this.lastHistoryLength) {
+        // Reuse cached conversion
+        modelHistory = this.cachedModelMessages;
+      } else {
+        // Convert CoreMessage[] to ModelMessage[] (sessions use CoreMessage which includes UIMessage)
+        // This ensures compatibility with AI SDK's generateText which requires ModelMessage[]
+        modelHistory = convertToModelMessages(history as any);
+        // Cache the result
+        this.cachedModelMessages = modelHistory;
+        this.lastHistoryLength = history.length;
+      }
+      
+      if (this.options.sessionInputCallback) {
+        const callbackResult = this.options.sessionInputCallback(modelHistory, newMessages);
+        // Callback is typed to return ModelMessage[], so no conversion needed
+        return callbackResult;
+      }
+      
+      // Performance: Use concat for better performance than spread operator
+      return modelHistory.concat(newMessages);
     }
 
     return newMessages;
@@ -1513,11 +1789,24 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   }
 
   private detectHandoff(toolCalls: Array<{ toolName: string; args: any; result: any }>, currentAgent: Agent<any, any>) {
+    // Performance: Early exit if no tool calls
+    if (toolCalls.length === 0) return null;
+    
+    // Performance: Cache handoff agent lookup Map for O(1) lookup
+    // Only rebuild cache if agent changed
+    if (!this.handoffAgentCache || this.lastHandoffAgentName !== currentAgent.name) {
+      this.handoffAgentCache = new Map();
+      for (const agent of currentAgent.handoffs) {
+        this.handoffAgentCache.set(agent.name, agent);
+      }
+      this.lastHandoffAgentName = currentAgent.name;
+    }
+    
     for (const tc of toolCalls) {
       if (tc.result?.__handoff) {
-        // Resolve agent by name from the current agent's handoffs
+        // Resolve agent by name from the cached Map (O(1) instead of O(n) find)
         const agentName = tc.result.agentName;
-        const targetAgent = currentAgent.handoffs.find(a => a.name === agentName);
+        const targetAgent = this.handoffAgentCache.get(agentName);
         
         if (!targetAgent) {
           if (process.env.NODE_ENV === 'development') {

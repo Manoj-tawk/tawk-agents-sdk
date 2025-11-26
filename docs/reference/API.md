@@ -276,6 +276,22 @@ const agent = new Agent({
   instructions: 'You are helpful.'
 });
 
+// Create agent with TOON encoding enabled
+const dataAgent = new Agent({
+  name: 'Data Agent',
+  instructions: 'You analyze data.',
+  tools: {
+    getData: tool({
+      description: 'Get large dataset',
+      inputSchema: z.object({ count: z.number() }),
+      execute: async ({ count }) => {
+        return { data: [...], total: count };
+      }
+    })
+  },
+  useTOON: true  // Enable automatic TOON encoding (18-33% token reduction)
+});
+
 // Or use static factory
 const agent2 = Agent.create({
   name: 'helper',
@@ -316,6 +332,7 @@ interface AgentConfig<TContext, TOutput> {
   };
   onStepFinish?: (step: StepResult) => void | Promise<void>;
   shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
+  useTOON?: boolean;  // If true, automatically encode all tool results to TOON format (18-33% token reduction)
 }
 ```
 

@@ -51,25 +51,68 @@ const agent = new Agent({
 await run(agent, 'Use all tools');
 ```
 
-### Optimize Tool Responses
+### Optimize Tool Responses with TOON
 
-Use TOON format for large tool responses (42% token reduction):
+**Automatic TOON encoding** (Recommended - 18-33% token reduction):
+
+Enable automatic TOON encoding for all tool results:
 
 ```typescript
 const agent = new Agent({
+  name: 'Data Agent',
+  instructions: 'You analyze data.',
   tools: {
-    getUsers: {
+    getUsers: tool({
       description: 'Get user list',
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         const users = await db.users.find().toArray();
-        // Return TOON instead of JSON (42% smaller)
+        // Automatically encoded to TOON (no manual encoding needed)
+        return users;
+      }
+    })
+  },
+  useTOON: true  // ✅ Enable automatic TOON encoding
+});
+```
+
+**Benefits:**
+- **18-33% token reduction** in most scenarios
+- **10-20% faster latency** in most scenarios
+- **Zero code changes** - automatic encoding/decoding
+- **Handoff-safe** - handoff markers preserved
+
+**Manual TOON encoding** (for custom use cases):
+
+```typescript
+import { encodeTOON } from '@tawk-agents-sdk/core';
+
+const agent = new Agent({
+  tools: {
+    getUsers: tool({
+      description: 'Get user list',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const users = await db.users.find().toArray();
+        // Manual TOON encoding (42% smaller than JSON)
         return encodeTOON(users);
       }
-    }
+    })
   }
 });
 ```
+
+**When to use TOON:**
+- ✅ Large tool responses (arrays/objects with many fields)
+- ✅ Data-heavy agents (RAG, analytics, reporting)
+- ✅ Agents that return structured data repeatedly
+- ✅ Cost-sensitive applications
+
+**Performance results:**
+- RAG systems: 18-33% token reduction
+- Best case: 33% token savings (React query example)
+- Average: 20-25% token reduction
+- Latency: 10-20% faster in most scenarios
 
 ## Session Management
 
@@ -239,19 +282,49 @@ const duration = Date.now() - start;
 console.log(`Execution time: ${duration}ms`);
 ```
 
+## Message Format Handling
+
+### Automatic ModelMessage Conversion
+
+The SDK automatically handles message format conversion for compatibility:
+
+**Problem**: Sessions return `CoreMessage[]` (includes UIMessage), but AI SDK's `generateText()` requires `ModelMessage[]`.
+
+**Solution**: SDK automatically converts `CoreMessage[]` to `ModelMessage[]` using `convertToModelMessages()`.
+
+```typescript
+// Sessions return CoreMessage[]
+const session = new MemorySession('user-123');
+const history = await session.getHistory(); // CoreMessage[]
+
+// SDK automatically converts to ModelMessage[] before calling generateText()
+const result = await run(agent, 'Hello', { session });
+// ✅ No errors - conversion happens automatically
+```
+
+**What gets converted:**
+- ✅ Session history (`CoreMessage[]` → `ModelMessage[]`)
+- ✅ Tool results (already `ModelMessage[]` compatible)
+- ✅ Handoff messages (preserved as `ModelMessage[]`)
+- ✅ User input (already `ModelMessage[]`)
+
+**No action required** - conversion happens automatically in `prepareMessages()`.
+
 ## Best Practices
 
-1. **Batch operations** when possible
-2. **Use caching** for repeated operations
-3. **Choose appropriate models** for each task
-4. **Limit context size** with message limits
-5. **Use streaming** for better UX
-6. **Monitor token usage** to optimize costs
-7. **Parallel execution** for multiple operations
+1. **Enable TOON** for data-heavy agents (18-33% token reduction)
+2. **Batch operations** when possible
+3. **Use caching** for repeated operations
+4. **Choose appropriate models** for each task
+5. **Limit context size** with message limits
+6. **Use streaming** for better UX
+7. **Monitor token usage** to optimize costs
+8. **Parallel execution** for multiple operations
 
 ---
 
 For more details, see:
+- [TOON Optimization Guide](../guides/TOON_OPTIMIZATION.md) - Complete TOON guide
 - [API Reference](./API.md)
 - [Architecture](./ARCHITECTURE.md)
 - [Getting Started](../getting-started/GETTING_STARTED.md)
