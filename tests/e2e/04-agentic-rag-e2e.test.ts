@@ -47,8 +47,8 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 // Set model - Using Claude's latest model (claude-3-5-sonnet-20241022)
-setDefaultModel(anthropic('claude-sonnet-4-5-20250929'));
-// setDefaultModel(openai('gpt-5.1'));
+// setDefaultModel(anthropic('claude-sonnet-4-5-20250929'));
+setDefaultModel(openai('gpt-5.1'));
 
 console.log('\n🧪 E2E TEST 04: Agentic RAG with Multi-Agent Workflow\n');
 console.log('⚠️  This test makes REAL API calls and costs money!\n');
