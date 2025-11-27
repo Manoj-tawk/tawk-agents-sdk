@@ -20,7 +20,7 @@
  * @license MIT
  */
 
-import { generateText, streamText, type ModelMessage, type LanguageModel, convertToModelMessages } from 'ai';
+import { generateText, streamText, type ModelMessage, type LanguageModel, convertToModelMessages, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
 
@@ -1068,10 +1068,11 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         currentAgent._useTOON || false
       );
 
-      // For coordinator agents with only handoff tools, require tool selection
-      const hasOnlyHandoffTools = Object.keys(wrappedTools).every(name => name.startsWith('handoff_to_'));
-      const toolChoice = hasOnlyHandoffTools && Object.keys(wrappedTools).length > 0 ? 'required' : undefined;
-      const _maxSteps = hasOnlyHandoffTools ? 1 : currentAgent._maxSteps; // Single step for handoffs
+      // Let the model decide whether to call tools or generate text
+      // We rely on instructions and shouldFinish callback to guide behavior
+      // This makes the SDK compatible with all providers (including Groq)
+      const toolChoice = undefined; // Optional - let model decide
+      const _maxSteps = currentAgent._maxSteps;
 
       // Debug: Log tools structure
       if (process.env.DEBUG_TOOLS) {
@@ -1092,23 +1093,31 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
       // Execute agent step (single step, we manage loop manually)
       // CRITICAL FIX: Ensure messages are properly converted to ModelMessage[] before generateText
-      // Claude is stricter than OpenAI and requires ModelMessage[] (not UIMessage[])
-      // Check if any message has 'parts' property (indicates UIMessage[]) and convert if needed
-      let finalMessages = messages;
-      if (messages.length > 0) {
-        const firstMessage = messages[0];
-        // UIMessage has 'parts' property, ModelMessage does not
-        if (firstMessage && typeof firstMessage === 'object' && 'parts' in firstMessage) {
-          // Messages are UIMessage[] (have 'parts' property), need conversion to ModelMessage[]
-          try {
-            finalMessages = convertToModelMessages(messages as any);
-          } catch (error) {
-            // If conversion fails, log warning but try using as-is (might already be ModelMessage[])
-            console.warn('[Agent] Failed to convert UIMessage[] to ModelMessage[], using as-is:', error);
-            finalMessages = messages;
-          }
-        }
+      // All providers (OpenAI, Anthropic, Groq) require ModelMessage[] (not UIMessage[])
+      // Always convert to be safe - AI SDK's convertToModelMessages is idempotent
+      
+      // Debug logging only in development
+      if (process.env.DEBUG_MESSAGES) {
+        console.log(`\n[🔍 MESSAGE DEBUG] Step ${stepNumber} - Agent: ${currentAgent.name}, Messages: ${messages.length}`);
       }
+      
+      // Messages are ModelMessage[] from prepareMessages(), but may contain
+      // array content (tool calls/results) that needs deep cloning to prevent
+      // corruption during AI SDK's internal JSON serialization.
+      // String content can be used directly (no cloning needed).
+      const finalMessages: ModelMessage[] = messages.map((msg: any): ModelMessage => {
+        if (typeof msg.content === 'string') {
+          // String content - use directly, no cloning needed
+          return { role: msg.role, content: msg.content };
+        }
+        if (Array.isArray(msg.content)) {
+          // Array content (tool calls/results) - deep clone to prevent corruption
+          // This is necessary because AI SDK's internal processing can mutate references
+          return { role: msg.role, content: JSON.parse(JSON.stringify(msg.content)) };
+        }
+        // Fallback
+        return { role: msg.role, content: msg.content };
+      });
       
       const result = await generateText({
         model: currentAgent._model,
@@ -1116,7 +1125,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         messages: finalMessages,
         tools: wrappedTools as any,
         toolChoice: toolChoice as any,
-        // No maxSteps - let AI SDK handle single generation naturally
+        stopWhen: stepCountIs(_maxSteps),
         temperature: currentAgent._modelSettings?.temperature,
         topP: currentAgent._modelSettings?.topP,
         maxTokens: currentAgent._modelSettings?.maxTokens,
@@ -1202,27 +1211,10 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           total: result.usage.totalTokens || 0,
         }, toolCalls.length);
 
-        // Update and END Langfuse generation with usage data
-        if (generation) {
-          // For tool calls, include tool info in output, otherwise use text
-          const generationOutput = result.finishReason === 'tool-calls' && toolCalls.length > 0
-            ? { toolCalls: toolCalls.map(tc => ({ tool: tc.toolName, args: tc.args })), text: result.text || '' }
-            : result.text;
-            
-          generation.end({
-            output: generationOutput,
-            usage: {
-              input: result.usage.inputTokens || 0,
-              output: result.usage.outputTokens || 0,
-              total: result.usage.totalTokens || 0,
-            },
-            metadata: {
-              finishReason: result.finishReason,
-              toolCallsCount: toolCalls.length,
-              totalToolCalls: toolCalls.length,
-            },
-          });
-        }
+        // CRITICAL: Only end generation when we're actually finishing this step
+        // Don't end it here - we'll end it after checking for handoffs/finish
+        // This ensures the generation captures the complete output (tool calls + final text)
+        // The generation will be ended in the finish block or when handoff occurs
       }
 
       // Record step
@@ -1230,7 +1222,11 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         stepNumber,
         toolCalls,
         text: result.text,
-        finishReason: result.finishReason
+        // CRITICAL: Override finishReason if tool calls exist but SDK returned "stop"
+        // Some models (like gpt-4o-mini) return "stop" even when making tool calls
+        finishReason: toolCalls.length > 0 && result.finishReason === 'stop' 
+          ? 'tool-calls' 
+          : result.finishReason
       };
       this.steps.push(step);
       
@@ -1243,16 +1239,10 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Add ALL response messages (assistant + tool calls + tool results)
-      // AI SDK v5 returns these in response.messages - they are ALREADY ModelMessage[]
-      // DO NOT convert them - convertToModelMessages doesn't support 'tool' role messages
-      // Performance: Use push.apply for better performance with large arrays
+      // AI SDK returns these in response.messages - they're already proper ModelMessage[]
+      // Just push them directly - no normalization needed (they come from SDK)
       if (result.response && result.response.messages && Array.isArray(result.response.messages)) {
-        const newMessages = result.response.messages;
-        // result.response.messages are already ModelMessage[] (can include 'tool' role)
-        // Use push.apply for better performance than spread operator
-        if (newMessages.length > 0) {
-          Array.prototype.push.apply(messages, newMessages as ModelMessage[]);
-        }
+        Array.prototype.push.apply(messages, result.response.messages);
       } else {
         // Fallback: just add assistant message
         messages.push({
@@ -1264,6 +1254,40 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       // Check for handoffs AFTER adding messages
       const handoff = this.detectHandoff(toolCalls, currentAgent);
       if (handoff) {
+        // Determine effective finish reason (override if tool calls exist)
+        const effectiveFinishReason = toolCalls.length > 0 && result.finishReason === 'stop' 
+          ? 'tool-calls' 
+          : result.finishReason;
+        
+        // CRITICAL: Always end generation BEFORE handoff (regardless of finishReason)
+        // Handoff tools are always tool calls, so we must end the generation
+        if (generation && result.usage) {
+          try {
+            generation.end({
+              output: {
+                toolCalls: toolCalls.map(tc => ({
+                  tool: tc.toolName,
+                  args: tc.args,
+                  result: tc.result
+                })),
+                text: result.text || ''
+              },
+              usage: {
+                input: result.usage.inputTokens || 0,
+                output: result.usage.outputTokens || 0,
+                total: result.usage.totalTokens || 0,
+              },
+              metadata: {
+                finishReason: effectiveFinishReason,
+                toolCallsCount: toolCalls.length,
+                totalToolCalls: toolCalls.length,
+              },
+            });
+          } catch (error) {
+            console.error('[Generation] Failed to end generation:', error);
+          }
+        }
+
         // Emit agent_handoff event
         const contextWrapper = this.getContextWrapper(currentAgent, messages);
         this.emit('agent_handoff', contextWrapper, handoff.agent);
@@ -1340,6 +1364,42 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         continue;
       }
 
+      // End generation when finishReason is 'tool-calls' (tool call only, no final text yet)
+      // This happens when generateText does only the tool call step, not the final text step
+      // CRITICAL: Also handle cases where SDK returns "stop" but tool calls exist
+      const effectiveFinishReason = toolCalls.length > 0 && result.finishReason === 'stop' 
+        ? 'tool-calls' 
+        : result.finishReason;
+      
+      if (generation && result.usage && effectiveFinishReason === 'tool-calls') {
+        try {
+          generation.end({
+            output: {
+              toolCalls: toolCalls.map(tc => ({
+                tool: tc.toolName,
+                args: tc.args,
+                result: tc.result
+              })),
+              text: ''
+            },
+            usage: {
+              input: result.usage.inputTokens || 0,
+              output: result.usage.outputTokens || 0,
+              total: result.usage.totalTokens || 0,
+            },
+            metadata: {
+              finishReason: effectiveFinishReason,
+              toolCallsCount: toolCalls.length,
+              totalToolCalls: toolCalls.length,
+            },
+          });
+        } catch (error) {
+          console.error('[Generation] Failed to end generation:', error);
+        }
+        // Continue loop - next iteration will create a new generation for the final text
+        continue;
+      }
+
       // Check if we should finish
       // AI SDK v5: finishReason='stop' means model generated final text (not just tool calls)
       // finishReason='tool-calls' means model only generated tool calls (needs continuation)
@@ -1348,6 +1408,43 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         : result.finishReason === 'stop' || result.finishReason === 'length' || result.finishReason === 'content-filter';
 
       if (shouldFinish) {
+        // End generation with final output (text + tool calls if any)
+        if (generation && result.usage) {
+          let generationOutput: any;
+          if (toolCalls.length > 0) {
+            // Include tool calls if they exist (from previous step)
+            generationOutput = {
+              toolCalls: toolCalls.map(tc => ({
+                tool: tc.toolName,
+                args: tc.args,
+                result: tc.result
+              })),
+              text: result.text || ''
+            };
+          } else {
+            // No tool calls - use text output only
+            generationOutput = result.text || null;
+          }
+          
+          try {
+            generation.end({
+              output: generationOutput,
+              usage: {
+                input: result.usage.inputTokens || 0,
+                output: result.usage.outputTokens || 0,
+                total: result.usage.totalTokens || 0,
+              },
+              metadata: {
+                finishReason: result.finishReason,
+                toolCallsCount: toolCalls.length,
+                totalToolCalls: toolCalls.length,
+              },
+            });
+          } catch (error) {
+            console.error('[Generation] Failed to end generation:', error);
+          }
+        }
+
         // Run output guardrails
         await this.runOutputGuardrails(result.text);
 
@@ -1698,7 +1795,22 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     if (typeof input === 'string') {
       newMessages = [{ role: 'user', content: input }];
     } else {
-      newMessages = input;
+      // Smart conversion: Only convert if messages are UIMessage[] (have 'parts' property)
+      const hasUIMessageFormat = input.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+      
+      if (hasUIMessageFormat) {
+        try {
+          newMessages = convertToModelMessages(input as any);
+        } catch (error) {
+          if (process.env.DEBUG_MESSAGES) {
+            console.warn(`[⚠️ PREPARE MESSAGES] Failed to convert UIMessage[] input, using as-is:`, error);
+          }
+          newMessages = input;
+        }
+      } else {
+        // Already ModelMessage[] - use as-is
+        newMessages = input;
+      }
     }
 
     // Load session history if available
@@ -1718,22 +1830,56 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // Reuse cached conversion
         modelHistory = this.cachedModelMessages;
       } else {
-        // Convert CoreMessage[] to ModelMessage[] (sessions use CoreMessage which includes UIMessage)
-        // This ensures compatibility with AI SDK's generateText which requires ModelMessage[]
-        modelHistory = convertToModelMessages(history as any);
-        // Cache the result
-        this.cachedModelMessages = modelHistory;
-        this.lastHistoryLength = history.length;
+        // Smart conversion: Only convert if history is UIMessage[] (have 'parts' property)
+        // Sessions return ModelMessage[] which may include UIMessage[]
+        const hasUIMessageFormat = history.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+        
+        if (hasUIMessageFormat) {
+          try {
+            modelHistory = convertToModelMessages(history as any);
+            // Cache the result
+            this.cachedModelMessages = modelHistory;
+            this.lastHistoryLength = history.length;
+          } catch (error) {
+            if (process.env.DEBUG_MESSAGES) {
+              console.error(`[❌ PREPARE MESSAGES] Failed to convert UIMessage[] history:`, error);
+            }
+            // Fallback: try to use history as-is (might already be ModelMessage[])
+            modelHistory = history as ModelMessage[];
+          }
+        } else {
+          // History is already ModelMessage[] (stored as-is by sessions)
+          // No normalization needed - trust the AI SDK and storage!
+          modelHistory = history as ModelMessage[];
+          // Cache the result
+          this.cachedModelMessages = modelHistory;
+          this.lastHistoryLength = history.length;
+        }
       }
       
       if (this.options.sessionInputCallback) {
         const callbackResult = this.options.sessionInputCallback(modelHistory, newMessages);
-        // Callback is typed to return ModelMessage[], so no conversion needed
-        return callbackResult;
+        // Smart conversion: Only convert if callback result is UIMessage[]
+        const hasCallbackUIFormat = callbackResult.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+        
+        if (hasCallbackUIFormat) {
+          try {
+            return convertToModelMessages(callbackResult as any);
+          } catch (error) {
+            if (process.env.DEBUG_MESSAGES) {
+              console.warn(`[⚠️ PREPARE MESSAGES] Failed to convert UIMessage[] callback result, using as-is:`, error);
+            }
+            return callbackResult;
+          }
+        } else {
+          // Already ModelMessage[] - use as-is
+          return callbackResult;
+        }
       }
       
       // Performance: Use concat for better performance than spread operator
-      return modelHistory.concat(newMessages);
+      const result = modelHistory.concat(newMessages);
+      return result;
     }
 
     return newMessages;

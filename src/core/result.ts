@@ -8,7 +8,7 @@
 
 import type { Agent } from './agent';
 import type { RunState, RunItem, ModelResponse } from './runstate';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 
 /**
  * Enhanced RunResult with additional properties
@@ -21,7 +21,7 @@ export class RunResult<TContext = any, TAgent extends Agent<TContext, any> = Age
    * Includes input items + new items generated during the run.
    * Can be used as input for the next agent run.
    */
-  get history(): CoreMessage[] {
+  get history(): ModelMessage[] {
     return [
       ...(typeof this.state.originalInput === 'string' 
         ? [{ role: 'user' as const, content: this.state.originalInput }]
@@ -35,14 +35,14 @@ export class RunResult<TContext = any, TAgent extends Agent<TContext, any> = Age
    * The new items generated during the agent run.
    * These include messages, tool calls, tool outputs, etc.
    */
-  get output(): CoreMessage[] {
+  get output(): ModelMessage[] {
     return this.state.messages;
   }
 
   /**
    * The original input items (before the run)
    */
-  get input(): string | CoreMessage[] {
+  get input(): string | ModelMessage[] {
     return this.state.originalInput;
   }
 
@@ -142,7 +142,7 @@ export class RunResult<TContext = any, TAgent extends Agent<TContext, any> = Age
   /**
    * Messages
    */
-  get messages(): CoreMessage[] {
+  get messages(): ModelMessage[] {
     return this.state.messages;
   }
 }

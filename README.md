@@ -752,21 +752,21 @@ class Agent<TContext = any, TOutput = string> {
 // Basic execution
 function run<TContext, TOutput>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[] | RunState,
+  input: string | ModelMessage[] | RunState,
   options?: RunOptions<TContext>
 ): Promise<RunResult<TOutput>>
 
 // Streaming
 function runStream<TContext, TOutput>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[],
+  input: string | ModelMessage[],
   options?: RunOptions<TContext>
 ): Promise<StreamResult<TOutput>>
 
 // Race multiple agents
 function raceAgents<TContext, TOutput>(
   agents: Agent<TContext, TOutput>[],
-  input: string | CoreMessage[],
+  input: string | ModelMessage[],
   options?: RunOptions<TContext> & { timeoutMs?: number }
 ): Promise<RunResult<TOutput> & { winningAgent: Agent<TContext, TOutput> }>
 ```
@@ -776,8 +776,8 @@ function raceAgents<TContext, TOutput>(
 ```typescript
 interface Session<TContext = any> {
   readonly id: string;
-  addMessages(messages: CoreMessage[]): Promise<void>;
-  getHistory(): Promise<CoreMessage[]>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
+  getHistory(): Promise<ModelMessage[]>;
   clear(): Promise<void>;
   getMetadata(): Promise<Record<string, any>>;
   updateMetadata(metadata: Record<string, any>): Promise<void>;
@@ -1010,7 +1010,7 @@ import type {
   Guardrail,
   GuardrailResult,
   Session,
-  CoreMessage
+  ModelMessage
 } from '@tawk-agents-sdk/core';
 ```
 

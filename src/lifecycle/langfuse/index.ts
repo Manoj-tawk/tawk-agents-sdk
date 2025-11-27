@@ -10,7 +10,7 @@
  */
 
 import { Langfuse } from 'langfuse';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 
 let langfuseInstance: Langfuse | null = null;
 let isEnabled = false;
@@ -304,7 +304,7 @@ export async function shutdownLangfuse(): Promise<void> {
 /**
  * Helper to format messages for Langfuse
  */
-export function formatMessagesForLangfuse(messages: CoreMessage[]): any[] {
+export function formatMessagesForLangfuse(messages: ModelMessage[]): any[] {
   return messages.map(msg => ({
     role: msg.role,
     content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),

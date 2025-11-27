@@ -5,10 +5,10 @@
  */
 
 import { z } from 'zod';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 
-// Re-export CoreMessage for convenience
-export type Message = CoreMessage;
+// Re-export ModelMessage for convenience
+export type Message = ModelMessage;
 
 // ============================================
 // BACKGROUND RESULT SUPPORT

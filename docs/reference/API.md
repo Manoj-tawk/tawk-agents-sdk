@@ -26,7 +26,7 @@ Execute an agent with a user message or messages. Returns the final result with 
 ```typescript
 function run<TContext, TOutput>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[] | RunState,
+  input: string | ModelMessage[] | RunState,
   options?: RunOptions<TContext>
 ): Promise<RunResult<TOutput>>
 ```
@@ -57,7 +57,7 @@ interface RunOptions<TContext = any> {
   context?: TContext;
   session?: Session<TContext>;
   stream?: boolean;
-  sessionInputCallback?: (history: CoreMessage[], newInput: CoreMessage[]) => CoreMessage[];
+  sessionInputCallback?: (history: ModelMessage[], newInput: ModelMessage[]) => ModelMessage[];
   maxTurns?: number;
 }
 ```
@@ -66,7 +66,7 @@ interface RunOptions<TContext = any> {
 ```typescript
 interface RunResult<TOutput = string> {
   finalOutput: TOutput;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   steps: StepResult[];
   state?: RunState;
   metadata: {
@@ -91,7 +91,7 @@ Execute an agent with streaming responses. Provides real-time text chunks and ev
 ```typescript
 function runStream<TContext, TOutput>(
   agent: Agent<TContext, TOutput>,
-  input: string | CoreMessage[],
+  input: string | ModelMessage[],
   options?: RunOptions<TContext>
 ): Promise<StreamResult<TOutput>>
 ```
@@ -143,7 +143,7 @@ Execute multiple agents in parallel and return the first successful result. All 
 ```typescript
 function raceAgents<TContext, TOutput>(
   agents: Agent<TContext, TOutput>[],
-  input: string | CoreMessage[],
+  input: string | ModelMessage[],
   options?: RunOptions<TContext> & { timeoutMs?: number }
 ): Promise<RunResult<TOutput> & { winningAgent: Agent<TContext, TOutput> }>
 ```
@@ -419,8 +419,8 @@ class MemorySession<TContext = any> implements Session<TContext> {
   );
   
   readonly id: string;
-  addMessages(messages: CoreMessage[]): Promise<void>;
-  getHistory(): Promise<CoreMessage[]>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
+  getHistory(): Promise<ModelMessage[]>;
   clear(): Promise<void>;
   getMetadata(): Promise<Record<string, any>>;
   updateMetadata(metadata: Record<string, any>): Promise<void>;
@@ -448,8 +448,8 @@ class RedisSession<TContext = any> implements Session<TContext> {
   );
   
   readonly id: string;
-  addMessages(messages: CoreMessage[]): Promise<void>;
-  getHistory(): Promise<CoreMessage[]>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
+  getHistory(): Promise<ModelMessage[]>;
   clear(): Promise<void>;
   getMetadata(): Promise<Record<string, any>>;
   updateMetadata(metadata: Record<string, any>): Promise<void>;
@@ -493,8 +493,8 @@ class DatabaseSession<TContext = any> implements Session<TContext> {
   );
   
   readonly id: string;
-  addMessages(messages: CoreMessage[]): Promise<void>;
-  getHistory(): Promise<CoreMessage[]>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
+  getHistory(): Promise<ModelMessage[]>;
   clear(): Promise<void>;
   getMetadata(): Promise<Record<string, any>>;
   updateMetadata(metadata: Record<string, any>): Promise<void>;
@@ -536,8 +536,8 @@ class HybridSession<TContext = any> implements Session<TContext> {
   );
   
   readonly id: string;
-  addMessages(messages: CoreMessage[]): Promise<void>;
-  getHistory(): Promise<CoreMessage[]>;
+  addMessages(messages: ModelMessage[]): Promise<void>;
+  getHistory(): Promise<ModelMessage[]>;
   clear(): Promise<void>;
   getMetadata(): Promise<Record<string, any>>;
   updateMetadata(metadata: Record<string, any>): Promise<void>;
@@ -885,7 +885,7 @@ function createAutoRejectHandler(): ApprovalConfig['requestApproval'];
 interface RunContextWrapper<TContext> {
   context: TContext;
   agent: Agent;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   usage: Usage;
 }
 

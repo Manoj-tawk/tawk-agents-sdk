@@ -36,7 +36,7 @@ export interface RaceAgentsOptions<TContext = any> extends RunOptions<TContext> 
  * @template TOutput - Type of output
  * 
  * @param {Agent[]} agents - Array of agents to race (must have at least one)
- * @param {string | CoreMessage[]} input - Input message or messages array
+ * @param {string | ModelMessage[]} input - Input message or messages array
  * @param {RaceAgentsOptions} [options] - Run options with optional timeout
  * @returns {Promise<RunResult & { winningAgent: Agent }>} Result from the winning agent
  * 

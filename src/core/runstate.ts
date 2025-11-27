@@ -7,7 +7,7 @@
  * @module runstate
  */
 
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 import type { Agent } from './agent';
 import type { Usage } from './usage';
 
@@ -138,7 +138,7 @@ export class RunState<TContext = any> {
   /**
    * Original input to the run
    */
-  public originalInput: string | CoreMessage[];
+  public originalInput: string | ModelMessage[];
 
   /**
    * All items generated during the run
@@ -153,7 +153,7 @@ export class RunState<TContext = any> {
   /**
    * Current messages
    */
-  public messages: CoreMessage[];
+  public messages: ModelMessage[];
 
   /**
    * Aggregated usage across all agents
@@ -177,7 +177,7 @@ export class RunState<TContext = any> {
 
   constructor(
     initialAgent: Agent<any, any>,
-    input: string | CoreMessage[],
+    input: string | ModelMessage[],
     context: TContext,
     maxTurns: number = 50
   ) {
@@ -211,7 +211,7 @@ export class RunState<TContext = any> {
   /**
    * Add a message
    */
-  addMessage(message: CoreMessage): void {
+  addMessage(message: ModelMessage): void {
     this.messages.push(message);
   }
 

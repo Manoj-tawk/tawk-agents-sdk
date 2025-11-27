@@ -45,10 +45,14 @@ export class MemorySession<TContext = any> implements Session<TContext> {
   }
 
   async getHistory(): Promise<ModelMessage[]> {
-    return [...this.messages];
+    // Return messages as-is - AI SDK provides correct ModelMessage[] format
+    // No normalization needed - storage/retrieval happens naturally via JSON
+    return this.messages;
   }
 
   async addMessages(messages: ModelMessage[]): Promise<void> {
+    // Store messages as-is - AI SDK provides correct ModelMessage[] format
+    // No normalization needed - trust the source
     this.messages.push(...messages);
     
     // Check if we should summarize
@@ -276,7 +280,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
         return [];
       }
       
-      // Parse all at once
+      // Parse and return as-is - AI SDK provides correct ModelMessage[] format
       return messagesJson.map(json => JSON.parse(json));
     }
     
@@ -285,13 +289,16 @@ export class RedisSession<TContext = any> implements Session<TContext> {
     if (!messagesJson) {
       return [];
     }
-    return JSON.parse(messagesJson);
+    const messages = JSON.parse(messagesJson);
+    return Array.isArray(messages) ? messages : [];
   }
 
   async addMessages(messages: ModelMessage[]): Promise<void> {
     if (messages.length === 0) return;
     
     const key = this.getMessagesKey();
+    
+    // Store messages as-is - AI SDK provides correct ModelMessage[] format
     
     // Check if we should summarize
     if (this.summarizationConfig?.enabled) {
@@ -310,7 +317,7 @@ export class RedisSession<TContext = any> implements Session<TContext> {
       // Use Redis pipeline for atomic batch operations
       const pipeline = this.redis.pipeline();
       
-      // Serialize messages once
+      // Serialize messages once (no normalization needed)
       const serialized = messages.map(m => JSON.stringify(m));
       
       // Append all messages at once
@@ -561,11 +568,15 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
 
   async getHistory(): Promise<ModelMessage[]> {
     const session = await this.getCollection().findOne({ sessionId: this.id });
-    return session?.messages || [];
+    const messages = session?.messages || [];
+    // Return as-is - AI SDK provides correct ModelMessage[] format
+    return Array.isArray(messages) ? messages : [];
   }
 
   async addMessages(messages: ModelMessage[]): Promise<void> {
     if (messages.length === 0) return;
+    
+    // Store messages as-is - AI SDK provides correct ModelMessage[] format
     
     const collection = this.getCollection();
     
