@@ -60,12 +60,13 @@ class QueryEmbeddingCache {
     this.cacheKeyGenerator = cacheKeyGenerator;
   }
 
-  async getEmbedding(query: string, embeddingModel: EmbeddingModel<string>): Promise<number[]> {
+  async getEmbedding(query: string, embeddingModel: EmbeddingModel<string>, providerOptions?: Record<string, any>): Promise<number[]> {
     if (!this.enabled) {
       // Cache disabled, generate embedding directly
       const result = await generateEmbeddingAI({
         model: embeddingModel,
         value: query,
+        providerOptions,
       });
       return result.embedding;
     }
@@ -82,6 +83,7 @@ class QueryEmbeddingCache {
     const result = await generateEmbeddingAI({
       model: embeddingModel,
       value: query,
+      providerOptions,
     });
 
     this.cache.set(cacheKey, result.embedding);
@@ -166,6 +168,8 @@ export interface PineconeSearchConfig {
   apiVersion?: string;
   /** Embedding model for query encoding (supports OpenAI, Anthropic, Google, Mistral, etc.) */
   embeddingModel: EmbeddingModel<string>;
+  /** Provider-specific options for embedding generation (e.g., { openai: { dimensions: 1024 } }) */
+  embeddingProviderOptions?: Record<string, any>;
   /** Optional default metadata filter for Pinecone queries (e.g., { category: { $eq: 'technical' } }) */
   metadataFilter?: Record<string, any>;
   /** Enable TOON encoding for results (default: true) */
@@ -272,7 +276,8 @@ export function createPineconeSearchTool(config: PineconeSearchConfig) {
     }),
     execute: async ({ query, topK, metadataFilter }) => {
       // ✅ OPTIMIZED: Use cached query embedding (if enabled)
-      const queryEmbedding = await embeddingCache.getEmbedding(query, config.embeddingModel);
+      // Pass provider options if specified (e.g., { openai: { dimensions: 1024 } })
+      const queryEmbedding = await embeddingCache.getEmbedding(query, config.embeddingModel, config.embeddingProviderOptions);
 
       // Use query-specific metadata filter if provided, otherwise use config default
       const searchConfig = {
@@ -378,7 +383,8 @@ export function createPineconeSearchToolWithCache(
       metadataFilter: z.record(z.any()).optional().describe('Optional metadata filter for Pinecone queries (e.g., { category: { $eq: "technical" } })'),
     }),
     execute: async ({ query, topK, metadataFilter }) => {
-      const queryEmbedding = await embeddingCache.getEmbedding(query, config.embeddingModel);
+      // Pass provider options if specified (e.g., { openai: { dimensions: 1024 } })
+      const queryEmbedding = await embeddingCache.getEmbedding(query, config.embeddingModel, config.embeddingProviderOptions);
       const searchConfig = {
         ...config,
         metadataFilter: metadataFilter || config.metadataFilter,

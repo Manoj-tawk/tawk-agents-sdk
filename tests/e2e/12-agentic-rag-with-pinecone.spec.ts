@@ -108,7 +108,14 @@ const pineconeSearchTool = createPineconeSearchTool({
   indexUrl: PINECONE_INDEX_URL!,
   apiKey: PINECONE_API_KEY!,
   namespace: PINECONE_NAMESPACE,
+  // Configure text-embedding-3-small to output 1024 dimensions to match Pinecone index
+  // text-embedding-3-small default is 1536, but can be reduced via providerOptions
   embeddingModel: openai.embedding('text-embedding-3-small'),
+  embeddingProviderOptions: {
+    openai: {
+      dimensions: 1024, // Match Pinecone index dimension
+    },
+  },
   useTOON: true,
   enableCache: true,
   logger: (message, ...args) => console.log(message, ...args),
@@ -307,7 +314,7 @@ CRITICAL: Execute tools and generate direct response. No handoffs needed.`,
 const escalationAgent = new Agent({
   name: 'Escalation',
   // Claude 3.5 Sonnet - Best for empathetic, professional customer communication
-  model: anthropic('claude-3-5-sonnet-20241022'),
+  model: anthropic('claude-sonnet-4-5-20250929'),
   modelSettings: {
     temperature: 0.3,
   },
