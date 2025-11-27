@@ -288,14 +288,14 @@ console.log(`Execution time: ${duration}ms`);
 
 The SDK automatically handles message format conversion for compatibility:
 
-**Problem**: Sessions return `CoreMessage[]` (includes UIMessage), but AI SDK's `generateText()` requires `ModelMessage[]`.
+**Problem**: Sessions return `ModelMessage[]` (includes UIMessage), but AI SDK's `generateText()` requires `ModelMessage[]`.
 
-**Solution**: SDK automatically converts `CoreMessage[]` to `ModelMessage[]` using `convertToModelMessages()`.
+**Solution**: SDK automatically converts `ModelMessage[]` to `ModelMessage[]` using `convertToModelMessages()`.
 
 ```typescript
-// Sessions return CoreMessage[]
+// Sessions return ModelMessage[]
 const session = new MemorySession('user-123');
-const history = await session.getHistory(); // CoreMessage[]
+const history = await session.getHistory(); // ModelMessage[]
 
 // SDK automatically converts to ModelMessage[] before calling generateText()
 const result = await run(agent, 'Hello', { session });
@@ -303,7 +303,7 @@ const result = await run(agent, 'Hello', { session });
 ```
 
 **What gets converted:**
-- ✅ Session history (`CoreMessage[]` → `ModelMessage[]`)
+- ✅ Session history (`ModelMessage[]` → `ModelMessage[]`)
 - ✅ Tool results (already `ModelMessage[]` compatible)
 - ✅ Handoff messages (preserved as `ModelMessage[]`)
 - ✅ User input (already `ModelMessage[]`)

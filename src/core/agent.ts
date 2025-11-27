@@ -457,15 +457,16 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       const handoffToolName = `handoff_to_${handoffAgent.name.toLowerCase().replace(/\s+/g, '_')}`;
       
       // Use handoffDescription if available, otherwise use generic description
+      // IMPORTANT: Description should indicate this is a routing action only
       const description = handoffAgent.handoffDescription 
-        ? `Handoff to ${handoffAgent.name}: ${handoffAgent.handoffDescription}`
-        : `Handoff to ${handoffAgent.name} agent to handle this task`;
+        ? `Route query to ${handoffAgent.name}: ${handoffAgent.handoffDescription}`
+        : `Route the query to the ${handoffAgent.name} agent for processing`;
       
       this.tools[handoffToolName] = {
         description,
         inputSchema: z.object({
-          reason: z.string().describe('Reason for handing off to this agent'),
-          context: z.string().optional().describe('Additional context for the handoff')
+          reason: z.string().describe('Reason for routing to this agent'),
+          context: z.string().optional().describe('Additional context for routing')
         }),
         execute: async ({ reason, context: handoffContext }: { reason: string; context?: string }) => {
           // Return a special marker with agent NAME only (not reference)
@@ -1218,10 +1219,17 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Record step
+      // CRITICAL: Filter out unwanted text generation when tool calls are present
+      // Some models (especially Groq/Llama) generate text alongside tool calls
+      // For handoff/routing tools, we should ALWAYS ignore text (let the target agent respond)
+      // For other tools, keep text only if finishReason is 'stop' (final answer with tool result)
+      const hasHandoffCall = toolCalls.some(tc => tc.result?.__handoff === true);
+      const shouldIgnoreText = hasHandoffCall || (toolCalls.length > 0 && result.finishReason !== 'stop');
+      
       const step: StepResult = {
         stepNumber,
         toolCalls,
-        text: result.text,
+        text: shouldIgnoreText ? '' : result.text, // Ignore text for handoffs or mid-flow tool calls
         // CRITICAL: Override finishReason if tool calls exist but SDK returned "stop"
         // Some models (like gpt-4o-mini) return "stop" even when making tool calls
         finishReason: toolCalls.length > 0 && result.finishReason === 'stop' 
@@ -1403,11 +1411,35 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       // Check if we should finish
       // AI SDK v5: finishReason='stop' means model generated final text (not just tool calls)
       // finishReason='tool-calls' means model only generated tool calls (needs continuation)
-      const shouldFinish = currentAgent._shouldFinish 
+      let shouldFinish = currentAgent._shouldFinish 
         ? currentAgent._shouldFinish(this.context, toolCalls.map(tc => tc.result))
         : result.finishReason === 'stop' || result.finishReason === 'length' || result.finishReason === 'content-filter';
 
+      // SAFETY CHECK: Detect infinite loops for routing agents
+      // If a routing agent (with shouldFinish callback) generates text without calling tools,
+      // and shouldFinish returns false, the agent will loop forever.
+      // Solution: After 2 consecutive text-only generations, force finish with a clear error message
+      let overrideText: string | undefined;
+      if (!shouldFinish && currentAgent._shouldFinish && toolCalls.length === 0 && result.text) {
+        // Count consecutive text-only generations for this agent
+        const recentSteps = this.steps.slice(-2);
+        const consecutiveTextOnlySteps = recentSteps.filter(s => 
+          s.toolCalls.length === 0 && s.text && s.text.length > 0
+        ).length;
+        
+        if (consecutiveTextOnlySteps >= 2) {
+          // Force finish to prevent infinite loop
+          shouldFinish = true;
+          // Override the text with a clear error message
+          overrideText = "I apologize, but I'm unable to process this request. The query doesn't match my routing capabilities. If you need assistance, please rephrase your question or contact support.";
+          console.warn(`[Agent: ${currentAgent.name}] Detected infinite loop - forcing finish after ${consecutiveTextOnlySteps} text-only generations`);
+        }
+      }
+
       if (shouldFinish) {
+        // Use override text if loop was detected, otherwise use result.text
+        const finalText = overrideText ?? result.text;
+        
         // End generation with final output (text + tool calls if any)
         if (generation && result.usage) {
           let generationOutput: any;
@@ -1419,11 +1451,11 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
                 args: tc.args,
                 result: tc.result
               })),
-              text: result.text || ''
+              text: finalText || ''
             };
           } else {
             // No tool calls - use text output only
-            generationOutput = result.text || null;
+            generationOutput = finalText || null;
           }
           
           try {
@@ -1446,33 +1478,33 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         }
 
         // Run output guardrails
-        await this.runOutputGuardrails(result.text);
+        await this.runOutputGuardrails(finalText);
 
         // Parse output if schema provided
         // Performance: Add error handling for JSON parsing
         let finalOutput: TOutput;
         if (currentAgent._outputSchema) {
           try {
-            const parsed = JSON.parse(result.text);
+            const parsed = JSON.parse(finalText);
             finalOutput = currentAgent._outputSchema.parse(parsed);
           } catch (error: any) {
             // Fallback: try to extract JSON from markdown code blocks
-            const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/);
+            const jsonMatch = finalText.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch && jsonMatch[1]) {
               try {
                 const parsed = JSON.parse(jsonMatch[1]);
                 finalOutput = currentAgent._outputSchema.parse(parsed);
               } catch {
                 // Final fallback: return text as-is
-                finalOutput = result.text as TOutput;
+                finalOutput = finalText as TOutput;
               }
             } else {
               // Fallback: return text as-is
-              finalOutput = result.text as TOutput;
+              finalOutput = finalText as TOutput;
             }
           }
         } else {
-          finalOutput = result.text as TOutput;
+          finalOutput = finalText as TOutput;
         }
 
         // Save to session
