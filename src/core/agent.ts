@@ -723,6 +723,8 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   // Performance: Cache converted model messages to avoid repeated conversion
   private cachedModelMessages: ModelMessage[] | null = null;
   private lastHistoryLength = 0;
+  // Handoff context for next agent (provider-agnostic approach)
+  private pendingHandoffContext: string | null = null;
 
   constructor(agent: Agent<TContext, TOutput>, options: RunOptions<TContext>) {
     super(); // Initialize EventEmitter
@@ -1030,7 +1032,15 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
 
       // Get system instructions
       const contextWrapper = this.getContextWrapper(currentAgent, messages);
-      const systemMessage = await currentAgent.getInstructions(contextWrapper);
+      let systemMessage = await currentAgent.getInstructions(contextWrapper);
+      
+      // Provider-agnostic handoff: Prepend handoff context to system message
+      // This avoids multiple system messages in the array (Anthropic restriction)
+      // and works with all providers (OpenAI, Groq, Claude, etc.)
+      if (this.pendingHandoffContext) {
+        systemMessage = `${this.pendingHandoffContext}\n\n${systemMessage}`;
+        this.pendingHandoffContext = null; // Clear after use
+      }
 
       // Create generation span nested under agent span
       // Only created when Langfuse tracing is enabled
@@ -1319,14 +1329,14 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         // Switch to handoff agent
         currentAgent = handoff.agent;
         
-        // CRITICAL FIX: Add a system message to indicate handoff completed
-        // This prevents the new agent from seeing the handoff tool call again
-        messages.push({
-          role: 'system',
-          content: `Handoff completed. You are now ${currentAgent.name}. ${handoff.reason ? `Reason: ${handoff.reason}` : ''}`
-        });
+        // PROVIDER-AGNOSTIC FIX: Store handoff context to prepend to next agent's system message
+        // This avoids multiple system messages in the array (Anthropic restriction)
+        // and works seamlessly with all providers (OpenAI, Groq, Claude, Google, etc.)
+        // The handoff context will be merged into the system message on the next iteration
+        this.pendingHandoffContext = `[Handoff Context] You are now ${currentAgent.name}. ${handoff.reason ? `Reason: ${handoff.reason}` : ''}`;
         
         // Continue loop - new agent span will be created on next iteration
+        // The handoff context will be automatically included in the system message
         continue;
       }
 

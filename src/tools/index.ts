@@ -70,3 +70,15 @@ export {
   type RerankResult,
 } from './rerank';
 
+// ============================================
+// RAG (RETRIEVAL-AUGMENTED GENERATION)
+// ============================================
+
+export {
+  createPineconeSearchTool,
+  createPineconeSearchToolWithCache,
+  type PineconeSearchConfig,
+  type SearchDocument,
+  type PineconeSearchResult,
+} from './rag';
+
