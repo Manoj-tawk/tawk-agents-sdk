@@ -52,7 +52,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 // Set default model - Using OpenAI GPT-5.1 for optimal performance
-setDefaultModel(openai('gpt-5.1'));
+setDefaultModel(openai('gpt-4o-mini'));
 
 console.log('\n🧪 E2E TEST 04: Agentic RAG with Multi-Agent Workflow\n');
 console.log('⚠️  This test makes REAL API calls and costs money!\n');
