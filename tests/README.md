@@ -2,6 +2,8 @@
 
 Comprehensive test suite organized to match the source code structure.
 
+**Status**: ✅ **Fully aligned with `src/`** - See [TEST_ALIGNMENT_REPORT.md](../TEST_ALIGNMENT_REPORT.md)
+
 ---
 
 ## 📁 Directory Structure

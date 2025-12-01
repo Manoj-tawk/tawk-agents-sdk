@@ -58,16 +58,16 @@ async function testApprovalPolicies() {
     const user1 = { user: { roles: ['admin'] } };
     const user2 = { user: { roles: ['user'] } };
     
-    const adminNeeds1 = await adminPolicy(user1, {}, 'call-1');
-    const adminNeeds2 = await adminPolicy(user2, {}, 'call-2');
+    const adminNeeds1 = await adminPolicy(user1);
+    const adminNeeds2 = await adminPolicy(user2);
     
     console.log(`   ✓ Admin user: needs approval = ${adminNeeds1} (expected: false)`);
     console.log(`   ✓ Regular user: needs approval = ${adminNeeds2} (expected: true)`);
     
     // Test requireForArgs
     const amountPolicy = ApprovalPolicies.requireForArgs((args: any) => args.amount > 1000);
-    const argNeeds1 = await amountPolicy({}, { amount: 500 }, 'call-3');
-    const argNeeds2 = await amountPolicy({}, { amount: 2000 }, 'call-4');
+    const argNeeds1 = await amountPolicy({}, { amount: 500 });
+    const argNeeds2 = await amountPolicy({}, { amount: 2000 });
     
     console.log(`   ✓ Small amount (500): needs approval = ${argNeeds1} (expected: false)`);
     console.log(`   ✓ Large amount (2000): needs approval = ${argNeeds2} (expected: true)`);
