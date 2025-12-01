@@ -9,9 +9,8 @@
  * 5. Agent-judging-agent patterns
  */
 
-import { Agent, setDefaultModel } from '../core/agent';
-import { run } from '../core/runner';
-import { raceAgents, runParallel, runWithJudge } from '../core/coordination';
+import 'dotenv/config';
+import { Agent, run, raceAgents, tool, setDefaultModel } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
@@ -22,33 +21,35 @@ setDefaultModel(openai('gpt-4o-mini'));
 // EXAMPLE 1: Parallel Tool Execution
 // ====================
 
-const weatherTool = {
+const weatherTool = tool({
   description: 'Get weather for a city',
   inputSchema: z.object({ city: z.string() }),
-  execute: async ({ city }: { city: string }) => {
+  execute: async ({ city }) => {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 100));
     return `Weather in ${city}: Sunny, 25°C`;
   },
-};
+});
 
-const timeTool = {
+const timeTool = tool({
   description: 'Get current time in a city',
   inputSchema: z.object({ city: z.string() }),
-  execute: async ({ city }: { city: string }) => {
+  execute: async ({ city }) => {
+    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 100));
     return `Time in ${city}: 14:30`;
   },
-};
+});
 
-const newsTool = {
+const newsTool = tool({
   description: 'Get latest news for a city',
   inputSchema: z.object({ city: z.string() }),
-  execute: async ({ city }: { city: string }) => {
+  execute: async ({ city }) => {
+    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 100));
     return `Latest news in ${city}: City prepares for festival`;
   },
-};
+});
 
 async function example1_ParallelTools() {
   console.log('\n===== EXAMPLE 1: Parallel Tool Execution =====\n');
@@ -139,8 +140,7 @@ async function example3_RaceAgents() {
 
   const result = await raceAgents(
     [fastAgent, smartAgent, creativeAgent],
-    'What is the capital of France?',
-    { timeoutMs: 10000 }
+    'What is the capital of France?'
   );
 
   console.log('Winner:', result.winningAgent.name);
@@ -151,11 +151,11 @@ async function example3_RaceAgents() {
 }
 
 // ====================
-// EXAMPLE 4: Parallel Execution with Aggregation
+// EXAMPLE 4: Parallel Agent Execution
 // ====================
 
 async function example4_ParallelWithAggregation() {
-  console.log('\n===== EXAMPLE 4: Parallel Execution with Aggregation =====\n');
+  console.log('\n===== EXAMPLE 4: Parallel Agent Execution =====\n');
 
   const translator1 = new Agent({
     name: 'Translator1',
@@ -172,20 +172,22 @@ async function example4_ParallelWithAggregation() {
     instructions: 'Translate to Spanish with poetic style',
   });
 
-  const result = await runParallel(
-    [translator1, translator2, translator3],
-    'Hello, how are you today?',
-    {
-      aggregator: (results) => {
-        return results.map((r, i) => `Option ${i + 1}: ${r.finalOutput}`).join('\n');
-      },
-    }
-  );
+  // Run all translators in parallel
+  const startTime = Date.now();
+  const results = await Promise.all([
+    run(translator1, 'Hello, how are you today?'),
+    run(translator2, 'Hello, how are you today?'),
+    run(translator3, 'Hello, how are you today?'),
+  ]);
+  const duration = Date.now() - startTime;
 
-  console.log('All Translations:\n', result.aggregated);
-  console.log('\nTotal Duration:', result.totalDuration, 'ms');
+  console.log('All Translations:');
+  results.forEach((r, i) => {
+    console.log(`  Option ${i + 1}: ${r.finalOutput}`);
+  });
+  console.log('\nTotal Duration:', duration, 'ms');
   
-  // All agents run simultaneously, results aggregated
+  // All agents run simultaneously
 }
 
 // ====================
@@ -217,14 +219,34 @@ Consider: correctness, performance, readability, security.
 Return only the best solution.`,
   });
 
-  const result = await runWithJudge(
-    [coder1, coder2, coder3],
-    judge,
-    'Write a function to validate email addresses'
-  );
+  // Run all coders in parallel
+  const query = 'Write a function to validate email addresses';
+  const coderResults = await Promise.all([
+    run(coder1, query),
+    run(coder2, query),
+    run(coder3, query),
+  ]);
+
+  // Judge evaluates all solutions
+  const evaluationPrompt = `
+Evaluate these code solutions and pick the best one:
+
+Solution 1 (Performance-focused):
+${coderResults[0].finalOutput}
+
+Solution 2 (Readability-focused):
+${coderResults[1].finalOutput}
+
+Solution 3 (Security-focused):
+${coderResults[2].finalOutput}
+
+Pick the best solution and explain why.
+`;
+
+  const result = await run(judge, evaluationPrompt);
 
   console.log('Best Solution (judged by AI):\n', result.finalOutput);
-  console.log('\nWorker Count:', result.workerResults.length);
+  console.log('\nWorker Count:', coderResults.length);
   
   // Multiple agents compete, judge agent picks the best
 }
@@ -236,25 +258,25 @@ Return only the best solution.`,
 async function example6_AutonomousDecisions() {
   console.log('\n===== EXAMPLE 6: Autonomous Decision Making =====\n');
 
-  const searchTool = {
+  const searchTool = tool({
     description: 'Search for information',
     inputSchema: z.object({ query: z.string() }),
-    execute: async ({ query }: { query: string }) => {
+    execute: async ({ query }) => {
       return `Search results for: ${query}`;
     },
-  };
+  });
 
-  const calculateTool = {
+  const calculateTool = tool({
     description: 'Perform calculations',
     inputSchema: z.object({ expression: z.string() }),
-    execute: async ({ expression }: { expression: string }) => {
+    execute: async ({ expression }) => {
       try {
         return `Result: ${eval(expression)}`;
       } catch {
         return 'Calculation error';
       }
     },
-  };
+  });
 
   const agent = new Agent({
     name: 'AutonomousAgent',
@@ -294,12 +316,12 @@ async function main() {
     await example6_AutonomousDecisions();
 
     console.log('\n✅ All examples completed successfully!\n');
-    console.log('KEY DIFFERENCES FROM OLD IMPLEMENTATION:');
-    console.log('1. ✅ Tools execute in PARALLEL (not sequential)');
-    console.log('2. ✅ Agents make AUTONOMOUS decisions (not SDK-controlled)');
-    console.log('3. ✅ TRUE multi-agent coordination patterns');
+    console.log('KEY AGENTIC PATTERNS DEMONSTRATED:');
+    console.log('1. ✅ Tools execute in PARALLEL');
+    console.log('2. ✅ Agents make AUTONOMOUS decisions');
+    console.log('3. ✅ Multi-agent coordination patterns');
     console.log('4. ✅ Agent-judging-agent patterns');
-    console.log('5. ✅ Proper state management for interruption/resumption');
+    console.log('5. ✅ Proper state management');
     console.log('6. ✅ Agents control their own lifecycle\n');
 
   } catch (error) {
