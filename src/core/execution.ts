@@ -12,7 +12,8 @@
 
 import type { Agent, CoreTool, RunContextWrapper } from './agent';
 import type { ModelMessage } from 'ai';
-import type { RunState, NextStep, StepResult, SingleStepResult } from './runstate';
+import type { RunState, NextStep, StepResult } from './runstate';
+import { SingleStepResult } from './runstate';
 import { createContextualSpan } from '../tracing/context';
 
 /**
@@ -287,7 +288,7 @@ export async function determineNextStep<TContext = any>(
     // Agent has finished - no more tool calls needed
     return {
       type: 'next_step_final_output',
-      output: processed.text,
+      output: processed.text || '',
     };
   }
 

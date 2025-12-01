@@ -30,6 +30,32 @@ export {
   setDefaultModel,
 } from './core/agent';
 
+// Dynamic HITL Approvals
+export {
+  ApprovalManager as DynamicApprovalManager,
+  ApprovalPolicies,
+  toolWithApproval,
+  formatApprovalRequest,
+} from './core/approvals';
+export type {
+  ApprovalRequest,
+  ApprovalDecision,
+  ApprovalFunction,
+} from './core/approvals';
+
+// Enhanced MCP
+export {
+  EnhancedMCPServer,
+  EnhancedMCPServerManager,
+  getGlobalMCPManager as getEnhancedMCPManager,
+} from './mcp/enhanced';
+export type {
+  MCPServerConfig,
+  MCPTool,
+  MCPResource,
+  MCPPrompt,
+} from './mcp/enhanced';
+
 // Race agents pattern for parallel execution
 export { raceAgents } from './core/race-agents';
 export type { RaceAgentsOptions } from './core/race-agents';

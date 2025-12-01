@@ -52,7 +52,7 @@ export interface HITLResult<TOutput = string> {
  * @returns True if there are pending approvals
  */
 export function needsApproval<TOutput = string>(
-  result: RunResult<TOutput>
+  result: any
 ): result is HITLResult<TOutput> {
   return result.state?.hasInterruptions() || false;
 }
@@ -172,7 +172,7 @@ export function createAgentWithApprovals<TContext = any, TOutput = string>(
   for (const [name, tool] of Object.entries(tools)) {
     if (approvalSet.has(name)) {
       wrappedTools[name] = {
-        ...tool,
+        ...(tool as any),
         enabled: async (context: any) => {
           // Check if this tool has been approved
           const approved = (context as any)._approvedTools?.has(name);

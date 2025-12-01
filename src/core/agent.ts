@@ -25,13 +25,23 @@ import { z } from 'zod';
 import { Usage } from './usage';
 
 // Type alias for tool definitions (v5 compatibility)
-type ToolDefinition = {
+export type ToolDefinition = {
   description?: string;
   inputSchema?: z.ZodSchema<any>; // AI SDK v5 standard
   execute: (args: any, context?: any) => Promise<any> | any;
   enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
+  
+  // Dynamic approval support
+  needsApproval?: (context: any, args: any, callId: string) => Promise<boolean> | boolean;
+  approvalMetadata?: {
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    category?: string;
+    requiredRole?: string;
+    reason?: string;
+  };
 };
-type CoreTool = ToolDefinition;
+export type CoreTool = ToolDefinition;
+export type { ModelMessage } from 'ai';
 import {
   createTrace,
   formatMessagesForLangfuse,
@@ -95,6 +105,9 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   onStepFinish?: (step: StepResult) => void | Promise<void>;
   shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
   useTOON?: boolean; // If true, automatically encode all tool results to TOON format (18-33% token reduction)
+  
+  // Native MCP integration
+  mcpServers?: import('../mcp/enhanced').MCPServerConfig[];
 }
 
 /**
@@ -377,6 +390,12 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   private useTOON?: boolean; // If true, automatically encode all tool results to TOON format
   // Cached static instructions
   private cachedInstructions?: string;
+  
+  // Native MCP support
+  private mcpServers: import('../mcp/enhanced').EnhancedMCPServer[] = [];
+  private mcpToolsCache?: Record<string, CoreTool>;
+  private mcpToolsCacheTime?: number;
+  private readonly MCP_CACHE_TTL = 60000; // 1 minute
 
   constructor(config: AgentConfig<TContext, TOutput>) {
     super(); // Initialize EventEmitter
@@ -393,6 +412,11 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
     this.onStepFinish = config.onStepFinish;
     this.shouldFinish = config.shouldFinish;
     this.useTOON = config.useTOON || false;
+
+    // Initialize MCP servers
+    if (config.mcpServers) {
+      this._initializeMCPServers(config.mcpServers);
+    }
 
     // Add handoff tools automatically
     this._setupHandoffTools();
@@ -480,6 +504,94 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       };
     }
   }
+
+  /**
+   * Initialize MCP servers
+   */
+  private async _initializeMCPServers(configs: import('../mcp/enhanced').MCPServerConfig[]): Promise<void> {
+    const { EnhancedMCPServer } = await import('../mcp/enhanced');
+    
+    for (const config of configs) {
+      const server = new EnhancedMCPServer(config);
+      
+      // Auto-connect if specified (default: true)
+      if (config.autoConnect !== false) {
+        try {
+          await server.connect();
+        } catch (error) {
+          console.error(`Failed to connect to MCP server ${config.name}:`, error);
+        }
+      }
+      
+      this.mcpServers.push(server);
+    }
+  }
+
+  /**
+   * Get MCP tools automatically
+   */
+  async getMcpTools(): Promise<Record<string, CoreTool>> {
+    // Check cache
+    if (
+      this.mcpToolsCache &&
+      this.mcpToolsCacheTime &&
+      Date.now() - this.mcpToolsCacheTime < this.MCP_CACHE_TTL
+    ) {
+      return this.mcpToolsCache;
+    }
+
+    // Fetch from all servers
+    const tools: Record<string, CoreTool> = {};
+
+    for (const server of this.mcpServers) {
+      try {
+        const serverTools = await server.getCoreTools();
+        const mcpTools = await server.getTools();
+
+        for (let i = 0; i < serverTools.length; i++) {
+          const toolName = `mcp_${mcpTools[i].name}`;
+          tools[toolName] = serverTools[i];
+        }
+      } catch (error) {
+        console.error(`Failed to get tools from MCP server:`, error);
+      }
+    }
+
+    // Update cache
+    this.mcpToolsCache = tools;
+    this.mcpToolsCacheTime = Date.now();
+
+    return tools;
+  }
+
+  /**
+   * Get all tools (regular + MCP)
+   */
+  async getAllTools(): Promise<Record<string, CoreTool>> {
+    const mcpTools = await this.getMcpTools();
+    
+    return {
+      ...this.tools,
+      ...mcpTools,
+    };
+  }
+
+  /**
+   * Refresh MCP tool cache
+   */
+  async refreshMcpTools(): Promise<void> {
+    this.mcpToolsCache = undefined;
+    this.mcpToolsCacheTime = undefined;
+    await this.getMcpTools();
+  }
+
+  /**
+   * Cleanup MCP connections
+   */
+  async cleanup(): Promise<void> {
+    await Promise.all(this.mcpServers.map((server) => server.disconnect()));
+  }
+
 
   /**
    * Get system instructions for the agent.
