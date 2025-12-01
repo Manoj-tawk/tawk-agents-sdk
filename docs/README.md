@@ -1,296 +1,513 @@
 # 📚 Tawk Agents SDK - Documentation
 
-Complete documentation for the Tawk Agents SDK - a production-ready AI agent framework.
+**Complete guide to building production-ready AI agents**
+
+Welcome to the Tawk Agents SDK documentation! This guide will take you from your first agent to production-ready multi-agent systems with full observability.
 
 ---
 
-## 📁 Directory Structure
+## 🎯 Quick Navigation
 
-```
-docs/
-├── README.md                 # This file
-│
-├── getting-started/          # Beginner guides
-│   └── GETTING_STARTED.md   # Installation and first steps
-│
-├── guides/                   # Intermediate guides
-│   ├── CORE_CONCEPTS.md     # Core concepts and patterns
-│   ├── FEATURES.md          # Feature guide
-│   └── AGENTIC_RAG.md       # Agentic RAG implementation guide
-│
-├── reference/                # Reference documentation
-│   ├── API.md               # Complete API reference
-│   ├── ARCHITECTURE.md      # System architecture
-│   └── PERFORMANCE.md       # Performance optimization
-│
-└── utils/                    # Documentation utilities (if needed)
-```
+**Just starting?** → [Getting Started](#getting-started)  
+**Need a specific feature?** → [Feature Guides](#feature-guides)  
+**Building something complex?** → [Architecture Guide](#architecture)  
+**API reference?** → [API Documentation](#api-reference)
 
 ---
 
-## 🚀 Quick Navigation
+## 📖 Documentation Structure
 
-### For Beginners
+### 🚀 Getting Started
 
-1. **[Getting Started](./getting-started/GETTING_STARTED.md)** - Start here!
-   - Installation
+**Start here if you're new to the SDK**
+
+1. **[Getting Started Guide](./getting-started/GETTING_STARTED.md)** `[15 min]`
+   - Installation & setup
    - Your first agent
-   - Basic concepts
+   - Basic tool calling
+   - Simple multi-agent system
+   
+   ```mermaid
+   graph LR
+       A[Install SDK] --> B[Create Agent]
+       B --> C[Add Tools]
+       C --> D[Run Agent]
+       D --> E[Production Ready]
+   ```
 
-2. **[Core Concepts](./guides/CORE_CONCEPTS.md)** - Understand the fundamentals
-   - Agents and tools
-   - Sessions and memory
-   - Guardrails and safety
+---
 
-### For Developers
+### 🎓 Core Concepts
 
-3. **[Features Guide](./guides/FEATURES.md)** - Explore all features
-   - Multi-agent systems
-   - Tool calling
-   - Streaming
-   - Advanced patterns
+**Understand the fundamentals**
 
-4. **[Agentic RAG Guide](./guides/AGENTIC_RAG.md)** - Build production RAG systems
-   - Pure agent orchestration
-   - Multi-agent RAG workflow
-   - Semantic search with embeddings
-   - Context synthesis
+2. **[Core Concepts](./guides/CORE_CONCEPTS.md)** `[20 min]`
+   - What is an agent?
+   - True agentic architecture
+   - Tool execution model
+   - Agent lifecycle
+   - State management
+   
+   **Key Diagrams**:
+   - 🔄 Agent execution flow
+   - 🔧 Tool calling mechanism
+   - 👥 Multi-agent coordination
+   - 📊 State transitions
 
-5. **[API Reference](./reference/API.md)** - Complete API documentation
-   - All functions and classes
-   - Type definitions
-   - Usage examples
+---
 
-### For Advanced Users
+### 🛠️ Feature Guides
 
-6. **[Architecture](./reference/ARCHITECTURE.md)** - System design
-   - Internal architecture
+**Learn specific features in-depth**
+
+#### Essential Features
+
+3. **[Features Overview](./guides/FEATURES.md)** `[30 min]`
+   - All features at a glance
+   - When to use what
+   - Feature comparison matrix
+   - Quick reference
+
+4. **[Tool Calling & Execution](./guides/FEATURES.md#tool-calling)** `[15 min]`
+   - Creating tools
+   - Parallel execution
+   - Tool contexts
+   - Error handling
+
+5. **[Multi-Agent Systems](./guides/FEATURES.md#multi-agent)** `[20 min]`
+   - Agent handoffs
+   - Coordination patterns
+   - Race agents
+   - Agent specialization
+
+6. **[Guardrails & Safety](./guides/FEATURES.md#guardrails)** `[15 min]`
+   - Built-in guardrails
+   - Custom guardrails
+   - PII detection
+   - Content safety
+
+#### Advanced Features
+
+7. **[Advanced Features](./guides/ADVANCED_FEATURES.md)** `[45 min]`
+   - Message helpers
+   - Lifecycle hooks
+   - Advanced tracing
+   - Safe execution
+   - Background results
+   - RunState management
+   - TypeScript utilities
+
+8. **[Human-in-the-Loop (HITL)](./guides/HUMAN_IN_THE_LOOP.md)** `[20 min]`
+   - Approval workflows
+   - Dynamic approvals
+   - Approval policies
+   - Integration patterns
+
+9. **[Tracing & Observability](./guides/TRACING.md)** `[15 min]`
+   - Langfuse integration
+   - Custom tracing
+   - Performance monitoring
+   - Debugging agents
+
+#### Specialized Guides
+
+10. **[Agentic RAG](./guides/AGENTIC_RAG.md)** `[30 min]`
+    - RAG architecture
+    - Vector databases
+    - Query optimization
+    - Production patterns
+
+11. **[TOON Optimization](./guides/TOON_OPTIMIZATION.md)** `[15 min]`
+    - Token reduction (42%)
+    - When to use TOON
+    - Performance gains
+    - Best practices
+
+12. **[Error Handling](./guides/ERROR_HANDLING.md)** `[15 min]`
+    - Error types
+    - Recovery strategies
+    - Retry patterns
+    - Production tips
+
+13. **[Lifecycle Hooks](./guides/LIFECYCLE_HOOKS.md)** `[15 min]`
+    - Hook types
+    - Custom logic
+    - Monitoring
+    - Debugging
+
+---
+
+### 🏗️ Architecture
+
+**Deep technical understanding**
+
+14. **[Architecture Overview](./reference/ARCHITECTURE.md)** `[45 min]`
+    - System architecture
+    - Component design
    - Data flow
-   - Extension points
+    - Design decisions
+    
+    **Complete Diagrams**:
+    - 🏛️ High-level architecture
+    - 🔄 Execution engine
+    - 💾 State management
+    - 🔌 Integration points
 
-7. **[Performance](./reference/PERFORMANCE.md)** - Optimization
+15. **[Performance Guide](./reference/PERFORMANCE.md)** `[30 min]`
+    - Performance optimization
+    - Benchmarks
    - Best practices
-   - Performance tips
-   - Cost optimization
+    - Monitoring
 
 ---
 
-## 📖 Documentation Guide
+### 📘 API Reference
 
-### Learning Path
+**Complete API documentation**
 
-**New to the SDK?**
-```
-Getting Started → Core Concepts → Features Guide → API Reference
+16. **[API Documentation](./reference/API.md)** `[Reference]`
+    - All classes & functions
+    - Type definitions
+    - Parameters & returns
+    - Usage examples
+
+---
+
+## 🗺️ Learning Paths
+
+### Path 1: Beginner → Production
+
+**Timeline: 2-3 hours**
+
+```mermaid
+graph TD
+    A[Getting Started] --> B[Core Concepts]
+    B --> C[Features Overview]
+    C --> D[Tool Calling]
+    D --> E[Multi-Agent Systems]
+    E --> F[Guardrails]
+    F --> G[Tracing]
+    G --> H[Production Ready!]
+    
+    style A fill:#e1f5e1
+    style H fill:#c2f0c2
 ```
 
-**Building an application?**
-```
-Features Guide → API Reference → Performance
+1. Read [Getting Started](./getting-started/GETTING_STARTED.md) `[15 min]`
+2. Understand [Core Concepts](./guides/CORE_CONCEPTS.md) `[20 min]`
+3. Review [Features Overview](./guides/FEATURES.md) `[30 min]`
+4. Practice [Tool Calling](./guides/FEATURES.md#tool-calling) `[15 min]`
+5. Build [Multi-Agent System](./guides/FEATURES.md#multi-agent) `[20 min]`
+6. Add [Guardrails](./guides/FEATURES.md#guardrails) `[15 min]`
+7. Enable [Tracing](./guides/TRACING.md) `[15 min]`
+
+**Result**: Production-ready agent system with observability ✅
+
+---
+
+### Path 2: Advanced Developer
+
+**Timeline: 4-5 hours**
+
+```mermaid
+graph TD
+    A[Core Concepts] --> B[Architecture]
+    B --> C[Advanced Features]
+    C --> D[HITL Patterns]
+    D --> E[Custom Tracing]
+    E --> F[RAG Systems]
+    F --> G[Performance Tuning]
+    G --> H[Expert Level!]
+    
+    style A fill:#e1f5e1
+    style H fill:#ffd700
 ```
 
-**Contributing or extending?**
+1. Master [Core Concepts](./guides/CORE_CONCEPTS.md) `[20 min]`
+2. Study [Architecture](./reference/ARCHITECTURE.md) `[45 min]`
+3. Explore [Advanced Features](./guides/ADVANCED_FEATURES.md) `[45 min]`
+4. Implement [HITL](./guides/HUMAN_IN_THE_LOOP.md) `[20 min]`
+5. Setup [Custom Tracing](./guides/TRACING.md) `[15 min]`
+6. Build [RAG System](./guides/AGENTIC_RAG.md) `[30 min]`
+7. Optimize [Performance](./reference/PERFORMANCE.md) `[30 min]`
+
+**Result**: Expert-level agent development with custom patterns ✅
+
+---
+
+### Path 3: Production Engineer
+
+**Timeline: 3-4 hours**
+
+```mermaid
+graph TD
+    A[Architecture] --> B[Performance]
+    B --> C[Error Handling]
+    C --> D[Tracing & Monitoring]
+    D --> E[HITL Safety]
+    E --> F[Production Patterns]
+    F --> G[Production Master!]
+    
+    style A fill:#e1f5e1
+    style G fill:#ff6b6b
 ```
-Architecture → API Reference → Performance
+
+1. Understand [Architecture](./reference/ARCHITECTURE.md) `[45 min]`
+2. Optimize [Performance](./reference/PERFORMANCE.md) `[30 min]`
+3. Master [Error Handling](./guides/ERROR_HANDLING.md) `[15 min]`
+4. Setup [Tracing](./guides/TRACING.md) `[15 min]`
+5. Implement [HITL Safety](./guides/HUMAN_IN_THE_LOOP.md) `[20 min]`
+6. Study [TOON Optimization](./guides/TOON_OPTIMIZATION.md) `[15 min]`
+
+**Result**: Production-grade deployment expertise ✅
+
+---
+
+## 🎨 Key Architecture Diagrams
+
+### 1. System Architecture
+
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        App[Your Application]
+    end
+    
+    subgraph "Tawk Agents SDK"
+        Agent[Agent Core]
+        Tools[Tool System]
+        State[State Manager]
+        Guard[Guardrails]
+        Trace[Tracing]
+    end
+    
+    subgraph "AI Providers"
+        OpenAI[OpenAI]
+        Anthropic[Anthropic]
+        Google[Google AI]
+        Groq[Groq]
+    end
+    
+    subgraph "Integrations"
+        Langfuse[Langfuse]
+        Redis[Redis]
+        MongoDB[MongoDB]
+        MCP[MCP Servers]
+    end
+    
+    App --> Agent
+    Agent --> Tools
+    Agent --> State
+    Agent --> Guard
+    Agent --> Trace
+    
+    Agent --> OpenAI
+    Agent --> Anthropic
+    Agent --> Google
+    Agent --> Groq
+    
+    Trace --> Langfuse
+    State --> Redis
+    State --> MongoDB
+    Tools --> MCP
+    
+    style Agent fill:#4a90e2
+    style App fill:#50c878
+```
+
+### 2. Agent Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant Tools
+    participant AI Model
+    participant Guardrails
+    
+    User->>Agent: run(input)
+    Agent->>Guardrails: Validate input
+    Guardrails-->>Agent: ✓ Pass
+    
+    Agent->>AI Model: Process with tools
+    AI Model-->>Agent: Tool calls needed
+    
+    Agent->>Tools: Execute in parallel
+    Tools-->>Agent: Results
+    
+    Agent->>AI Model: Continue with results
+    AI Model-->>Agent: Final response
+    
+    Agent->>Guardrails: Validate output
+    Guardrails-->>Agent: ✓ Pass
+    
+    Agent-->>User: Final output
+```
+
+### 3. Multi-Agent Coordination
+
+```mermaid
+graph LR
+    subgraph "Coordinator Agent"
+        C[Coordinator]
+    end
+    
+    subgraph "Specialist Agents"
+        R[Researcher]
+        W[Writer]
+        Rev[Reviewer]
+    end
+    
+    C -->|Handoff| R
+    R -->|Results| C
+    C -->|Handoff| W
+    W -->|Draft| C
+    C -->|Handoff| Rev
+    Rev -->|Final| C
+    
+    style C fill:#4a90e2
+    style R fill:#e74c3c
+    style W fill:#f39c12
+    style Rev fill:#27ae60
 ```
 
 ---
 
-## 📚 Documentation Categories
-
-### Getting Started (`getting-started/`)
-
-**For:** First-time users
-
-- Installation and setup
-- Your first agent
-- Basic examples
-- Environment configuration
-
-**Start here:** [GETTING_STARTED.md](./getting-started/GETTING_STARTED.md)
-
-### Guides (`guides/`)
-
-**For:** Developers building applications
-
-- Core concepts and patterns
-- Feature explanations
-- Best practices
-- Common use cases
-
-**Files:**
-- [CORE_CONCEPTS.md](./guides/CORE_CONCEPTS.md) - Understanding the SDK
-- [FEATURES.md](./guides/FEATURES.md) - All features explained
-- [AGENTIC_RAG.md](./guides/AGENTIC_RAG.md) - Agentic RAG implementation guide
-- [TOON_OPTIMIZATION.md](./guides/TOON_OPTIMIZATION.md) - TOON token optimization guide
-
-### Reference (`reference/`)
-
-**For:** Advanced users and contributors
-
-- Complete API documentation
-- System architecture
-- Performance optimization
-- Internal details
-
-**Files:**
-- [API.md](./reference/API.md) - Complete API reference
-- [ARCHITECTURE.md](./reference/ARCHITECTURE.md) - System design
-- [PERFORMANCE.md](./reference/PERFORMANCE.md) - Optimization guide
-
----
-
-## 🎯 What is Tawk Agents SDK?
-
-Tawk Agents SDK is a production-ready framework for building AI agents with:
-
-- 🤖 **Multi-Agent Orchestration** - Coordinate specialized agents
-- 🔧 **Tool Calling** - Native function tools with context injection
-- 🛡️ **Guardrails** - Built-in validation and safety checks
-- 📊 **Observability** - Langfuse tracing and monitoring
-- 💬 **Session Management** - Multiple storage backends
-- 🔄 **Streaming** - Real-time response streaming
-- 🚀 **Multi-Provider** - OpenAI, Anthropic, Google, Groq, and more
-- 📦 **TypeScript First** - Complete type safety
-- ⚡ **Performance** - Optimized for production
-
----
-
-## 🔍 Finding Information
+## 📚 Document Index
 
 ### By Topic
 
-**Agents**
-- [Getting Started](./getting-started/GETTING_STARTED.md#creating-your-first-agent)
-- [Core Concepts](./guides/CORE_CONCEPTS.md#agents)
-- [API Reference](./reference/API.md#agent-class)
-
-**Tools**
-- [Core Concepts](./guides/CORE_CONCEPTS.md#tools)
-- [Features](./guides/FEATURES.md#tool-calling)
-- [API Reference](./reference/API.md#tool-function)
-
-**Sessions**
-- [Core Concepts](./guides/CORE_CONCEPTS.md#sessions)
-- [Features](./guides/FEATURES.md#session-management)
-- [API Reference](./reference/API.md#session-management)
-
-**Guardrails**
-- [Core Concepts](./guides/CORE_CONCEPTS.md#guardrails)
-- [Features](./guides/FEATURES.md#guardrails)
-- [API Reference](./reference/API.md#guardrails)
-
-**Multi-Agent**
-- [Features](./guides/FEATURES.md#multi-agent-systems)
-- [API Reference](./reference/API.md#multi-agent-handoffs)
-
-**Performance**
-- [Performance Guide](./reference/PERFORMANCE.md)
-- [Architecture](./reference/ARCHITECTURE.md#performance)
-
-### By Use Case
-
-**Building a chatbot**
+**Core**
 - [Getting Started](./getting-started/GETTING_STARTED.md)
-- [Sessions](./guides/CORE_CONCEPTS.md#sessions)
-- [Streaming](./guides/FEATURES.md#streaming)
+- [Core Concepts](./guides/CORE_CONCEPTS.md)
+- [Features](./guides/FEATURES.md)
+- [API Reference](./reference/API.md)
 
-**Building a RAG system**
-- [Agentic RAG Guide](./guides/AGENTIC_RAG.md) - Complete implementation guide
-- [TOON Optimization](./guides/TOON_OPTIMIZATION.md) - 18-33% token reduction
-- [Embeddings](./guides/FEATURES.md#embeddings)
-- [RAG Patterns](./reference/ARCHITECTURE.md#rag-patterns)
+**Advanced**
+- [Advanced Features](./guides/ADVANCED_FEATURES.md)
+- [Architecture](./reference/ARCHITECTURE.md)
+- [Performance](./reference/PERFORMANCE.md)
 
-**Building a multi-agent system**
-- [Multi-Agent](./guides/FEATURES.md#multi-agent-systems)
-- [Architecture](./reference/ARCHITECTURE.md#multi-agent-orchestration)
+**Patterns**
+- [Agentic RAG](./guides/AGENTIC_RAG.md)
+- [Multi-Agent](./guides/FEATURES.md#multi-agent)
+- [Error Handling](./guides/ERROR_HANDLING.md)
 
-**Optimizing performance**
-- [Performance Guide](./reference/PERFORMANCE.md)
-- [TOON Optimization](./guides/TOON_OPTIMIZATION.md) - 18-33% token reduction
-- [Best Practices](./reference/PERFORMANCE.md#best-practices)
+**Safety & Monitoring**
+- [Guardrails](./guides/FEATURES.md#guardrails)
+- [HITL](./guides/HUMAN_IN_THE_LOOP.md)
+- [Tracing](./guides/TRACING.md)
 
----
+**Optimization**
+- [TOON Format](./guides/TOON_OPTIMIZATION.md)
+- [Performance](./reference/PERFORMANCE.md)
+- [Lifecycle Hooks](./guides/LIFECYCLE_HOOKS.md)
 
-## 📋 Documentation Standards
+### By Reading Time
 
-### Structure
+**Quick (< 15 min)**
+- [TOON Optimization](./guides/TOON_OPTIMIZATION.md) - 15 min
+- [Error Handling](./guides/ERROR_HANDLING.md) - 15 min
+- [Lifecycle Hooks](./guides/LIFECYCLE_HOOKS.md) - 15 min
+- [Tracing](./guides/TRACING.md) - 15 min
 
-All documentation follows these standards:
+**Medium (15-30 min)**
+- [Getting Started](./getting-started/GETTING_STARTED.md) - 15 min
+- [Core Concepts](./guides/CORE_CONCEPTS.md) - 20 min
+- [HITL](./guides/HUMAN_IN_THE_LOOP.md) - 20 min
+- [Features](./guides/FEATURES.md) - 30 min
+- [Agentic RAG](./guides/AGENTIC_RAG.md) - 30 min
+- [Performance](./reference/PERFORMANCE.md) - 30 min
 
-1. **Clear Headers** - Hierarchical structure
-2. **Code Examples** - Runnable examples
-3. **Type Safety** - TypeScript examples
-4. **Cross-References** - Links to related docs
-5. **Best Practices** - Production-ready patterns
-
-### Examples
-
-All code examples:
-- Use TypeScript
-- Include imports
-- Are runnable
-- Follow best practices
-- Include error handling
-
----
-
-## 🔗 Related Resources
-
-- **[Examples](../examples/)** - Code examples and tutorials
-- **[Tests](../tests/)** - Test suite and examples
-- **[Main README](../README.md)** - Project overview
-- **[GitHub](https://github.com/Manoj-tawk/tawk-agents-sdk)** - Source code
+**Deep Dive (> 30 min)**
+- [Advanced Features](./guides/ADVANCED_FEATURES.md) - 45 min
+- [Architecture](./reference/ARCHITECTURE.md) - 45 min
+- [API Reference](./reference/API.md) - Reference
 
 ---
 
-## 🤝 Contributing
+## 🔍 Finding What You Need
 
-### Adding Documentation
+### "I want to..."
 
-1. **Choose Category** - Place in appropriate directory
-2. **Follow Structure** - Use existing docs as templates
-3. **Add Examples** - Include runnable code
-4. **Cross-Reference** - Link to related docs
-5. **Update README** - Add to navigation
+**Build my first agent**
+→ [Getting Started](./getting-started/GETTING_STARTED.md)
 
-### Documentation Template
+**Understand how it works**
+→ [Core Concepts](./guides/CORE_CONCEPTS.md)
 
-```markdown
-# Title
+**Add tools to my agent**
+→ [Tool Calling](./guides/FEATURES.md#tool-calling)
 
-Brief description.
+**Create a multi-agent system**
+→ [Multi-Agent Guide](./guides/FEATURES.md#multi-agent)
 
-## Overview
+**Make my agent safer**
+→ [Guardrails](./guides/FEATURES.md#guardrails)
 
-What this covers.
+**Monitor my agents**
+→ [Tracing & Observability](./guides/TRACING.md)
 
-## Examples
+**Optimize performance**
+→ [Performance Guide](./reference/PERFORMANCE.md)
 
-```typescript
-// Code example
-```
+**Build a RAG system**
+→ [Agentic RAG](./guides/AGENTIC_RAG.md)
 
-## Related
+**Add human approval**
+→ [Human-in-the-Loop](./guides/HUMAN_IN_THE_LOOP.md)
 
-- [Link to related doc](./path/to/doc.md)
-```
+**Reduce token usage**
+→ [TOON Optimization](./guides/TOON_OPTIMIZATION.md)
+
+**Handle errors gracefully**
+→ [Error Handling](./guides/ERROR_HANDLING.md)
+
+**Deep dive into architecture**
+→ [Architecture Guide](./reference/ARCHITECTURE.md)
+
+**API reference**
+→ [API Documentation](./reference/API.md)
 
 ---
 
-## 📞 Need Help?
+## 💡 Best Practices
+
+### Reading Order Recommendations
+
+**First Time Users** (2-3 hours):
+1. Getting Started → Core Concepts → Features → Tool Calling → Multi-Agent
+
+**Experienced Developers** (4-5 hours):
+1. Core Concepts → Architecture → Advanced Features → HITL → RAG
+
+**Production Engineers** (3-4 hours):
+1. Architecture → Performance → Error Handling → Tracing → TOON
+
+**Quick Reference**:
+- Use API Documentation for function signatures
+- Use Features guide for feature overview
+- Use examples/ directory for working code
+
+---
+
+## 🆘 Getting Help
 
 - 📧 **Email**: support@tawk.to
 - 🐛 **Issues**: [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
-- 📖 **Examples**: [Examples Directory](../examples/)
-- 🧪 **Tests**: [Test Suite](../tests/)
+- 💬 **Community**: Coming soon
+- 📖 **Examples**: [examples/](../examples)
 
 ---
 
-## 📝 License
+## 🔄 Documentation Updates
 
-MIT © [Tawk.to](https://www.tawk.to)
+This documentation is actively maintained. Last updated: December 1, 2025
+
+Found an issue or have a suggestion? Please [open an issue](https://github.com/Manoj-tawk/tawk-agents-sdk/issues).
 
 ---
 
-**Ready to build amazing AI applications? Start with [Getting Started](./getting-started/GETTING_STARTED.md)!** 🚀
+**Ready to start?** Begin with [Getting Started](./getting-started/GETTING_STARTED.md) →
+
+**Made with ❤️ by [Tawk.to](https://www.tawk.to)**
