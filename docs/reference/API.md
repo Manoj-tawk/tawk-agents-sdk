@@ -590,6 +590,137 @@ interface AgentMetric {
 
 ---
 
+## Additional Type Exports
+
+### Streaming Types
+
+```typescript
+// Event name types for streaming
+type RunItemStreamEventName = 
+  | 'message'
+  | 'tool_call'
+  | 'tool_result'
+  | 'handoff'
+  | 'guardrail'
+  | 'step_complete';
+
+// Union of all streaming events
+type RunStreamEvent = 
+  | RunRawModelStreamEvent 
+  | RunItemStreamEvent 
+  | RunAgentUpdatedStreamEvent;
+```
+
+### Safe Execution Types
+
+```typescript
+// Result type for safe execution
+type SafeExecuteResult<T> = [error: null, result: T] | [error: Error, result: null];
+```
+
+### Race Agents Types
+
+```typescript
+interface RaceAgentsOptions<TContext = any> {
+  maxTurns?: number;
+  context?: TContext;
+  timeout?: number;
+}
+```
+
+### Approval Types
+
+```typescript
+interface ApprovalRequest {
+  toolName: string;
+  args: any;
+  metadata?: Record<string, any>;
+}
+
+interface ApprovalDecision {
+  approved: boolean;
+  reason?: string;
+  modifiedArgs?: any;
+}
+
+type ApprovalFunction<TContext = any> = (
+  context: TContext,
+  args: any,
+  toolName: string
+) => Promise<boolean> | boolean;
+```
+
+### Background Result Types
+
+```typescript
+interface BackgroundResult<T> {
+  type: 'background';
+  promise: Promise<T>;
+  onComplete?: (result: T) => void;
+  onError?: (error: Error) => void;
+}
+
+function isBackgroundResult<T>(value: any): value is BackgroundResult<T>;
+```
+
+### MCP Types
+
+```typescript
+type MCPToolFilter = (tool: MCPTool) => boolean;
+```
+
+---
+
+## Advanced Functions
+
+### Tracing Context Functions
+
+```typescript
+// Set the current active span
+function setCurrentSpan(span: Span | null): void;
+
+// Create a contextual generation (advanced)
+function createContextualGeneration(options: {
+  name: string;
+  input: any;
+  model?: string;
+  modelParameters?: Record<string, any>;
+}): Generation;
+```
+
+### AI Generation Functions (Low-level)
+
+```typescript
+// Generate speech from text (low-level)
+async function generateSpeechAI(options: {
+  text: string;
+  model: any;
+  voice?: string;
+}): Promise<{ audio: Buffer; format: string }>;
+
+// Transcribe audio to text (low-level)
+async function transcribeAudioAI(options: {
+  audio: Buffer | string;
+  model: any;
+  language?: string;
+}): Promise<{ text: string; language?: string }>;
+
+// Generate image from text (low-level)
+async function generateImageAI(options: {
+  prompt: string;
+  model: any;
+  size?: string;
+  n?: number;
+}): Promise<{ images: string[]; revised_prompt?: string }>;
+```
+
+**Note**: These are low-level functions. Prefer using the tool wrappers:
+- Use `createTextToSpeechTool()` instead of `generateSpeechAI()`
+- Use `createTranscriptionTool()` instead of `transcribeAudioAI()`
+- Use `createImageGenerationTool()` instead of `generateImageAI()`
+
+---
+
 For more details and examples, see:
 - [Getting Started Guide](../getting-started/GETTING_STARTED.md)
 - [Features Guide](../guides/FEATURES.md)
