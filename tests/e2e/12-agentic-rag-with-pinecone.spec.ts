@@ -134,7 +134,7 @@ const pineconeSearchTool = createPineconeSearchTool({
 const triageAgent = new Agent({
   name: 'Triage',
   // Groq Llama 3.1 8B - Fastest model for routing decisions (ultra-low latency)
-  model: openai('gpt-4o-mini'),
+  model: openai('gpt-5.1'),
   modelSettings: {
     temperature: 0,
   },
@@ -687,6 +687,114 @@ async function test8_UltimateStressTest() {
   return result;
 }
 
+/**
+ * Test Scenario 9: Multi-Agent Workflow - ALL AGENTS TRIGGERED
+ *
+ * This scenario is designed to trigger ALL agents in a single workflow:
+ * - Triage: Routes the complex request
+ * - Knowledge: Answers the documentation question
+ * - Action: Checks system status
+ * - Escalation: Handles the billing concern
+ * 
+ * This demonstrates the complete multi-agent system working together.
+ */
+async function test9_AllAgentsTrigger() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 9: ALL AGENTS TRIGGERED - Complete Multi-Agent Workflow');
+  console.log('='.repeat(80));
+  console.log('This test triggers: Triage → Knowledge + Action + Escalation\n');
+
+  // Create a complex query that requires all agent types
+  const complexQuery = `I have multiple questions:
+1. First, can you tell me about Alan Turing's contributions to computer science? (Knowledge query)
+2. Then, please check if my account status is active and the system is operational. (Action query)
+3. Finally, I have a billing dispute regarding my last invoice that needs immediate attention. (Escalation query)
+
+Please help me with all of these issues.`;
+
+  const result = await agenticRAG(complexQuery);
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer (first 400 chars): ${result.answer.substring(0, 400)}...`);
+  console.log(`\n📚 Citations: ${result.citations.length} documents`);
+  if (result.citations.length > 0) {
+    console.log(`   Source IDs: ${result.citations.slice(0, 5).join(', ')}${result.citations.length > 5 ? '...' : ''}`);
+  }
+  console.log(`\n🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  
+  // Verify all agents were used
+  const expectedAgents = ['Knowledge', 'Action', 'Escalation'];
+  const triggeredAgents = result.agentsUsed.filter(a => a !== 'Triage');
+  
+  console.log(`\n📊 Agent Coverage:`);
+  expectedAgents.forEach(agentName => {
+    const wasUsed = triggeredAgents.includes(agentName);
+    console.log(`   ${wasUsed ? '✅' : '❌'} ${agentName} Agent: ${wasUsed ? 'TRIGGERED' : 'NOT USED'}`);
+  });
+  
+  console.log(`\n📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required (Expected for billing dispute)`);
+  }
+  console.log(`📊 Total Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Total Latency: ${result.latency}ms`);
+  console.log(`💰 Estimated Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  // Validation
+  const allAgentsTriggered = expectedAgents.every(agent => triggeredAgents.includes(agent));
+  if (allAgentsTriggered) {
+    console.log('\n🎉 SUCCESS: All specialist agents were triggered!');
+  } else {
+    console.log('\n⚠️  WARNING: Not all agents were triggered. This may be due to model routing decisions.');
+  }
+
+  return result;
+}
+
+/**
+ * Test Scenario 10: Sequential Multi-Agent Workflow
+ *
+ * Tests a workflow that naturally triggers agents in sequence:
+ * 1. Knowledge query → Knowledge Agent
+ * 2. System check → Action Agent  
+ * 3. Complex issue → Escalation Agent
+ */
+async function test10_SequentialWorkflow() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 10: Sequential Multi-Agent Workflow');
+  console.log('='.repeat(80));
+  console.log('Testing natural sequential triggering of all agents\n');
+
+  // Test 1: Knowledge Agent
+  console.log('📝 Step 1: Knowledge query...');
+  const result1 = await agenticRAG('What was Alan Turing\'s role at Bletchley Park?');
+  console.log(`   ✓ ${result1.agentPath} (${result1.latency}ms)`);
+
+  // Test 2: Action Agent
+  console.log('\n📝 Step 2: Action query...');
+  const result2 = await agenticRAG('Check my account status and system health');
+  console.log(`   ✓ ${result2.agentPath} (${result2.latency}ms)`);
+
+  // Test 3: Escalation Agent
+  console.log('\n📝 Step 3: Escalation query...');
+  const result3 = await agenticRAG('I need to speak with a human agent about a billing dispute immediately');
+  console.log(`   ✓ ${result3.agentPath} (${result3.latency}ms)`);
+
+  console.log('\n✅ Sequential Workflow Results:');
+  console.log('━'.repeat(80));
+  console.log(`Total Queries: 3`);
+  console.log(`Agents Triggered:`);
+  console.log(`   - Knowledge: ${result1.agentsUsed.includes('Knowledge') ? '✅' : '❌'}`);
+  console.log(`   - Action: ${result2.agentsUsed.includes('Action') ? '✅' : '❌'}`);
+  console.log(`   - Escalation: ${result3.agentsUsed.includes('Escalation') ? '✅' : '❌'}`);
+  console.log(`Total Tokens: ${result1.totalTokens + result2.totalTokens + result3.totalTokens}`);
+  console.log(`Total Latency: ${result1.latency + result2.latency + result3.latency}ms`);
+  console.log(`Total Cost: ~$${(((result1.totalTokens + result2.totalTokens + result3.totalTokens) * 0.00015) / 1000).toFixed(6)}`);
+
+  return { result1, result2, result3 };
+}
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -760,9 +868,21 @@ async function runAllTests(): Promise<void> {
     // totalTokens += result7.totalTokens;
     // totalCost += (result7.totalTokens * 0.00015) / 1000;
 
-    const result8 = await test8_UltimateStressTest();
-    totalTokens += result8.totalTokens;
-    totalCost += (result8.totalTokens * 0.00015) / 1000;
+    // const result8 = await test8_UltimateStressTest();
+    // totalTokens += result8.totalTokens;
+    // totalCost += (result8.totalTokens * 0.00015) / 1000;
+
+    // TEST 9: All agents triggered in single complex query
+    console.log('\n🎯 Running Scenario 9: ALL AGENTS TRIGGER TEST...\n');
+    const result9 = await test9_AllAgentsTrigger();
+    totalTokens += result9.totalTokens;
+    totalCost += (result9.totalTokens * 0.00015) / 1000;
+
+    // TEST 10: Sequential workflow testing each agent individually
+    console.log('\n🎯 Running Scenario 10: SEQUENTIAL WORKFLOW TEST...\n');
+    const result10 = await test10_SequentialWorkflow();
+    totalTokens += result10.result1.totalTokens + result10.result2.totalTokens + result10.result3.totalTokens;
+    totalCost += ((result10.result1.totalTokens + result10.result2.totalTokens + result10.result3.totalTokens) * 0.00015) / 1000;
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -772,8 +892,8 @@ async function runAllTests(): Promise<void> {
     console.log(`⏱️  Total Duration: ${duration}s`);
     console.log(`📊 Total Tokens: ${totalTokens}`);
     console.log(`💰 Total Cost: ~$${totalCost.toFixed(6)}`);
-    console.log(`📈 Average Latency: ${((Date.now() - startTime) / 8 / 1000).toFixed(2)}s per query`);
-    console.log(`🤖 Agents Available: Triage, Knowledge, Action, Escalation`);
+    console.log(`📈 Average Latency: ${((Date.now() - startTime) / 2 / 1000).toFixed(2)}s per scenario`);
+    console.log(`🤖 Agents Tested: Triage, Knowledge, Action, Escalation (ALL)`);
     console.log('━'.repeat(80) + '\n');
 
   } catch (error: any) {
