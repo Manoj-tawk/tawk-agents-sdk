@@ -408,6 +408,7 @@ console.log(`Winner: ${result.winningAgent.name}`);
 - **[Core Concepts](./docs/guides/CORE_CONCEPTS.md)** - Understand the architecture
 - **[API Reference](./docs/reference/API.md)** - Complete API documentation
 - **[Features Guide](./docs/guides/FEATURES.md)** - All features explained
+- **[Advanced Features](./docs/guides/ADVANCED_FEATURES.md)** - Message helpers, hooks, tracing, and more
 - **[Agentic RAG](./docs/guides/AGENTIC_RAG.md)** - Build RAG systems
 - **[Performance](./docs/reference/PERFORMANCE.md)** - Optimization guide
 - **[Architecture](./docs/reference/ARCHITECTURE.md)** - Technical deep dive

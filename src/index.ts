@@ -43,11 +43,10 @@ export type {
   ApprovalFunction,
 } from './core/approvals';
 
-// Enhanced MCP
+// Enhanced MCP (Native agent-level integration)
 export {
   EnhancedMCPServer,
   EnhancedMCPServerManager,
-  getGlobalMCPManager as getEnhancedMCPManager,
 } from './mcp/enhanced';
 export type {
   MCPServerConfig,
@@ -63,34 +62,17 @@ export type { RaceAgentsOptions } from './core/race-agents';
 // Usage tracking
 export { Usage } from './core/usage';
 
-// Enhanced Result types (override agent.ts exports with richer versions)
-export { RunResult as EnhancedRunResult, StreamedRunResult } from './core/result';
-
-// Handoff system - DEPRECATED: Use transfers instead
-// Keeping exports for backward compatibility but marked as deprecated
-export { Handoff, handoff, getHandoff } from './handoffs';
-export type { HandoffInputData, HandoffInputFilter, HandoffEnabledFunction } from './handoffs';
-
-// Handoff extensions - DEPRECATED
-export {
-  removeAllTools,
-  keepLastMessages,
-  keepLastMessage,
-  keepMessagesOnly,
-  createHandoffPrompt,
-} from './handoffs/filters';
-
-// Tracing utilities
+// Tracing utilities (for custom tracing)
 export { withFunctionSpan, withHandoffSpan, withGuardrailSpan } from './tracing/tracing-utils';
 
-// Tracing context
+// Tracing context (advanced tracing control)
 export { withTrace, getCurrentTrace, getCurrentSpan, setCurrentSpan, createContextualSpan, createContextualGeneration } from './tracing/context';
 
 // ============================================
 // EVENTS & LIFECYCLE
 // ============================================
 
-// Events
+// Events (for streaming event types)
 export {
   RunRawModelStreamEvent,
   RunItemStreamEvent,
@@ -98,18 +80,18 @@ export {
 } from './lifecycle/events';
 export type { RunItemStreamEventName, RunStreamEvent } from './lifecycle/events';
 
-// Lifecycle hooks
+// Lifecycle hooks (for custom event handling)
 export { AgentHooks, RunHooks } from './lifecycle';
 export type { AgentHookEvents, RunHookEvents } from './lifecycle';
 
-// Utilities
+// Utilities for error-safe execution
 export { safeExecute, safeExecuteWithTimeout } from './helpers/safe-execute';
 export type { SafeExecuteResult } from './helpers/safe-execute';
 
-// Message helpers
+// Message helpers for building conversations
 export { user, assistant, system, toolMessage, getLastTextContent, filterMessagesByRole, extractAllText } from './helpers/message';
 
-// TOON format helpers (for efficient LLM token usage)
+// TOON format helpers (42% token reduction)
 export { 
   encodeTOON, 
   decodeTOON, 
@@ -120,7 +102,7 @@ export {
   calculateTokenSavings
 } from './helpers/toon';
 
-// Type utilities
+// TypeScript utility types (for advanced type manipulation)
 export type {
   Expand,
   DeepPartial,
@@ -134,7 +116,7 @@ export type {
   ArrayElement,
 } from './types/helpers';
 
-// Run state management
+// Run state management (for interruption/resumption patterns)
 export { RunState } from './core/runstate';
 export type {
   RunItem,
@@ -231,9 +213,11 @@ export {
 } from './approvals';
 
 // ============================================
-// TRACING
+// TRACING (Advanced - use Langfuse for most cases)
 // ============================================
 
+// Note: Most users should use the Langfuse integration below.
+// These exports are for advanced custom tracing implementations.
 export {
   TraceManager,
   getGlobalTraceManager,
@@ -266,7 +250,7 @@ export {
 } from './lifecycle/langfuse';
 
 // ============================================
-// ERROR TYPES
+// ERROR TYPES & ASYNC PATTERNS
 // ============================================
 
 export {
@@ -275,6 +259,7 @@ export {
   ToolExecutionError,
   HandoffError,
   ApprovalRequiredError,
+  // Background result pattern for async execution
   backgroundResult,
   isBackgroundResult,
 } from './types/types';
