@@ -66,7 +66,7 @@ const knowledgeBase: Document[] = [
 ### 2. Vector Store
 
 ```typescript
-import { cosineSimilarity } from '@tawk-agents-sdk/core';
+import { cosineSimilarity } from 'tawk-agents-sdk';
 
 class VectorStore {
   private documents: Map<string, Document[]>;
@@ -95,7 +95,7 @@ class VectorStore {
 #### Query Router Agent
 
 ```typescript
-import { Agent, tool } from '@tawk-agents-sdk/core';
+import { Agent, tool } from 'tawk-agents-sdk';
 import { z } from 'zod';
 
 const routerAgent = new Agent({
@@ -117,7 +117,7 @@ IMPORTANT: Always use handoffs to route queries. Do not try to answer queries yo
   tools: {
     logRouting: tool({
       description: 'Log routing decision for visibility and debugging',
-      parameters: z.object({
+      inputSchema: z.object({
         decision: z.string().describe('Routing decision explanation'),
         agents: z.array(z.string()).describe('Agent names being routed to'),
       }),
@@ -135,7 +135,7 @@ IMPORTANT: Always use handoffs to route queries. Do not try to answer queries yo
 #### Retrieval Agents
 
 ```typescript
-import { generateEmbeddingAI } from '@tawk-agents-sdk/core';
+import { generateEmbeddingAI } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 const technicalRetrievalAgent = new Agent({
@@ -151,7 +151,7 @@ Always hand off to Synthesis Agent after retrieval.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search technical knowledge base using semantic similarity',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query'),
         topK: z.number().default(5).describe('Number of results'),
       }),
@@ -199,7 +199,7 @@ Your job:
   tools: {
     rerankDocuments: tool({
       description: 'Re-rank documents by relevance to the query',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string(),
         documents: z.array(z.object({
           id: z.string(),
@@ -219,7 +219,7 @@ Your job:
     }),
     synthesizeContext: tool({
       description: 'Combine and deduplicate multiple contexts',
-      parameters: z.object({
+      inputSchema: z.object({
         contexts: z.array(z.string()),
       }),
       execute: async ({ contexts }) => {
@@ -237,7 +237,7 @@ Your job:
 #### Response Agent
 
 ```typescript
-import { lengthGuardrail, piiDetectionGuardrail } from '@tawk-agents-sdk/core';
+import { lengthGuardrail, piiDetectionGuardrail } from 'tawk-agents-sdk';
 
 const responseAgent = new Agent({
   name: 'Response',
@@ -269,7 +269,7 @@ synthesisAgent.handoffs = [responseAgent];
 **The beauty of pure agent orchestration**: Just run the router agent, and the SDK handles all handoffs automatically!
 
 ```typescript
-import { run } from '@tawk-agents-sdk/core';
+import { run } from 'tawk-agents-sdk';
 
 async function agenticRAG(query: string): Promise<AgenticRAGResult> {
   const startTime = Date.now();

@@ -48,7 +48,7 @@ Complete guide to implementing human-in-the-loop workflows with RunState (pause/
 ### Basic Usage
 
 ```typescript
-import { Agent, run } from '@tawk-agents-sdk/core';
+import { Agent, run } from 'tawk-agents-sdk';
 
 const agent = new Agent({
   name: 'file-manager',
@@ -134,7 +134,7 @@ The **approval system** intercepts tool calls and requests human approval before
 ### Basic Usage
 
 ```typescript
-import { ApprovalManager, createCLIApprovalHandler } from '@tawk-agents-sdk/approvals';
+import { ApprovalManager, createCLIApprovalHandler } from 'tawk-agents-sdk';
 
 const approvalManager = new ApprovalManager();
 const approvalHandler = createCLIApprovalHandler();
@@ -200,7 +200,7 @@ interface ApprovalResponse {
 #### 1. CLI Handler (Terminal Prompt)
 
 ```typescript
-import { createCLIApprovalHandler } from '@tawk-agents-sdk/approvals';
+import { createCLIApprovalHandler } from 'tawk-agents-sdk';
 
 const handler = createCLIApprovalHandler();
 // Prompts user in terminal: "Approve? (y/n)"
@@ -209,7 +209,7 @@ const handler = createCLIApprovalHandler();
 #### 2. Webhook Handler (External API)
 
 ```typescript
-import { createWebhookApprovalHandler } from '@tawk-agents-sdk/approvals';
+import { createWebhookApprovalHandler } from 'tawk-agents-sdk';
 
 const handler = createWebhookApprovalHandler(
   'https://api.example.com/approve',
@@ -221,7 +221,7 @@ const handler = createWebhookApprovalHandler(
 #### 3. Auto-Approve (Testing)
 
 ```typescript
-import { createAutoApproveHandler } from '@tawk-agents-sdk/approvals';
+import { createAutoApproveHandler } from 'tawk-agents-sdk';
 
 const handler = createAutoApproveHandler();
 // Always approves (for testing)
@@ -230,7 +230,7 @@ const handler = createAutoApproveHandler();
 #### 4. Auto-Reject (Testing)
 
 ```typescript
-import { createAutoRejectHandler } from '@tawk-agents-sdk/approvals';
+import { createAutoRejectHandler } from 'tawk-agents-sdk';
 
 const handler = createAutoRejectHandler();
 // Always rejects (for testing)
@@ -243,12 +243,12 @@ const handler = createAutoRejectHandler();
 ### Example 1: File Deletion with CLI Approval
 
 ```typescript
-import { Agent, run, tool } from '@tawk-agents-sdk/core';
+import { Agent, run, tool } from 'tawk-agents-sdk';
 import { z } from 'zod';
 import { 
   ApprovalManager, 
   createCLIApprovalHandler 
-} from '@tawk-agents-sdk/approvals';
+} from 'tawk-agents-sdk';
 
 const approvalManager = new ApprovalManager();
 const approvalHandler = createCLIApprovalHandler();
@@ -296,7 +296,7 @@ console.log(result.finalOutput);
 ### Example 2: Webhook-Based Approval
 
 ```typescript
-import { createWebhookApprovalHandler } from '@tawk-agents-sdk/approvals';
+import { createWebhookApprovalHandler } from 'tawk-agents-sdk';
 
 // Create webhook handler
 const webhookHandler = createWebhookApprovalHandler(

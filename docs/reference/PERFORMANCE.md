@@ -85,7 +85,7 @@ const agent = new Agent({
 **Manual TOON encoding** (for custom use cases):
 
 ```typescript
-import { encodeTOON } from '@tawk-agents-sdk/core';
+import { encodeTOON } from 'tawk-agents-sdk';
 
 const agent = new Agent({
   tools: {

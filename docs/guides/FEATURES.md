@@ -33,7 +33,7 @@ Key features and capabilities of Tawk Agents SDK.
 Generate embeddings for semantic search:
 
 ```typescript
-import { generateEmbeddingAI, createEmbeddingTool } from '@tawk-agents-sdk/core';
+import { generateEmbeddingAI, createEmbeddingTool } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 // Single embedding
@@ -61,7 +61,7 @@ const agent = new Agent({
 Generate images from text:
 
 ```typescript
-import { createImageGenerationTool } from '@tawk-agents-sdk/core';
+import { createImageGenerationTool } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -79,7 +79,7 @@ Transcription and text-to-speech:
 import { 
   createTranscriptionTool,
   createTextToSpeechTool 
-} from '@tawk-agents-sdk/core';
+} from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -95,7 +95,7 @@ const agent = new Agent({
 Improve search relevance:
 
 ```typescript
-import { createRerankTool } from '@tawk-agents-sdk/core';
+import { createRerankTool } from 'tawk-agents-sdk';
 import { cohere } from '@ai-sdk/cohere';
 
 const agent = new Agent({
@@ -118,7 +118,7 @@ import {
   lengthGuardrail,
   languageGuardrail,
   customGuardrail
-} from '@tawk-agents-sdk/core';
+} from 'tawk-agents-sdk';
 
 // Guardrails are configured in AgentConfig
 const agent = new Agent({
@@ -171,7 +171,7 @@ const result = await run(agent, input);
 - **HybridSession** - Redis + MongoDB (production)
 
 ```typescript
-import { RedisSession, DatabaseSession, HybridSession } from '@tawk-agents-sdk/core';
+import { RedisSession, DatabaseSession, HybridSession } from 'tawk-agents-sdk';
 
 // Redis
 const redisSession = new RedisSession('user-123', {
@@ -204,7 +204,7 @@ const hybridSession = new HybridSession('user-123', {
 Track all agent interactions:
 
 ```typescript
-import { initializeLangfuse } from '@tawk-agents-sdk/core';
+import { initializeLangfuse } from 'tawk-agents-sdk';
 
 // Initialize once at app startup
 initializeLangfuse({
@@ -229,7 +229,7 @@ View in Langfuse dashboard:
 Run multiple agents in parallel, use fastest response:
 
 ```typescript
-import { raceAgents } from '@tawk-agents-sdk/core';
+import { raceAgents } from 'tawk-agents-sdk';
 
 const result = await raceAgents(
   [fastAgent, smartAgent, cheapAgent],
@@ -290,7 +290,7 @@ const result = await run(agent, 'Get 100 records');
 **Manual TOON encoding** (for custom use cases):
 
 ```typescript
-import { encodeTOON, decodeTOON } from '@tawk-agents-sdk/core';
+import { encodeTOON, decodeTOON } from 'tawk-agents-sdk';
 
 const data = { users: [{ id: 1, name: 'Alice' }] };
 const toon = encodeTOON(data); // 42% smaller than JSON
@@ -314,7 +314,7 @@ const decoded = decodeTOON(toon);
 Use Model Context Protocol tools:
 
 ```typescript
-import { registerMCPServer, getMCPTools, getGlobalMCPManager } from '@tawk-agents-sdk/core';
+import { registerMCPServer, getMCPTools, getGlobalMCPManager } from 'tawk-agents-sdk';
 
 await registerMCPServer({
   name: 'filesystem',
@@ -340,7 +340,7 @@ const agent = new Agent({
 Require approval for critical actions:
 
 ```typescript
-import { createCLIApprovalHandler, getGlobalApprovalManager } from '@tawk-agents-sdk/core';
+import { createCLIApprovalHandler, getGlobalApprovalManager } from 'tawk-agents-sdk';
 
 const agent = new Agent({
   name: 'approval-agent',
@@ -349,7 +349,7 @@ const agent = new Agent({
   tools: {
     deleteFile: {
       description: 'Delete a file (requires approval)',
-      parameters: z.object({ path: z.string() }),
+      inputSchema: z.object({ path: z.string() }),
       execute: async ({ path }) => {
         const approvalManager = getGlobalApprovalManager();
         const approved = await approvalManager.requestApproval(
