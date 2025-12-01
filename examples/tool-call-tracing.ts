@@ -215,11 +215,7 @@ async function example4_ManualToolTracing() {
 
   // Manual tracing for custom tool execution
   await withTrace(
-    {
-      name: 'Manual Tool Execution',
-      userId: 'user-123',
-      sessionId: 'session-456',
-    },
+    'Manual Tool Execution',
     async (trace) => {
       console.log('📝 Manually tracing tool execution...\n');
 

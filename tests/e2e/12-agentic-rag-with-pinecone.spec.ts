@@ -134,7 +134,7 @@ const pineconeSearchTool = createPineconeSearchTool({
 const triageAgent = new Agent({
   name: 'Triage',
   // Groq Llama 3.1 8B - Fastest model for routing decisions (ultra-low latency)
-  model: openai('gpt-4o-mini'),
+  model: anthropic('claude-haiku-4-5'),
   modelSettings: {
     temperature: 0,
   },

@@ -1,129 +1,111 @@
 # 📚 Examples
 
-This directory contains comprehensive examples demonstrating all features of the Tawk Agents SDK.
+Comprehensive examples demonstrating all features of the Tawk Agents SDK.
+
+**Status**: ✅ **Aligned with src/** - See [EXAMPLES_ALIGNMENT_REPORT.md](../EXAMPLES_ALIGNMENT_REPORT.md)
+
+---
 
 ## 🚀 Quick Start
 
 Run any example with:
 
 ```bash
-# Using tsx
-npx tsx examples/basic/01-simple-agent.ts
+# Using tsx (recommended)
+npx tsx examples/tool-call-tracing.ts
 
 # Or using the run script
 npm run example
 ```
 
-## 📁 Directory Structure
+---
 
-### `/basic` - Getting Started
+## 📁 Current Examples (16 Files)
 
-Simple examples for beginners:
+### Core Feature Examples
 
-- `01-simple-agent.ts` - Basic agent setup
-- `02-agent-with-tools.ts` - Adding tools to agents
-- `03-streaming.ts` - Streaming responses
-- `04-context-injection.ts` - Using context in tools
-- `05-multi-turn.ts` - Multi-turn conversations with sessions
+| Example | Features | Complexity |
+|---------|----------|------------|
+| **tool-call-tracing.ts** | Full tracing, parallel tools | ⭐⭐ |
+| **dynamic-approvals.ts** | HITL approvals, policies | ⭐⭐ |
+| **native-mcp.ts** | MCP integration | ⭐⭐ |
+| **all-features.ts** | Quick reference | ⭐⭐⭐ |
 
-### `/intermediate` - Common Patterns
+### Advanced Examples
 
-Intermediate examples for common use cases:
+| Example | Features | Complexity |
+|---------|----------|------------|
+| **advanced/multi-agent-research.ts** | Complex coordination | ⭐⭐⭐ |
+| **advanced/09-embeddings-rag.ts** | RAG with embeddings | ⭐⭐ |
+| **advanced/10-vision.ts** | Vision capabilities | ⭐⭐ |
+| **advanced/11-toon-format.ts** | TOON optimization | ⭐⭐ |
 
-- `06-multi-agent-handoffs.ts` - Agent handoffs and coordination
-- `07-guardrails.ts` - Input/output validation
-- `08-langfuse-tracing.ts` - Observability with Langfuse
+### Agentic Patterns
 
-### `/advanced` - Advanced Features
+| Example | Features | Complexity |
+|---------|----------|------------|
+| **agentic-patterns/true-agentic-example.ts** | All patterns | ⭐⭐⭐ |
 
-Advanced examples for power users:
+### Production Examples
 
-- `09-embeddings-rag.ts` - RAG with embeddings
-- `10-vision.ts` - Vision capabilities
-- `11-toon-format.ts` - TOON format optimization
-- `multi-agent-research.ts` - Complex multi-agent system
+| Example | Features | Complexity |
+|---------|----------|------------|
+| **production/complete-showcase.ts** | Enterprise features | ⭐⭐⭐ |
+| **production/ecommerce-system.ts** | Real-world app | ⭐⭐⭐ |
 
-### `/agentic-patterns` - True Agentic Architecture
+### Utilities
 
-Examples demonstrating true agentic behavior:
+- **run.ts** - Example runner
+- **utils/** - Shared utilities (config, logger, errors)
 
-- `true-agentic-example.ts` - Comprehensive agentic patterns
-  - Parallel tool execution
-  - Autonomous decision making
-  - Agent coordination
-  - HITL patterns
-
-### `/production` - Production-Ready Examples
-
-Production-grade examples:
-
-- `complete-showcase.ts` - All features integrated
-- `ecommerce-system.ts` - Real-world e-commerce system
-
-### Root Level Examples
-
-Specialized feature examples:
-
-- `all-features.ts` - Quick reference for all features
-- `native-mcp.ts` - Model Context Protocol integration
-- `dynamic-approvals.ts` - Human-in-the-loop approvals
-- `tool-call-tracing.ts` - Complete tracing demonstration
-
-### `/utils` - Shared Utilities
-
-Reusable utilities for examples:
-
-- `config.ts` - Configuration management
-- `logger.ts` - Logging utilities
-- `errors.ts` - Error handling
-- `index.ts` - Centralized exports
+---
 
 ## 🎯 Examples by Feature
 
 ### 🤖 Basic Agent Setup
-- `basic/01-simple-agent.ts`
+- `all-features.ts` - Quick reference
+- `production/complete-showcase.ts` - Full setup
 
 ### 🔧 Tool Calling
-- `basic/02-agent-with-tools.ts` - Basic tools
-- `agentic-patterns/true-agentic-example.ts` - Parallel tool execution
+- `tool-call-tracing.ts` - Tool execution & tracing
+- `agentic-patterns/true-agentic-example.ts` - Parallel tools
 
 ### 👥 Multi-Agent Systems
-- `intermediate/06-multi-agent-handoffs.ts` - Basic handoffs
 - `advanced/multi-agent-research.ts` - Complex coordination
-- `agentic-patterns/true-agentic-example.ts` - Race agents & coordination
+- `agentic-patterns/true-agentic-example.ts` - Race agents
 
 ### ✅ Human-in-the-Loop (HITL)
-- `dynamic-approvals.ts` - Dynamic approval policies
+- `dynamic-approvals.ts` - Dynamic policies ⭐
 - `agentic-patterns/true-agentic-example.ts` - HITL patterns
 
 ### 🔌 MCP Integration
-- `native-mcp.ts` - Native Model Context Protocol
+- `native-mcp.ts` - Native MCP ⭐
 
 ### 📊 Observability & Tracing
-- `intermediate/08-langfuse-tracing.ts` - Langfuse setup
-- `tool-call-tracing.ts` - Complete tracing demo
+- `tool-call-tracing.ts` - Complete tracing ⭐
+- `production/complete-showcase.ts` - Enterprise tracing
 
 ### 🛡️ Guardrails
-- `intermediate/07-guardrails.ts` - All guardrail types
+- `production/complete-showcase.ts` - All guardrails
 
 ### 💬 Session Management
-- `basic/05-multi-turn.ts` - Memory sessions
-- `production/complete-showcase.ts` - Redis/MongoDB sessions
+- `production/complete-showcase.ts` - Redis/MongoDB
 
 ### 🔄 Streaming
-- `basic/03-streaming.ts` - Basic streaming
 - `production/complete-showcase.ts` - Advanced streaming
 
 ### 🎒 TOON Format
 - `advanced/11-toon-format.ts` - Token optimization
 
 ### 🖼️ Vision & Embeddings
-- `advanced/09-embeddings-rag.ts` - RAG with embeddings
-- `advanced/10-vision.ts` - Vision capabilities
+- `advanced/09-embeddings-rag.ts` - RAG
+- `advanced/10-vision.ts` - Vision
 
-### 🏭 Production Examples
-- `production/complete-showcase.ts` - Enterprise features
-- `production/ecommerce-system.ts` - Real-world application
+### 🏭 Production
+- `production/complete-showcase.ts` - Enterprise
+- `production/ecommerce-system.ts` - Real-world
+
+---
 
 ## 💡 Running Examples
 
@@ -164,52 +146,45 @@ MONGODB_URI=mongodb://localhost:27017
 ### Run Examples
 
 ```bash
-# Basic examples
-npx tsx examples/basic/01-simple-agent.ts
-npx tsx examples/basic/02-agent-with-tools.ts
-
-# Intermediate examples
-npx tsx examples/intermediate/06-multi-agent-handoffs.ts
-
-# Advanced examples
-npx tsx examples/advanced/multi-agent-research.ts
-
-# Feature-specific examples
+# Feature-specific (start here)
+npx tsx examples/tool-call-tracing.ts
 npx tsx examples/native-mcp.ts
 npx tsx examples/dynamic-approvals.ts
-npx tsx examples/tool-call-tracing.ts
 
-# Production examples
+# Advanced
+npx tsx examples/advanced/multi-agent-research.ts
+npx tsx examples/advanced/09-embeddings-rag.ts
+
+# Production
 npx tsx examples/production/complete-showcase.ts
+npx tsx examples/production/ecommerce-system.ts
 ```
 
-## 📖 Learning Path
+---
 
-### Beginner (Start Here)
+## 📖 Recommended Learning Path
 
-1. `basic/01-simple-agent.ts` - Understand basic agent setup
-2. `basic/02-agent-with-tools.ts` - Learn tool calling
-3. `basic/03-streaming.ts` - Real-time responses
-4. `basic/04-context-injection.ts` - Dependency injection
-5. `basic/05-multi-turn.ts` - Conversation management
+### 1. Start with Core Features (⭐)
+```bash
+npx tsx examples/tool-call-tracing.ts    # Tracing basics
+npx tsx examples/native-mcp.ts           # MCP integration
+npx tsx examples/dynamic-approvals.ts    # HITL approvals
+```
 
-### Intermediate
+### 2. Explore Advanced Patterns (⭐⭐)
+```bash
+npx tsx examples/advanced/11-toon-format.ts          # Optimization
+npx tsx examples/advanced/09-embeddings-rag.ts       # RAG
+npx tsx examples/agentic-patterns/true-agentic-example.ts  # Patterns
+```
 
-6. `intermediate/06-multi-agent-handoffs.ts` - Agent coordination
-7. `intermediate/07-guardrails.ts` - Safety & validation
-8. `intermediate/08-langfuse-tracing.ts` - Observability
+### 3. Production Systems (⭐⭐⭐)
+```bash
+npx tsx examples/production/complete-showcase.ts     # Enterprise
+npx tsx examples/production/ecommerce-system.ts      # Real-world
+```
 
-### Advanced
-
-9. `advanced/09-embeddings-rag.ts` - RAG systems
-10. `advanced/11-toon-format.ts` - Performance optimization
-11. `advanced/multi-agent-research.ts` - Complex systems
-
-### Production
-
-12. `agentic-patterns/true-agentic-example.ts` - Agentic architecture
-13. `production/complete-showcase.ts` - All features
-14. `production/ecommerce-system.ts` - Real-world app
+---
 
 ## 🆘 Troubleshooting
 
@@ -240,18 +215,35 @@ npx tsc --version  # Should be >= 5.7
 
 ### Import errors
 
-Use `dist/index` for imports:
+Examples import from `../src`:
 
 ```typescript
-import { Agent, run } from '../dist/index';
-// NOT: import { Agent, run } from '../src/index';
+import { Agent, run } from '../src';
+// This is correct for examples
 ```
+
+---
+
+## 📝 Example Status
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Core Features | 4 | ✅ Updated |
+| Advanced | 4 | ✅ Updated |
+| Agentic Patterns | 1 | ✅ Updated |
+| Production | 2 | ✅ Updated |
+| Utilities | 5 | ✅ Updated |
+| **Total** | **16** | ✅ **All Aligned** |
+
+---
 
 ## 💬 Need Help?
 
 - 📧 Email: support@tawk.to
 - 🐛 Issues: [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
 - 📖 Docs: [Full Documentation](../docs)
+
+---
 
 ## 🤝 Contributing Examples
 
