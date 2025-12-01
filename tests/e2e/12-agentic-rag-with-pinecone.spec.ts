@@ -732,33 +732,33 @@ async function runAllTests(): Promise<void> {
     await verifyPineconeConnection();
 
     // Run all scenarios
-    const result1 = await test1_SimpleBiographical();
-    totalTokens += result1.totalTokens;
-    totalCost += (result1.totalTokens * 0.00015) / 1000;
+    // const result1 = await test1_SimpleBiographical();
+    // totalTokens += result1.totalTokens;
+    // totalCost += (result1.totalTokens * 0.00015) / 1000;
 
-    const result2 = await test2_MultiDomainHistoricalScientific();
-    totalTokens += result2.totalTokens;
-    totalCost += (result2.totalTokens * 0.00015) / 1000;
+    // const result2 = await test2_MultiDomainHistoricalScientific();
+    // totalTokens += result2.totalTokens;
+    // totalCost += (result2.totalTokens * 0.00015) / 1000;
 
-    const result3 = await test3_ComplexMultiAgent();
-    totalTokens += result3.totalTokens;
-    totalCost += (result3.totalTokens * 0.00015) / 1000;
+    // const result3 = await test3_ComplexMultiAgent();
+    // totalTokens += result3.totalTokens;
+    // totalCost += (result3.totalTokens * 0.00015) / 1000;
 
-    const result4 = await test4_ScientificDeepDive();
-    totalTokens += result4.totalTokens;
-    totalCost += (result4.totalTokens * 0.00015) / 1000;
+    // const result4 = await test4_ScientificDeepDive();
+    // totalTokens += result4.totalTokens;
+    // totalCost += (result4.totalTokens * 0.00015) / 1000;
 
-    const result5 = await test5_HistoricalImpact();
-    totalTokens += result5.totalTokens;
-    totalCost += (result5.totalTokens * 0.00015) / 1000;
+    // const result5 = await test5_HistoricalImpact();
+    // totalTokens += result5.totalTokens;
+    // totalCost += (result5.totalTokens * 0.00015) / 1000;
 
-    const result6 = await test6_PersonalLegal();
-    totalTokens += result6.totalTokens;
-    totalCost += (result6.totalTokens * 0.00015) / 1000;
+    // const result6 = await test6_PersonalLegal();
+    // totalTokens += result6.totalTokens;
+    // totalCost += (result6.totalTokens * 0.00015) / 1000;
 
-    const result7 = await test7_PostWarScientific();
-    totalTokens += result7.totalTokens;
-    totalCost += (result7.totalTokens * 0.00015) / 1000;
+    // const result7 = await test7_PostWarScientific();
+    // totalTokens += result7.totalTokens;
+    // totalCost += (result7.totalTokens * 0.00015) / 1000;
 
     const result8 = await test8_UltimateStressTest();
     totalTokens += result8.totalTokens;

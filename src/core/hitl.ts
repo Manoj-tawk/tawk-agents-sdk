@@ -7,7 +7,8 @@
  * @module hitl
  */
 
-import type { Agent, RunOptions, RunResult } from './agent';
+import { Agent, type RunOptions } from './agent';
+import type { RunResult } from './runner';
 import type { RunState } from './runstate';
 import { AgenticRunner } from './runner';
 import type { ModelMessage } from 'ai';

@@ -128,6 +128,11 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public stepNumber: number = 0;
   private startTime: number;
 
+  // Legacy compatibility properties
+  public items: any[] = [];
+  public modelResponses: any[] = [];
+  public agent: TAgent; // Alias for currentAgent
+
   constructor(
     agent: TAgent,
     input: string | ModelMessage[],
@@ -135,6 +140,7 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
     maxTurns: number = 50
   ) {
     this.currentAgent = agent;
+    this.agent = agent; // Set alias
     this.originalInput = input;
     this.messages = Array.isArray(input) 
       ? [...input] 
@@ -155,6 +161,23 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   recordStep(step: StepResult): void {
     this.steps.push(step);
     this.stepNumber++;
+    
+    // Update legacy items array
+    for (const toolCall of step.toolCalls) {
+      this.items.push({
+        type: 'tool_call',
+        toolName: toolCall.toolName,
+        args: toolCall.args,
+        result: toolCall.result,
+      });
+    }
+    
+    if (step.text) {
+      this.items.push({
+        role: 'assistant',
+        content: step.text,
+      });
+    }
   }
 
   /**
@@ -281,4 +304,103 @@ export class SingleStepResult<TContext = any> {
     public nextStep: NextStep,
     public stepResult?: StepResult
   ) {}
+}
+
+// ============================================
+// LEGACY COMPATIBILITY TYPES
+// ============================================
+
+/**
+ * @deprecated Use ModelMessage from 'ai' instead
+ */
+export type RunMessageItem = ModelMessage;
+
+/**
+ * @deprecated Use StepResult instead
+ */
+export interface RunToolCallItem {
+  type: 'tool_call';
+  toolName: string;
+  args: any;
+  result: any;
+}
+
+/**
+ * @deprecated Use StepResult instead
+ */
+export interface RunToolResultItem {
+  type: 'tool_result';
+  toolName: string;
+  result: any;
+}
+
+/**
+ * @deprecated Use StepResult instead
+ */
+export interface RunHandoffCallItem {
+  type: 'handoff_call';
+  agentName: string;
+  reason?: string;
+}
+
+/**
+ * @deprecated Use StepResult instead
+ */
+export interface RunHandoffOutputItem {
+  type: 'handoff_output';
+  agentName: string;
+  output: any;
+}
+
+/**
+ * @deprecated Use StepResult instead
+ */
+export interface RunGuardrailItem {
+  type: 'guardrail';
+  name: string;
+  passed: boolean;
+  message?: string;
+}
+
+/**
+ * @deprecated Union type for legacy compatibility
+ */
+export type RunItem =
+  | RunMessageItem
+  | RunToolCallItem
+  | RunToolResultItem
+  | RunHandoffCallItem
+  | RunHandoffOutputItem
+  | RunGuardrailItem;
+
+/**
+ * @deprecated Use discriminated union types
+ */
+export type RunItemType =
+  | 'message'
+  | 'tool_call'
+  | 'tool_result'
+  | 'handoff_call'
+  | 'handoff_output'
+  | 'guardrail';
+
+/**
+ * @deprecated Use response types from AI SDK
+ */
+export interface ModelResponse {
+  text?: string;
+  toolCalls?: Array<{
+    toolName: string;
+    args: any;
+    toolCallId?: string;
+  }>;
+  finishReason?: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  response?: {
+    messages: ModelMessage[];
+  };
 }
