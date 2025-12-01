@@ -1,0 +1,51 @@
+{
+  "name": "@tawk/realtime-agents",
+  "version": "0.1.0",
+  "description": "Realtime voice agents for Tawk Agents SDK - WebRTC and WebSocket support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "voice",
+    "realtime",
+    "webrtc",
+    "websocket",
+    "openai",
+    "tawk"
+  ],
+  "author": "Tawk.to",
+  "license": "MIT",
+  "peerDependencies": {
+    "tawk-agents-sdk": "^1.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.0.0",
+    "ws": "^8.18.0",
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tawk/tawk-agents-sdk.git",
+    "directory": "packages/realtime-agents"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}
+

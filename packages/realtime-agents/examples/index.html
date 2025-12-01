@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tawk Realtime Voice Assistant</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 24px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #connect-btn {
+      background: #10a37f;
+      color: white;
+    }
+
+    #connect-btn:hover:not(:disabled) {
+      background: #0d8f6f;
+    }
+
+    #disconnect-btn {
+      background: #ef4444;
+      color: white;
+    }
+
+    #disconnect-btn:hover:not(:disabled) {
+      background: #dc2626;
+    }
+
+    #status {
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .chat-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .chat-box {
+      height: 400px;
+      overflow-y: auto;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .chat-box h3 {
+      margin-top: 0;
+      color: #374151;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .user-message {
+      background: #3b82f6;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .agent-message {
+      background: #10a37f;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .tool-call {
+      background: #f59e0b;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .info {
+      margin-top: 20px;
+      padding: 16px;
+      background: #eff6ff;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .info h4 {
+      margin-top: 0;
+      color: #1e40af;
+    }
+
+    .info ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .info li {
+      margin-bottom: 8px;
+      color: #1e3a8a;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Tawk Realtime Voice Assistant</h1>
+  
+  <div class="container">
+    <div class="controls">
+      <button id="connect-btn">Connect & Start</button>
+      <button id="disconnect-btn" disabled>Disconnect</button>
+    </div>
+
+    <div id="status">Ready to connect</div>
+
+    <div class="chat-container">
+      <div class="chat-box">
+        <h3>👤 Your Speech</h3>
+        <div id="transcript"></div>
+      </div>
+
+      <div class="chat-box">
+        <h3>🤖 Assistant</h3>
+        <div id="response"></div>
+      </div>
+    </div>
+
+    <div class="info">
+      <h4>ℹ️ How to Use</h4>
+      <ul>
+        <li>Click "Connect & Start" to begin</li>
+        <li>Allow microphone access when prompted</li>
+        <li>Start speaking naturally</li>
+        <li>The assistant will respond with voice</li>
+        <li>Try: "What's the weather in San Francisco?"</li>
+        <li>Try: "What time is it?"</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module" src="./browser.ts"></script>
+</body>
+</html>
+
