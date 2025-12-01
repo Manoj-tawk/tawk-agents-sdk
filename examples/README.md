@@ -1,254 +1,212 @@
-# 📚 Examples
+# 📚 Tawk Agents SDK - Examples
 
-Comprehensive examples demonstrating all features of the Tawk Agents SDK.
+Complete collection of examples demonstrating all features of the SDK, organized from basic to advanced.
 
-**Status**: ✅ **Aligned with src/** - See [EXAMPLES_ALIGNMENT_REPORT.md](../EXAMPLES_ALIGNMENT_REPORT.md)
-
----
-
-## 🚀 Quick Start
-
-Run any example with:
-
-```bash
-# Using tsx (recommended)
-npx tsx examples/tool-call-tracing.ts
-
-# Or using the run script
-npm run example
-```
-
----
-
-## 📁 Current Examples (16 Files)
-
-### Core Feature Examples
-
-| Example | Features | Complexity |
-|---------|----------|------------|
-| **tool-call-tracing.ts** | Full tracing, parallel tools | ⭐⭐ |
-| **dynamic-approvals.ts** | HITL approvals, policies | ⭐⭐ |
-| **native-mcp.ts** | MCP integration | ⭐⭐ |
-| **all-features.ts** | Quick reference | ⭐⭐⭐ |
-
-### Advanced Examples
-
-| Example | Features | Complexity |
-|---------|----------|------------|
-| **advanced/multi-agent-research.ts** | Complex coordination | ⭐⭐⭐ |
-| **advanced/09-embeddings-rag.ts** | RAG with embeddings | ⭐⭐ |
-| **advanced/10-vision.ts** | Vision capabilities | ⭐⭐ |
-| **advanced/11-toon-format.ts** | TOON optimization | ⭐⭐ |
-
-### Agentic Patterns
-
-| Example | Features | Complexity |
-|---------|----------|------------|
-| **agentic-patterns/true-agentic-example.ts** | All patterns | ⭐⭐⭐ |
-
-### Production Examples
-
-| Example | Features | Complexity |
-|---------|----------|------------|
-| **production/complete-showcase.ts** | Enterprise features | ⭐⭐⭐ |
-| **production/ecommerce-system.ts** | Real-world app | ⭐⭐⭐ |
-
-### Utilities
-
-- **run.ts** - Example runner
-- **utils/** - Shared utilities (config, logger, errors)
-
----
-
-## 🎯 Examples by Feature
-
-### 🤖 Basic Agent Setup
-- `all-features.ts` - Quick reference
-- `production/complete-showcase.ts` - Full setup
-
-### 🔧 Tool Calling
-- `tool-call-tracing.ts` - Tool execution & tracing
-- `agentic-patterns/true-agentic-example.ts` - Parallel tools
-
-### 👥 Multi-Agent Systems
-- `advanced/multi-agent-research.ts` - Complex coordination
-- `agentic-patterns/true-agentic-example.ts` - Race agents
-
-### ✅ Human-in-the-Loop (HITL)
-- `dynamic-approvals.ts` - Dynamic policies ⭐
-- `agentic-patterns/true-agentic-example.ts` - HITL patterns
-
-### 🔌 MCP Integration
-- `native-mcp.ts` - Native MCP ⭐
-
-### 📊 Observability & Tracing
-- `tool-call-tracing.ts` - Complete tracing ⭐
-- `production/complete-showcase.ts` - Enterprise tracing
-
-### 🛡️ Guardrails
-- `production/complete-showcase.ts` - All guardrails
-
-### 💬 Session Management
-- `production/complete-showcase.ts` - Redis/MongoDB
-
-### 🔄 Streaming
-- `production/complete-showcase.ts` - Advanced streaming
-
-### 🎒 TOON Format
-- `advanced/11-toon-format.ts` - Token optimization
-
-### 🖼️ Vision & Embeddings
-- `advanced/09-embeddings-rag.ts` - RAG
-- `advanced/10-vision.ts` - Vision
-
-### 🏭 Production
-- `production/complete-showcase.ts` - Enterprise
-- `production/ecommerce-system.ts` - Real-world
-
----
-
-## 💡 Running Examples
-
-### Prerequisites
+## 🎯 Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Build the SDK
-npm run build
+# Run any example
+npx tsx 01-basic/01-simple-agent.ts
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys
+# Or use the universal runner
+npx tsx run.ts 01
 ```
 
-### Required Environment Variables
+---
 
+## 📖 Examples by Level
+
+### 01-basic/ - Getting Started
+
+Perfect for beginners. Learn the fundamentals.
+
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **01-simple-agent.ts** | Basic conversational agent | Agent creation, run() |
+| **02-agent-with-tools.ts** | Adding capabilities | Tools, parallel execution |
+| **03-multi-agent.ts** | Agent coordination | Handoffs, specialization |
+| **04-sessions.ts** | Conversation memory | Sessions, context |
+
+### 02-intermediate/ - Core Features
+
+Intermediate features for production apps.
+
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **05-guardrails.ts** | Safety and validation | Input/output guardrails |
+| **06-streaming.ts** | Real-time responses | Streaming, events |
+| **07-tracing.ts** | Observability | Langfuse, debugging |
+
+### 03-advanced/ - Advanced Features
+
+Advanced patterns and integrations.
+
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **09-embeddings-rag.ts** | Semantic search | Embeddings, RAG |
+| **10-vision.ts** | Image understanding | Vision models, multimodal |
+| **11-toon-format.ts** | Token optimization | TOON format, efficiency |
+| **12-mcp-integration.ts** | Model Context Protocol | MCP servers, tool discovery |
+| **13-dynamic-approvals.ts** | Human-in-the-loop | Approvals, safety |
+| **14-multi-agent-research.ts** | Complex coordination | Research patterns |
+
+### 04-production/ - Production Ready
+
+Complete production-ready systems.
+
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **15-ecommerce-system.ts** | E-commerce assistant | Full system, workflows |
+| **16-complete-showcase.ts** | All features | Comprehensive demo |
+
+### 05-patterns/ - Design Patterns
+
+Proven agentic patterns and architectures.
+
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **17-agentic-patterns.ts** | Agentic design patterns | Architecture, best practices |
+
+---
+
+## 🎓 Learning Path
+
+### Beginner Path (30 minutes)
+1. 01-simple-agent.ts → Learn basic agent creation
+2. 02-agent-with-tools.ts → Add capabilities
+3. 03-multi-agent.ts → Agent coordination
+4. 04-sessions.ts → Add memory
+
+### Intermediate Path (1 hour)
+5. 05-guardrails.ts → Add safety
+6. 06-streaming.ts → Real-time UX
+7. 07-tracing.ts → Observability
+
+### Advanced Path (2+ hours)
+8. 09-embeddings-rag.ts → Semantic search
+9. 12-mcp-integration.ts → Tool discovery
+10. 13-dynamic-approvals.ts → HITL safety
+11. 15-ecommerce-system.ts → Full system
+
+---
+
+## 🚀 Running Examples
+
+### Option 1: Direct Execution
 ```bash
-# At minimum, you need one AI provider:
+npx tsx 01-basic/01-simple-agent.ts
+```
+
+### Option 2: Universal Runner
+```bash
+# Run by number
+npx tsx run.ts 01
+
+# Run by name
+npx tsx run.ts simple-agent
+
+# List all examples
+npx tsx run.ts --list
+```
+
+### Option 3: Watch Mode
+```bash
+# Auto-reload on changes
+npx tsx watch 01-basic/01-simple-agent.ts
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create a `.env` file:
+
+```env
+# Required
 OPENAI_API_KEY=sk-...
 
-# Optional (for specific examples):
+# Optional
 ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-GROQ_API_KEY=gsk_...
-
-# For tracing examples:
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
-
-# For session examples:
-REDIS_URL=redis://localhost:6379
-MONGODB_URI=mongodb://localhost:27017
-```
-
-### Run Examples
-
-```bash
-# Feature-specific (start here)
-npx tsx examples/tool-call-tracing.ts
-npx tsx examples/native-mcp.ts
-npx tsx examples/dynamic-approvals.ts
-
-# Advanced
-npx tsx examples/advanced/multi-agent-research.ts
-npx tsx examples/advanced/09-embeddings-rag.ts
-
-# Production
-npx tsx examples/production/complete-showcase.ts
-npx tsx examples/production/ecommerce-system.ts
+GOOGLE_AI_API_KEY=...
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
 ```
 
 ---
 
-## 📖 Recommended Learning Path
+## 📚 Additional Resources
 
-### 1. Start with Core Features (⭐)
-```bash
-npx tsx examples/tool-call-tracing.ts    # Tracing basics
-npx tsx examples/native-mcp.ts           # MCP integration
-npx tsx examples/dynamic-approvals.ts    # HITL approvals
-```
+### Reference Files
+- **all-features.ts** - Comprehensive feature reference
+- **run.ts** - Universal example runner
+- **STRUCTURE.md** - Detailed structure documentation
 
-### 2. Explore Advanced Patterns (⭐⭐)
-```bash
-npx tsx examples/advanced/11-toon-format.ts          # Optimization
-npx tsx examples/advanced/09-embeddings-rag.ts       # RAG
-npx tsx examples/agentic-patterns/true-agentic-example.ts  # Patterns
-```
-
-### 3. Production Systems (⭐⭐⭐)
-```bash
-npx tsx examples/production/complete-showcase.ts     # Enterprise
-npx tsx examples/production/ecommerce-system.ts      # Real-world
-```
+### Documentation
+- [Getting Started Guide](../docs/getting-started/GETTING_STARTED.md)
+- [Core Concepts](../docs/guides/CORE_CONCEPTS.md)
+- [API Reference](../docs/reference/API.md)
+- [Full Documentation](../docs/README.md)
 
 ---
 
-## 🆘 Troubleshooting
+## 🎯 Quick Reference
 
-### "Module not found" errors
+### Most Common Tasks
 
-Make sure you've built the SDK:
-
-```bash
-npm run build
-```
-
-### API key errors
-
-Check your `.env` file has the required keys:
-
-```bash
-cat .env | grep API_KEY
-```
-
-### TypeScript errors
-
-Ensure you're using Node 18+ and TypeScript 5.7+:
-
-```bash
-node --version  # Should be >= 18
-npx tsc --version  # Should be >= 5.7
-```
-
-### Import errors
-
-Examples import from `../src`:
-
+**Create a basic agent:**
 ```typescript
-import { Agent, run } from '../src';
-// This is correct for examples
+const agent = new Agent({
+  name: 'Assistant',
+  model: openai('gpt-4o-mini'),
+  instructions: 'You are helpful.',
+});
+const result = await run(agent, 'Hello!');
+```
+
+**Add tools:**
+```typescript
+const tool = tool({
+  description: 'Calculate',
+  inputSchema: z.object({ expr: z.string() }),
+  execute: async ({ expr }) => eval(expr)
+});
+```
+
+**Multi-agent coordination:**
+```typescript
+const coordinator = new Agent({
+  handoffs: [specialist1, specialist2]
+});
+```
+
+**Add memory:**
+```typescript
+const session = new MemorySession('user-id');
+await run(agent, 'Hello', { session });
 ```
 
 ---
 
-## 📝 Example Status
+## 🤝 Contributing
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Core Features | 4 | ✅ Updated |
-| Advanced | 4 | ✅ Updated |
-| Agentic Patterns | 1 | ✅ Updated |
-| Production | 2 | ✅ Updated |
-| Utilities | 5 | ✅ Updated |
-| **Total** | **16** | ✅ **All Aligned** |
+Want to add an example? Follow the structure:
+1. Create file with number prefix (e.g., `08-my-example.ts`)
+2. Add clear comments explaining what and why
+3. Keep it focused on ONE concept
+4. Update this README
 
 ---
 
-## 💬 Need Help?
+## 📝 Notes
 
-- 📧 Email: support@tawk.to
-- 🐛 Issues: [GitHub Issues](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
-- 📖 Docs: [Full Documentation](../docs)
+- All examples use TypeScript
+- Examples are self-contained and runnable
+- Check `utils/` folder for shared helpers
+- Examples use `gpt-4o-mini` by default (change if needed)
 
----
-
-## 🤝 Contributing Examples
-
-Have a great example? We'd love to include it! See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
-
----
-
-**Happy coding!** 🚀
+**Ready to start?** Begin with `01-basic/01-simple-agent.ts`! 🚀
