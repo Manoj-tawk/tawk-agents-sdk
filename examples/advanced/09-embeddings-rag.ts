@@ -128,7 +128,7 @@ async function simpleRAG() {
     // Create retrieval tool
     const retrievalTool = tool({
       description: 'Search knowledge base for relevant information',
-      parameters: z.object({ query: z.string() }),
+      inputSchema: z.object({ query: z.string() }),
       execute: async ({ query }) => {
         const queryEmbedResult = await generateEmbeddingAI({ model: embeddingModel, value: query });
         

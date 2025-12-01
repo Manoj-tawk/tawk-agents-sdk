@@ -54,13 +54,13 @@ async function main() {
 
   const weatherTool = tool({
     description: 'Get weather',
-    parameters: z.object({ city: z.string() }),
+    inputSchema: z.object({ city: z.string() }),
     execute: async ({ city }) => ({ city, temp: 22, condition: 'Sunny' }),
   });
 
   const calcTool = tool({
     description: 'Calculate',
-    parameters: z.object({ expression: z.string() }),
+    inputSchema: z.object({ expression: z.string() }),
     execute: async ({ expression }) => {
       try {
         return { result: eval(expression) };
@@ -73,7 +73,7 @@ async function main() {
   // Create a simple retrieval tool using embeddings
   const retrievalTool = tool({
     description: 'Search knowledge base',
-    parameters: z.object({ query: z.string() }),
+    inputSchema: z.object({ query: z.string() }),
     execute: async ({ query }) => {
       const queryEmbed = await generateEmbeddingAI({
         model: openai.embedding('text-embedding-3-small'),

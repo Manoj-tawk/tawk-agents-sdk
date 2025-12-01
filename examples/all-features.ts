@@ -104,7 +104,7 @@ export async function example1_BasicAgent() {
  *   tools: {
  *     calculator: tool({
  *       description: 'Perform calculations',
- *       parameters: z.object({ expression: z.string() }),
+ *       inputSchema: z.object({ expression: z.string() }),
  *       execute: async ({ expression }) => eval(expression)
  *     })
  *   }

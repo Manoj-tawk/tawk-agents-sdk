@@ -35,7 +35,7 @@ async function basicAgentExample() {
   const weatherTool = tool({
     name: 'get_weather',
     description: 'Get weather for a city',
-    parameters: z.object({
+    inputSchema: z.object({
       city: z.string()
     }),
     execute: async ({ city }) => {
@@ -104,7 +104,7 @@ async function contextExample() {
   // Create tools with context
   const addToCartTool = tool({
     description: 'Add item to shopping cart',
-    parameters: z.object({
+    inputSchema: z.object({
       productId: z.string(),
       quantity: z.number().default(1)
     }),
@@ -127,7 +127,7 @@ async function contextExample() {
 
   const viewCartTool = tool({
     description: 'View shopping cart',
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async ({}, context: ShoppingContext) => {
       return {
         items: context.cart,
@@ -208,7 +208,7 @@ async function handoffsExample() {
     tools: {
       search_products: tool({
         description: 'Search for products',
-        parameters: z.object({ query: z.string() }),
+        inputSchema: z.object({ query: z.string() }),
         execute: async ({ query }) => {
           return {
             products: [
@@ -228,7 +228,7 @@ async function handoffsExample() {
     tools: {
       get_invoice: tool({
         description: 'Get invoice details',
-        parameters: z.object({ invoiceId: z.string() }),
+        inputSchema: z.object({ invoiceId: z.string() }),
         execute: async ({ invoiceId }) => {
           return {
             invoiceId,
@@ -270,7 +270,7 @@ async function agentAsToolExample() {
     tools: {
       web_search: tool({
         description: 'Search the web',
-        parameters: z.object({ query: z.string() }),
+        inputSchema: z.object({ query: z.string() }),
         execute: async ({ query }) => {
           return { results: ['Result 1', 'Result 2'] };
         }
@@ -284,7 +284,7 @@ async function agentAsToolExample() {
     tools: {
       analyze: tool({
         description: 'Analyze data',
-        parameters: z.object({ data: z.string() }),
+        inputSchema: z.object({ data: z.string() }),
         execute: async ({ data }) => {
           return { insights: ['Insight 1', 'Insight 2'] };
         }
@@ -503,7 +503,7 @@ async function completeEcommerceExample() {
     return {
       search_products: tool({
         description: 'Search for products',
-        parameters: z.object({ 
+        inputSchema: z.object({ 
           query: z.string(),
           category: z.string().optional()
         }),
@@ -520,7 +520,7 @@ async function completeEcommerceExample() {
 
       add_to_cart: tool({
         description: 'Add product to cart',
-        parameters: z.object({
+        inputSchema: z.object({
           productId: z.string(),
           quantity: z.number().default(1)
         }),
@@ -546,7 +546,7 @@ async function completeEcommerceExample() {
 
       view_cart: tool({
         description: 'View shopping cart',
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: async () => {
           const total = context.cart.reduce((sum, item) => 
             sum + item.price * item.quantity, 0
@@ -562,7 +562,7 @@ async function completeEcommerceExample() {
 
       checkout: tool({
         description: 'Process checkout',
-        parameters: z.object({
+        inputSchema: z.object({
           paymentMethod: z.enum(['credit_card', 'paypal'])
         }),
         execute: async ({ paymentMethod }) => {
@@ -595,7 +595,7 @@ async function completeEcommerceExample() {
     tools: {
       search_products: tool({
         description: 'Search for products',
-        parameters: z.object({ query: z.string() }),
+        inputSchema: z.object({ query: z.string() }),
         execute: async ({ query }) => {
           return { products: [] };
         }
@@ -610,7 +610,7 @@ async function completeEcommerceExample() {
     tools: {
       add_to_cart: tool({
         description: 'Add to cart',
-        parameters: z.object({ 
+        inputSchema: z.object({ 
           productId: z.string(),
           quantity: z.number()
         }),
@@ -620,7 +620,7 @@ async function completeEcommerceExample() {
       }),
       view_cart: tool({
         description: 'View cart',
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: async () => {
           return { items: [] };
         }
@@ -635,7 +635,7 @@ async function completeEcommerceExample() {
     tools: {
       checkout: tool({
         description: 'Process checkout',
-        parameters: z.object({
+        inputSchema: z.object({
           paymentMethod: z.enum(['credit_card', 'paypal'])
         }),
         execute: async ({ paymentMethod }) => {

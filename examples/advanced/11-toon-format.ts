@@ -71,7 +71,7 @@ async function example2_ToolResultsInTOON() {
     tools: {
       getUserStats: {
         description: 'Get user statistics',
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: async () => {
           const stats = {
             users: [
