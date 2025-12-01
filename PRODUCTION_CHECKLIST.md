@@ -147,7 +147,7 @@ tawk-agents-sdk/
 
 ## 🚀 **Deployment**
 
-### npm Publish Checklist
+### Internal Deployment Checklist
 - [x] Version bumped to 1.0.0
 - [x] CHANGELOG.md updated
 - [x] Build successful
@@ -156,36 +156,53 @@ tawk-agents-sdk/
 - [x] Git tag ready
 - [x] Clean working directory
 
-### Publish Commands
+### Deployment Commands
 ```bash
 # Final verification
 npm run build
 npm test
 npm run lint
 
-# Publish to npm
-npm publish
+# Merge to main
+git checkout main
+git merge feat/true-agentic-architecture
+git push origin main
 
 # Create git tag
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
+### Internal Usage
+```bash
+# In other Tawk.to projects
+npm install github:Manoj-tawk/tawk-agents-sdk#v1.0.0
+
+# Or use as git submodule
+git submodule add https://github.com/Manoj-tawk/tawk-agents-sdk.git
+```
+
 ---
 
-## 📝 **Post-Release**
+## 📝 **Post-Deployment (Internal)**
 
-### Communication
-- [ ] Announce on GitHub
-- [ ] Update documentation site
-- [ ] Share examples
-- [ ] Community announcement
+### Internal Communication
+- [ ] Notify Tawk.to engineering team
+- [ ] Update internal documentation
+- [ ] Share integration guide
+- [ ] Training session for team
 
-### Monitoring
-- [ ] npm download stats
-- [ ] GitHub stars/forks
-- [ ] Issue tracking
-- [ ] User feedback
+### Internal Monitoring
+- [ ] Usage across Tawk.to services
+- [ ] Performance metrics in production
+- [ ] Error tracking and alerts
+- [ ] Team feedback collection
+
+### Integration with Tawk.to Services
+- [ ] Customer support bot integration
+- [ ] Chat automation systems
+- [ ] Analytics agents
+- [ ] Internal tools integration
 
 ---
 
@@ -243,21 +260,22 @@ The tawk-agents-sdk is production-ready and can be published to npm.
    git merge feat/true-agentic-architecture
    ```
 
-2. **Publish to npm**
+2. **Deploy internally**
    ```bash
-   npm publish
+   # Update internal services that use this SDK
+   # No npm publish needed (internal only)
    ```
 
-3. **Create release**
+3. **Create release tag**
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
-4. **Announce**
-   - GitHub release notes
-   - Community channels
-   - Social media
+4. **Internal rollout**
+   - Team notification
+   - Internal documentation update
+   - Integration guide for services
 
 ---
 

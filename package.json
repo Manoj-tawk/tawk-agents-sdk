@@ -12,6 +12,7 @@
   "bugs": {
     "url": "https://github.com/Manoj-tawk/tawk-agents-sdk/issues"
   },
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -86,7 +87,7 @@
     "example": "ts-node examples/complete-examples.ts",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublish": "npm run build && npm test"
   },
   "dependencies": {
     "@ai-sdk/groq": "^2.0.29",
