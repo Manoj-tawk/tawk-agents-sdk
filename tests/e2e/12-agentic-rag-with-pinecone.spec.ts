@@ -198,8 +198,8 @@ Be fast and decisive. Route immediately without hesitation.`,
  */
 const knowledgeAgent = new Agent({
   name: 'Knowledge',
-  // Claude 3.5 Sonnet - Best for RAG synthesis and complex reasoning
-  model: anthropic('claude-sonnet-4-5-20250929'),
+  // Using gpt-4o-mini for fair comparison with main branch
+  model: openai('gpt-4o-mini'),
   modelSettings: {
     temperature: 0,
   },
