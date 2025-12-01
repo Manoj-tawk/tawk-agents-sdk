@@ -1,235 +1,263 @@
 /**
- * Run State Management
+ * RunState - Proper state abstraction for agent execution
  * 
- * Manages the state of an agent run, including current agent,
- * turn count, messages, and generated items.
+ * This module provides a proper state container for agent runs,
+ * enabling interruption, resumption, and stateful agent execution.
  * 
  * @module runstate
  */
 
-import type { CoreMessage } from 'ai';
 import type { Agent } from './agent';
-import type { Usage } from './usage';
+import type { ModelMessage } from 'ai';
+import { Usage } from './usage';
 
 /**
- * Types of items that can be generated during a run
+ * Discriminated union for next step transitions
+ * Enables type-safe state machine for agent execution
  */
-export type RunItemType = 
-  | 'message'
-  | 'tool_call'
-  | 'tool_result'
-  | 'handoff_call'
-  | 'handoff_result'
-  | 'guardrail_check';
+export type NextStep =
+  | { type: 'next_step_run_again' }
+  | { type: 'next_step_handoff'; newAgent: Agent<any, any>; reason?: string; context?: string }
+  | { type: 'next_step_final_output'; output: string }
+  | { type: 'next_step_interruption'; interruptions: any[] };
 
 /**
- * Base run item
+ * Individual step result with tool outcomes
  */
-export interface RunItem {
-  id: string;
-  type: RunItemType;
-  timestamp: number;
-  agentName: string;
-  metadata?: Record<string, any>;
-}
-
-/**
- * Message item
- */
-export interface RunMessageItem extends RunItem {
-  type: 'message';
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-/**
- * Tool call item
- */
-export interface RunToolCallItem extends RunItem {
-  type: 'tool_call';
-  toolName: string;
-  args: any;
-}
-
-/**
- * Tool result item
- */
-export interface RunToolResultItem extends RunItem {
-  type: 'tool_result';
-  toolCallId: string;
-  toolName: string;
-  result: any;
-  error?: string;
-}
-
-/**
- * Handoff call item
- */
-export interface RunHandoffCallItem extends RunItem {
-  type: 'handoff_call';
-  fromAgent: string;
-  toAgent: string;
-  reason: string;
-}
-
-/**
- * Handoff result item
- */
-export interface RunHandoffOutputItem extends RunItem {
-  type: 'handoff_result';
-  fromAgent: string;
-  toAgent: string;
-  success: boolean;
-}
-
-/**
- * Guardrail check item
- */
-export interface RunGuardrailItem extends RunItem {
-  type: 'guardrail_check';
-  guardrailName: string;
-  passed: boolean;
-  message?: string;
-}
-
-/**
- * Model response tracking
- */
-export interface ModelResponse {
-  agentName: string;
+export interface StepResult {
   stepNumber: number;
-  text: string;
-  finishReason?: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  agentName: string;
   toolCalls: Array<{
     toolName: string;
     args: any;
+    result: any;
   }>;
+  text?: string;
+  finishReason?: string;
+  timestamp: number;
 }
 
 /**
- * RunState manages the state of an agent run
+ * Agent execution metrics for observability
  */
-export class RunState<TContext = any> {
-  /**
-   * The run context (user-defined state)
-   */
+export interface AgentMetric {
+  agentName: string;
+  turns: number;
+  tokens: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  toolCalls: number;
+  duration: number;
+  startTime: number;
+  endTime?: number;
+}
+
+/**
+ * Tracks tool usage per agent for reset logic
+ */
+export class AgentToolUseTracker {
+  private agentToTools = new Map<Agent<any, any>, string[]>();
+
+  addToolUse(agent: Agent<any, any>, toolNames: string[]): void {
+    this.agentToTools.set(agent, toolNames);
+  }
+
+  hasUsedTools(agent: Agent<any, any>): boolean {
+    return this.agentToTools.has(agent);
+  }
+
+  getToolsUsed(agent: Agent<any, any>): string[] {
+    return this.agentToTools.get(agent) || [];
+  }
+
+  toJSON(): Record<string, string[]> {
+    return Object.fromEntries(
+      Array.from(this.agentToTools.entries()).map(([agent, toolNames]) => [
+        agent.name,
+        toolNames,
+      ])
+    );
+  }
+}
+
+/**
+ * RunState - Encapsulates all state for an agent execution
+ * 
+ * This is the core of the agentic architecture. It maintains:
+ * - Current agent and execution context
+ * - Message history and generated items
+ * - Step tracking and metrics
+ * - Interruption state for HITL patterns
+ * - Tracing spans and metadata
+ * 
+ * @template TContext - Type of context object
+ * @template TAgent - Type of agent being executed
+ */
+export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agent<any, any>> {
+  // Core execution state
+  public currentAgent: TAgent;
+  public originalInput: string | ModelMessage[];
+  public messages: ModelMessage[];
   public context: TContext;
-
-  /**
-   * Current agent handling the run
-   */
-  public currentAgent: Agent<any, any>;
-
-  /**
-   * Current turn number
-   */
-  public currentTurn: number;
-
-  /**
-   * Maximum turns allowed
-   */
   public maxTurns: number;
+  public currentTurn: number;
+  public currentStep?: NextStep;
 
-  /**
-   * Original input to the run
-   */
-  public originalInput: string | CoreMessage[];
+  // Step and metric tracking
+  public steps: StepResult[] = [];
+  public agentMetrics: Map<string, AgentMetric> = new Map();
+  public toolUseTracker: AgentToolUseTracker = new AgentToolUseTracker();
 
-  /**
-   * All items generated during the run
-   */
-  public items: RunItem[];
+  // Token usage tracking
+  public usage: Usage = new Usage();
 
-  /**
-   * All model responses
-   */
-  public modelResponses: ModelResponse[];
+  // Handoff tracking
+  public handoffChain: string[] = [];
+  private handoffChainSet: Set<string> = new Set();
 
-  /**
-   * Current messages
-   */
-  public messages: CoreMessage[];
+  // Interruption state for HITL
+  public pendingInterruptions: any[] = [];
 
-  /**
-   * Aggregated usage across all agents
-   */
-  public usage: Usage;
+  // Tracing
+  public trace?: any;
+  public currentAgentSpan?: any;
 
-  /**
-   * Chain of agents involved (for multi-agent runs)
-   */
-  public handoffChain: string[];
-
-  /**
-   * Per-agent metrics
-   */
-  public agentMetrics: Map<string, {
-    agentName: string;
-    turns: number;
-    tokens: { input: number; output: number; total: number };
-    toolCalls: number;
-  }>;
+  // Internal state
+  public stepNumber: number = 0;
+  private startTime: number;
 
   constructor(
-    initialAgent: Agent<any, any>,
-    input: string | CoreMessage[],
+    agent: TAgent,
+    input: string | ModelMessage[],
     context: TContext,
     maxTurns: number = 50
   ) {
-    this.currentAgent = initialAgent;
+    this.currentAgent = agent;
     this.originalInput = input;
+    this.messages = Array.isArray(input) 
+      ? [...input] 
+      : [{ role: 'user' as const, content: input }];
     this.context = context;
     this.maxTurns = maxTurns;
     this.currentTurn = 0;
-    this.items = [];
-    this.modelResponses = [];
-    this.messages = [];
-    this.usage = new (require('./usage').Usage)();
-    this.handoffChain = [initialAgent.name];
-    this.agentMetrics = new Map();
+    this.startTime = Date.now();
+
+    // Initialize handoff chain with starting agent
+    this.handoffChain.push(agent.name);
+    this.handoffChainSet.add(agent.name);
   }
 
   /**
-   * Add an item to the run
+   * Record a step in the execution
    */
-  addItem(item: RunItem): void {
-    this.items.push(item);
+  recordStep(step: StepResult): void {
+    this.steps.push(step);
+    this.stepNumber++;
   }
 
   /**
-   * Add a model response
+   * Update agent metrics
    */
-  addModelResponse(response: ModelResponse): void {
-    this.modelResponses.push(response);
-  }
-
-  /**
-   * Add a message
-   */
-  addMessage(message: CoreMessage): void {
-    this.messages.push(message);
-  }
-
-  /**
-   * Update usage
-   */
-  updateUsage(newUsage: Usage): void {
-    this.usage.add(newUsage);
-  }
-
-  /**
-   * Switch to a new agent (handoff)
-   */
-  handoffToAgent(newAgent: Agent<any, any>): void {
-    this.currentAgent = newAgent;
-    if (!this.handoffChain.includes(newAgent.name)) {
-      this.handoffChain.push(newAgent.name);
+  updateAgentMetrics(
+    agentName: string,
+    tokens: { input: number; output: number; total: number },
+    toolCallCount: number = 0
+  ): void {
+    const existing = this.agentMetrics.get(agentName);
+    
+    if (existing) {
+      existing.turns++;
+      existing.tokens.input += tokens.input;
+      existing.tokens.output += tokens.output;
+      existing.tokens.total += tokens.total;
+      existing.toolCalls += toolCallCount;
+      existing.endTime = Date.now();
+      existing.duration = existing.endTime - existing.startTime;
+    } else {
+      const now = Date.now();
+      this.agentMetrics.set(agentName, {
+        agentName,
+        turns: 1,
+        tokens: {
+          input: tokens.input,
+          output: tokens.output,
+          total: tokens.total,
+        },
+        toolCalls: toolCallCount,
+        duration: 0,
+        startTime: now,
+      });
     }
+  }
+
+  /**
+   * Track a handoff to a new agent
+   */
+  trackHandoff(agentName: string): void {
+    if (!this.handoffChainSet.has(agentName)) {
+      this.handoffChain.push(agentName);
+      this.handoffChainSet.add(agentName);
+    }
+  }
+
+  /**
+   * Add an interruption (for HITL patterns)
+   */
+  addInterruption(interruption: any): void {
+    this.pendingInterruptions.push(interruption);
+  }
+
+  /**
+   * Check if there are pending interruptions
+   */
+  hasInterruptions(): boolean {
+    return this.pendingInterruptions.length > 0;
+  }
+
+  /**
+   * Clear interruptions after they've been handled
+   */
+  clearInterruptions(): void {
+    this.pendingInterruptions = [];
+  }
+
+  /**
+   * Get total execution duration
+   */
+  getDuration(): number {
+    return Date.now() - this.startTime;
+  }
+
+  /**
+   * Convert to a serializable format for persistence
+   */
+  toJSON(): any {
+    return {
+      currentAgent: this.currentAgent.name,
+      originalInput: this.originalInput,
+      messages: this.messages,
+      context: this.context,
+      maxTurns: this.maxTurns,
+      currentTurn: this.currentTurn,
+      currentStep: this.currentStep,
+      steps: this.steps,
+      agentMetrics: Array.from(this.agentMetrics.values()),
+      toolUseTracker: this.toolUseTracker.toJSON(),
+      usage: this.usage.toJSON(),
+      handoffChain: this.handoffChain,
+      pendingInterruptions: this.pendingInterruptions,
+      stepNumber: this.stepNumber,
+      duration: this.getDuration(),
+    };
+  }
+
+  /**
+   * Check if we've exceeded max turns
+   */
+  isMaxTurnsExceeded(): boolean {
+    return this.currentTurn >= this.maxTurns;
   }
 
   /**
@@ -238,45 +266,19 @@ export class RunState<TContext = any> {
   incrementTurn(): void {
     this.currentTurn++;
   }
-
-  /**
-   * Check if max turns exceeded
-   */
-  isMaxTurnsExceeded(): boolean {
-    return this.currentTurn >= this.maxTurns;
-  }
-
-  /**
-   * Get summary of the run
-   */
-  getSummary() {
-    return {
-      turns: this.currentTurn,
-      maxTurns: this.maxTurns,
-      agentsInvolved: this.handoffChain,
-      totalItems: this.items.length,
-      totalMessages: this.messages.length,
-      usage: this.usage.toJSON(),
-      currentAgent: this.currentAgent.name,
-    };
-  }
-
-  /**
-   * Serialize state for resuming
-   */
-  toJSON() {
-    return {
-      currentAgent: this.currentAgent.name,
-      currentTurn: this.currentTurn,
-      maxTurns: this.maxTurns,
-      originalInput: this.originalInput,
-      items: this.items,
-      modelResponses: this.modelResponses,
-      messages: this.messages,
-      usage: this.usage.toJSON(),
-      handoffChain: this.handoffChain,
-      agentMetrics: Array.from(this.agentMetrics.entries()),
-    };
-  }
 }
 
+/**
+ * Result of a single turn/step execution
+ * Used internally by the runner to manage state transitions
+ */
+export class SingleStepResult<TContext = any> {
+  constructor(
+    public originalInput: string | ModelMessage[],
+    public messages: ModelMessage[],
+    public preStepMessages: ModelMessage[],
+    public newMessages: ModelMessage[],
+    public nextStep: NextStep,
+    public stepResult?: StepResult
+  ) {}
+}
