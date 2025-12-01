@@ -1,10 +1,13 @@
 # 🤖 Tawk Agents SDK
 
+> **Internal Tawk.to AI Agent Framework** - Production-ready agentic architecture for Tawk.to services
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
+[![Internal](https://img.shields.io/badge/status-internal%20only-orange)](https://tawk.to)
 
-**Production-ready AI agent framework with true agentic architecture, multi-agent orchestration, and enterprise observability.**
+**Internal AI agent framework with true agentic architecture, multi-agent orchestration, and enterprise observability for Tawk.to services.**
 
 > 🚀 **New in v1.0**: True agentic architecture with parallel tool execution, dynamic HITL approvals, and native MCP integration!
 
@@ -24,10 +27,35 @@
 - 🎯 **TypeScript First** - Complete type safety
 - ⚡ **High Performance** - Parallel execution, smart caching, optimized I/O
 
-## 📦 Installation
+## 📦 Installation (Internal Tawk.to Services)
 
+### Option 1: Git Dependency
 ```bash
-npm install tawk-agents-sdk
+# In your package.json
+"dependencies": {
+  "tawk-agents-sdk": "github:Manoj-tawk/tawk-agents-sdk#v1.0.0"
+}
+
+npm install
+```
+
+### Option 2: Local Development
+```bash
+# Clone the repository
+git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
+
+# In your project
+npm install ../path/to/tawk-agents-sdk
+```
+
+### Option 3: Git Submodule
+```bash
+# Add as submodule
+git submodule add https://github.com/Manoj-tawk/tawk-agents-sdk.git
+
+# Update and install
+git submodule update --init
+cd tawk-agents-sdk && npm install && npm run build
 ```
 
 Install your preferred AI provider:
