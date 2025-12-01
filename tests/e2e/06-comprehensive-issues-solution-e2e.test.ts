@@ -141,7 +141,7 @@ const memoryStore = new Map<string, Array<{
 /**
  * Simulated visitor context
  */
-let visitorContext = {
+const visitorContext = {
   currentUrl: 'https://example.com/products/wireless-headphones',
   pageTitle: 'Wireless Headphones - Product Page',
   location: { country: 'US', city: 'New York' },
@@ -152,7 +152,7 @@ let visitorContext = {
 /**
  * Simulated contact attributes
  */
-let contactAttributes = {
+const contactAttributes = {
   email: 'john@example.com',
   name: 'John Doe',
   tags: ['vip', 'returning-customer'],
@@ -182,7 +182,7 @@ const businessHours = {
 /**
  * Agent availability
  */
-let agentAvailability = {
+const agentAvailability = {
   online: true,
   availableAgents: 3,
   averageWaitTime: '2 minutes',
