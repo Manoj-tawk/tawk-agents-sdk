@@ -345,7 +345,7 @@ async function testStreaming() {
 
       const streamResult = await runStream(agent, 'Count to 3');
       let chunks = 0;
-      for await (const chunk of streamResult.textStream) {
+      for await (const _chunk of streamResult.textStream) {
         chunks++;
         if (chunks > 50) break; // Safety limit
       }
@@ -369,7 +369,7 @@ async function testStreaming() {
 
       const streamResult = await runStream(agent, 'Hi');
       let events = 0;
-      for await (const event of streamResult.fullStream) {
+      for await (const _event of streamResult.fullStream) {
         events++;
         if (events > 50) break; // Safety limit
       }

@@ -34,7 +34,7 @@ async function test03() {
     let fullText = '';
     console.log('  📡 Streaming: ', { newline: false });
     
-    for await (const chunk of stream1.textStream) {
+    for await (const _chunk of stream1.textStream) {
       process.stdout.write(chunk);
       fullText += chunk;
     }
@@ -68,7 +68,7 @@ async function test03() {
     
     console.log('  📡 Streaming with tools...');
     
-    for await (const chunk of stream2.textStream) {
+    for await (const _chunk of stream2.textStream) {
       text2 += chunk;
     }
     
@@ -82,7 +82,7 @@ async function test03() {
     let eventCount = 0;
     console.log('  📡 Processing stream events...');
     
-    for await (const chunk of stream3.fullStream) {
+    for await (const _chunk of stream3.fullStream) {
       eventCount++;
       if (chunk.type === 'text-delta') {
         // Text chunk

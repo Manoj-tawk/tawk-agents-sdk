@@ -1,7 +1,7 @@
 {
   "name": "tawk-agents-sdk",
   "version": "1.0.0",
-  "description": "Production-ready AI agent framework with multi-agent orchestration, tool calling, guardrails, and observability.",
+  "description": "Production-ready AI agent framework with true agentic architecture, multi-agent orchestration, dynamic HITL approvals, native MCP integration, and full observability.",
   "author": "Tawk.to <support@tawk.to>",
   "license": "MIT",
   "repository": {
@@ -29,19 +29,29 @@
   "keywords": [
     "ai",
     "agents",
+    "agentic",
+    "multi-agent",
+    "agent-framework",
     "openai",
     "anthropic",
     "google",
+    "groq",
     "langfuse",
     "mcp",
+    "model-context-protocol",
     "vercel-ai-sdk",
-    "multi-agent",
-    "agent-framework",
     "typescript",
     "production-ready",
     "tracing",
+    "observability",
     "guardrails",
-    "human-in-the-loop"
+    "human-in-the-loop",
+    "hitl",
+    "approvals",
+    "tool-calling",
+    "parallel-execution",
+    "handoffs",
+    "streaming"
   ],
   "engines": {
     "node": ">=18.0.0"
