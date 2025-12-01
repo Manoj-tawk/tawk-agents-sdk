@@ -13,7 +13,7 @@
       {
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_",
-        "caughtErrorsIgnorePattern": "^_|error"
+        "caughtErrorsIgnorePattern": "^(_|error)"
       }
     ],
     "@typescript-eslint/no-explicit-any": "off",
