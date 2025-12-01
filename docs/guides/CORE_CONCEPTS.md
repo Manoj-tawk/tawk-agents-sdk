@@ -94,31 +94,17 @@ console.log(result.finalOutput); // "15 * 23 equals 345"
 
 ## 2. True Agentic Architecture
 
-### Sequential vs. Agentic
+### Core Principles
 
-**❌ Sequential Chain (Old Approach)**:
-```mermaid
-graph LR
-    A[Input] --> B[Tool 1]
-    B --> C[Tool 2]
-    C --> D[Tool 3]
-    D --> E[Output]
-    
-    style A fill:#e0e0e0
-    style E fill:#e0e0e0
-```
-- Fixed order
-- No decision making
-- No parallelization
+The Tawk Agents SDK is built on agentic principles where agents autonomously make decisions:
 
-**✅ Agentic (Our Approach)**:
 ```mermaid
 graph TB
     Input[User Input]
     Agent[Agent Brain]
     
-    subgraph "Autonomous Decisions"
-        Decide{Agent Decides}
+    subgraph "Autonomous Decision Making"
+        Decide{Agent Decides<br/>Next Action}
         Tool1[Tool A]
         Tool2[Tool B]
         Tool3[Tool C]
@@ -142,20 +128,23 @@ graph TB
     style Parallel fill:#27ae60
 ```
 
-- **Agent-driven**: Agent decides what to do next
-- **Parallel execution**: Tools run simultaneously
-- **Dynamic**: Adapts based on results
-- **Autonomous**: No predefined paths
+### Key Characteristics
 
-### Key Differences
+- **Agent-Driven**: Agent autonomously decides what to do next based on context
+- **Parallel Execution**: Tools run simultaneously for maximum efficiency
+- **Dynamic Adaptation**: Behavior adapts based on results and state
+- **Autonomous Flow**: No predefined paths - agent chooses its journey
 
-| Feature | Sequential Chain | True Agentic |
-|---------|------------------|--------------|
-| **Decision Making** | Pre-programmed | AI-driven |
-| **Tool Execution** | One at a time | Parallel |
-| **Flexibility** | Rigid | Dynamic |
-| **State** | Simple | Complex RunState |
-| **Interruption** | Not supported | Full support |
+
+### Key Characteristics
+
+| Feature | Agentic Implementation |
+|---------|------------------------|
+| **Decision Making** | AI-driven and context-aware |
+| **Tool Execution** | Parallel by default |
+| **Flexibility** | Dynamic adaptation |
+| **State** | Complex RunState with interruption |
+| **Handoffs** | Autonomous delegation |
 
 ---
 
@@ -234,22 +223,19 @@ await run(agent, 'Get weather in Tokyo, London, and New York');
 **Performance Gain**:
 ```mermaid
 gantt
-    title Tool Execution Comparison
+    title Tool Execution Timeline
     dateFormat X
-    axisFormat %s
+    axisFormat %L ms
     
-    section Sequential
-    Tool 1 :0, 500
-    Tool 2 :500, 500
-    Tool 3 :1000, 500
-    
-    section Parallel (Agentic)
+    section Parallel Execution
     Tool 1 :0, 500
     Tool 2 :0, 500
     Tool 3 :0, 500
 ```
 
-Sequential: 1500ms | Parallel: 500ms (3x faster!)
+**Result**: All 3 tools complete in ~500ms through parallel execution
+
+**Performance Benefit**: Up to 3x faster compared to serial execution
 
 ---
 

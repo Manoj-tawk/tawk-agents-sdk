@@ -250,14 +250,14 @@ const result = await run(agent, 'Complex task');
 
 ## 📚 Core Concepts
 
-### 🤖 True Agentic Architecture
+### 🤖 Agentic Architecture
 
-Unlike sequential chains, this SDK implements true agentic behavior:
+The SDK implements true agentic behavior:
 
-- **Agent-Driven Decision Making**: Agents autonomously decide next steps
-- **Parallel Tool Execution**: Multiple tools execute simultaneously
-- **Dynamic State Transitions**: Proper state management with interruption/resumption
-- **Autonomous Handoffs**: Agents decide when to delegate to specialists
+- **Agent-Driven Decision Making**: Agents autonomously decide next steps based on context
+- **Parallel Tool Execution**: Multiple tools execute simultaneously for optimal performance
+- **Dynamic State Management**: Proper state handling with interruption/resumption support
+- **Autonomous Handoffs**: Agents intelligently delegate to specialist agents
 
 ### 🔧 Tool Execution
 
