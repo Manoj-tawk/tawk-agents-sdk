@@ -29,7 +29,7 @@ async function testSequentialToolCalling() {
   const tools = {
     step1_getData: tool({
       description: 'Gets initial data. Always call this first.',
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         console.log('  🔧 Step 1: Getting data...');
         return { data: [1, 2, 3, 4, 5] };
@@ -38,7 +38,7 @@ async function testSequentialToolCalling() {
     
     step2_doubleNumbers: tool({
       description: 'Doubles all numbers in the data. Call this with the numbers from step1.',
-      parameters: z.object({
+      inputSchema: z.object({
         numbers: z.array(z.number()).describe('The numbers to double'),
       }),
       execute: async ({ numbers }) => {
@@ -49,7 +49,7 @@ async function testSequentialToolCalling() {
     
     step3_sumNumbers: tool({
       description: 'Sums the numbers. Call this with doubled numbers from step2.',
-      parameters: z.object({
+      inputSchema: z.object({
         numbers: z.array(z.number()).describe('The numbers to sum'),
       }),
       execute: async ({ numbers }) => {
@@ -61,7 +61,7 @@ async function testSequentialToolCalling() {
     
     step4_squareNumber: tool({
       description: 'Squares a number. Call this with the sum from step3.',
-      parameters: z.object({
+      inputSchema: z.object({
         number: z.number().describe('The number to square'),
       }),
       execute: async ({ number }) => {
@@ -72,7 +72,7 @@ async function testSequentialToolCalling() {
     
     step5_formatResult: tool({
       description: 'Formats the final result nicely. Call this with the squared number from step4.',
-      parameters: z.object({
+      inputSchema: z.object({
         number: z.number().describe('The number to format'),
       }),
       execute: async ({ number }) => {
@@ -126,7 +126,7 @@ async function testParallelToolCalling() {
   const tools = {
     getWeather: tool({
       description: 'Gets weather information',
-      parameters: z.object({
+      inputSchema: z.object({
         city: z.string(),
       }),
       execute: async ({ city }) => {
@@ -138,7 +138,7 @@ async function testParallelToolCalling() {
     
     getTime: tool({
       description: 'Gets current time',
-      parameters: z.object({
+      inputSchema: z.object({
         timezone: z.string(),
       }),
       execute: async ({ timezone }) => {
@@ -150,7 +150,7 @@ async function testParallelToolCalling() {
     
     getNews: tool({
       description: 'Gets latest news',
-      parameters: z.object({
+      inputSchema: z.object({
         category: z.string(),
       }),
       execute: async ({ category }) => {
@@ -162,7 +162,7 @@ async function testParallelToolCalling() {
     
     getStocks: tool({
       description: 'Gets stock prices',
-      parameters: z.object({
+      inputSchema: z.object({
         symbol: z.string(),
       }),
       execute: async ({ symbol }) => {

@@ -50,7 +50,7 @@ async function test03() {
       tools: {
         getInfo: tool({
           description: 'Get information',
-          parameters: z.object({
+          inputSchema: z.object({
             topic: z.string(),
           }),
           execute: async ({ topic }) => {

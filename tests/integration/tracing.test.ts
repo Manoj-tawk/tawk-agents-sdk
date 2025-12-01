@@ -60,7 +60,7 @@ async function test06() {
       tools: {
         search: tool({
           description: 'Search for information',
-          parameters: z.object({
+          inputSchema: z.object({
             query: z.string(),
           }),
           execute: async ({ query }) => {

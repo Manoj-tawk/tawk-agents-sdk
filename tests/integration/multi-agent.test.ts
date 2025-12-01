@@ -41,7 +41,7 @@ async function test02() {
       tools: {
         calculate: tool({
           description: 'Perform mathematical calculations',
-          parameters: z.object({
+          inputSchema: z.object({
             expression: z.string().describe('Mathematical expression to evaluate'),
           }),
           execute: async ({ expression }) => {
@@ -64,7 +64,7 @@ async function test02() {
       tools: {
         writeContent: tool({
           description: 'Write formatted professional content',
-          parameters: z.object({
+          inputSchema: z.object({
             topic: z.string().describe('The topic to write about'),
             style: z.enum(['formal', 'casual', 'technical']).optional().describe('Writing style'),
           }),
