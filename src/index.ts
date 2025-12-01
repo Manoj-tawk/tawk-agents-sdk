@@ -1,40 +1,162 @@
 /**
- * Tawk Agents SDK - Core
+ * # Tawk Agents SDK
  * 
- * Production-ready AI agent framework built on Vercel AI SDK.
- * Flexible, multi-provider support with comprehensive features.
+ * Production-ready AI agent framework with true agentic architecture.
+ * 
+ * ## Features
+ * - 🤖 True agentic architecture with autonomous decision making
+ * - 🔧 Parallel tool execution for maximum performance
+ * - 👥 Multi-agent orchestration with seamless handoffs
+ * - ✅ Dynamic HITL (Human-in-the-Loop) approvals
+ * - 🔌 Native MCP (Model Context Protocol) integration
+ * - 📊 Full Langfuse observability and tracing
+ * - 🛡️ Comprehensive guardrails system
+ * - 💬 Multi-backend session management
+ * - 🎒 TOON format for 42% token reduction
+ * - 🚀 Multi-provider support (OpenAI, Anthropic, Google, Groq, Mistral)
+ * 
+ * ## Quick Start
+ * 
+ * ```typescript
+ * import { Agent, run, tool } from 'tawk-agents-sdk';
+ * import { openai } from '@ai-sdk/openai';
+ * import { z } from 'zod';
+ * 
+ * // Create a tool
+ * const calculator = tool({
+ *   description: 'Perform calculations',
+ *   inputSchema: z.object({
+ *     expression: z.string()
+ *   }),
+ *   execute: async ({ expression }) => {
+ *     return { result: eval(expression) };
+ *   }
+ * });
+ * 
+ * // Create an agent
+ * const agent = new Agent({
+ *   name: 'MathAgent',
+ *   model: openai('gpt-4o'),
+ *   instructions: 'You are a math tutor.',
+ *   tools: { calculate: calculator }
+ * });
+ * 
+ * // Run the agent
+ * const result = await run(agent, 'What is 15 * 23?');
+ * console.log(result.finalOutput);
+ * ```
+ * 
+ * ## Documentation
+ * - Getting Started: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/docs/getting-started}
+ * - API Reference: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/docs/reference/API.md}
+ * - Examples: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/examples}
  * 
  * @packageDocumentation
  * @module tawk-agents-sdk
  * @author Tawk.to
  * @license MIT
  * @version 1.0.0
+ * @see {@link https://github.com/Manoj-tawk/tawk-agents-sdk}
  */
 
 // ============================================
 // CORE EXPORTS
 // ============================================
 
+/**
+ * Core agent functionality for creating and running AI agents.
+ * 
+ * @example Basic Agent
+ * ```typescript
+ * import { Agent, run } from 'tawk-agents-sdk';
+ * import { openai } from '@ai-sdk/openai';
+ * 
+ * const agent = new Agent({
+ *   name: 'assistant',
+ *   model: openai('gpt-4o'),
+ *   instructions: 'You are a helpful assistant.'
+ * });
+ * 
+ * const result = await run(agent, 'Hello!');
+ * console.log(result.finalOutput);
+ * ```
+ */
 export {
-  // Agent class
+  /**
+   * Agent class for creating AI agents.
+   * @see {@link Agent}
+   */
   Agent,
   
-  // Run functions
+  /**
+   * Execute an agent and return the final result.
+   * @see {@link run}
+   */
   run,
+  
+  /**
+   * Execute an agent with streaming output.
+   * @see {@link runStream}
+   */
   runStream,
   
-  // Tool function
+  /**
+   * Create a tool that agents can use.
+   * @see {@link tool}
+   */
   tool,
   
-  // Utilities
+  /**
+   * Set the default AI model for agents.
+   * @see {@link setDefaultModel}
+   */
   setDefaultModel,
 } from './core/agent';
 
-// Dynamic HITL Approvals
+/**
+ * Dynamic Human-in-the-Loop (HITL) approval system.
+ * 
+ * Allows agents to request human approval before executing sensitive operations.
+ * Supports dynamic approval policies based on context.
+ * 
+ * @example Dynamic Approvals
+ * ```typescript
+ * import { toolWithApproval, ApprovalPolicies } from 'tawk-agents-sdk';
+ * 
+ * const safeTool = toolWithApproval(myTool, {
+ *   needsApproval: async (context, args) => {
+ *     return !context.isAdmin && args.action === 'delete';
+ *   },
+ *   approvalMetadata: {
+ *     severity: 'high',
+ *     category: 'data_modification'
+ *   }
+ * });
+ * ```
+ */
 export {
+  /**
+   * Approval manager for handling human approval workflows.
+   * @see {@link ApprovalManager}
+   */
   ApprovalManager as DynamicApprovalManager,
+  
+  /**
+   * Pre-defined approval policies.
+   * @see {@link ApprovalPolicies}
+   */
   ApprovalPolicies,
+  
+  /**
+   * Wrap a tool with approval requirements.
+   * @see {@link toolWithApproval}
+   */
   toolWithApproval,
+  
+  /**
+   * Format approval request for display.
+   * @see {@link formatApprovalRequest}
+   */
   formatApprovalRequest,
 } from './core/approvals';
 export type {
