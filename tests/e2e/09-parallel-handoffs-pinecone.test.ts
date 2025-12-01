@@ -134,7 +134,7 @@ const pineconeSearchTool = createPineconeSearchTool({
 const triageAgent = new Agent({
   name: 'Triage',
   // Groq Llama 3.1 8B - Fastest model for routing decisions (ultra-low latency)
-  model: openai('gpt-4o-mini'),
+  model: openai('gpt-4o'),
   modelSettings: {
     temperature: 0,
   },
@@ -199,7 +199,7 @@ Be fast and decisive. Route immediately without hesitation.`,
 const knowledgeAgent = new Agent({
   name: 'Knowledge',
   // Claude 3.5 Sonnet - Best for RAG synthesis and complex reasoning
-  model: openai('gpt-4o'),
+  model: anthropic('claude-3-5-sonnet-20241022'),
   modelSettings: {
     temperature: 0,
   },
@@ -468,163 +468,223 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
  *
  * Tests routing to biographical retrieval agent for straightforward biographical questions.
  */
+async function test1_SimpleBiographical() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 1: Simple Biographical Query');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('Where was Alan Turing born and what was his early education?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 2: Multi-Domain Historical & Scientific Query
  *
  * Tests routing to multiple retrieval agents (historical + scientific) for complex queries.
  */
+async function test2_MultiDomainHistoricalScientific() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 2: Multi-Domain Historical & Scientific Query');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('How did Alan Turing\'s work on the Enigma machine at Bletchley Park during WWII relate to his earlier theoretical work on computability and Turing machines?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 3: Complex Multi-Agent Query (Biographical + Historical + Scientific)
  *
  * Tests handling of complex queries requiring multiple retrieval agents and deep synthesis.
  */
+async function test3_ComplexMultiAgent() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 3: Complex Multi-Agent Query');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('Explain the relationship between Turing\'s early friendship with Christopher Morcom, his academic work on the Entscheidungsproblem and Turing machines at Cambridge and Princeton, and his later cryptanalysis work at Bletchley Park. How did these experiences shape his contributions to computer science?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 4: Scientific & Technical Deep Dive
  *
  * Tests routing to scientific retrieval agent for complex theoretical questions.
  */
+async function test4_ScientificDeepDive() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 4: Scientific & Technical Deep Dive');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('What was the Entscheidungsproblem, and how did Turing\'s solution using Turing machines differ from Alonzo Church\'s lambda calculus approach? What is the significance of the halting problem in this context?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 5: Historical Context & Impact
  *
  * Tests routing to historical retrieval agent for questions about historical impact.
  */
+async function test5_HistoricalImpact() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 5: Historical Context & Impact');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('What was the impact of Turing\'s cryptanalysis work on the outcome of World War II? How did the bombe machine work, and what was the significance of the "Action This Day" memo from Churchill?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 6: Personal & Legal Context
  *
  * Tests routing to personal retrieval agent for questions about personal life and legal issues.
  */
+async function test6_PersonalLegal() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 6: Personal & Legal Context');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('What were the circumstances surrounding Turing\'s conviction in 1952, and how did this affect his life and career? What was the "Alan Turing law" and when was he pardoned?');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 7: Post-War Scientific Contributions
  *
  * Tests routing to scientific retrieval agent for post-war work.
  */
+async function test7_PostWarScientific() {
+  console.log('\n' + '='.repeat(80));
+  console.log('🧪 SCENARIO 7: Post-War Scientific Contributions');
+  console.log('='.repeat(80));
+
+  const result = await agenticRAG('What were Turing\'s contributions to early computing after WWII? Explain his work on the ACE computer, the Turing test, and his research on morphogenesis and mathematical biology.');
+
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 200)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
+  }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
+
+  return result;
+}
 
 /**
  * Test Scenario 8: Ultimate Stress Test - All Domains
  *
  * Tests the system with a query that requires ALL retrieval agents to work together.
  */
-
-/**
- * Test Scenario 11: PARALLEL HANDOFFS - All Agents Execute Simultaneously
- *
- * This scenario demonstrates YOUR IDEA: "why can't we have 3 handoffs at the same time?"
- * 
- * Instead of the coordinator calling agents-as-tools OR handoff choosing one agent,
- * we use runParallel() to execute ALL 3 specialist agents SIMULTANEOUSLY and aggregate results.
- * 
- * Pattern:
- * ✅ Parallel agent execution (all 3 run at once)
- * ✅ Uses SDK's runParallel() coordination function
- * ✅ Custom aggregator synthesizes results
- * ✅ Single comprehensive response
- * 
- * **This is the THIRD agentic pattern - combines handoffs + parallelization!**
- */
-async function test11_ParallelHandoffs() {
+async function test8_UltimateStressTest() {
   console.log('\n' + '='.repeat(80));
-  console.log('🧪 SCENARIO 11: PARALLEL HANDOFFS - Your Idea!');
+  console.log('🧪 SCENARIO 8: Ultimate Stress Test - All Domains');
   console.log('='.repeat(80));
-  console.log('Question: "Why can\'t we have 3 handoffs at the same time?"');
-  console.log('Answer: WE CAN! Using runParallel()\n');
 
-  const startTime = Date.now();
+  const result = await agenticRAG('Provide a comprehensive analysis of Alan Turing\'s life: from his birth in London and education at Sherborne and Cambridge, through his groundbreaking work on computability and Turing machines, his crucial role in breaking Enigma at Bletchley Park during WWII, his post-war contributions to computing including the ACE and the Turing test, his work on morphogenesis, the personal and legal challenges he faced in the 1950s, his death, and his eventual recognition and legacy. How did all these aspects of his life interconnect?');
 
-  // Complex multi-intent query
-  const complexQuery = `I need help with three things:
-1. Tell me about Alan Turing's contributions to computer science
-2. Check my account status and system health  
-3. I have a billing dispute that needs urgent attention
-
-Please address all three comprehensively.`;
-
-  console.log(`📝 Query: Multi-intent request (K + A + E)\n`);
-  console.log('🚀 Executing ALL 3 specialist agents IN PARALLEL using runParallel()...\n');
-
-  // Use runParallel to execute all three specialist agents simultaneously
-  const { runParallel } = await import('../../src/core/coordination');
-  
-  const parallelResult = await runParallel(
-    [knowledgeAgent, actionAgent, escalationAgent],
-    [
-      'Tell me about Alan Turing\'s contributions to computer science',
-      'Check my account status and system health',
-      'I have a billing dispute that needs urgent attention'
-    ],
-    {
-      maxTurns: 4,
-      aggregator: (results) => {
-        // Aggregate all results into one comprehensive response
-        const knowledge = results[0]?.finalOutput || 'No knowledge result';
-        const action = results[1]?.finalOutput || 'No action result';
-        const escalation = results[2]?.finalOutput || 'No escalation result';
-
-        return `### Comprehensive Multi-Agent Response
-
-**1. Knowledge Request (Alan Turing):**
-${knowledge.substring(0, 400)}...
-
-**2. System & Account Status:**
-${action.substring(0, 300)}...
-
-**3. Billing Support:**
-${escalation.substring(0, 300)}...
-
----
-*This response was generated by 3 specialist agents running in parallel using runParallel().*`;
-      }
-    }
-  );
-
-  const latency = Date.now() - startTime;
-
-  console.log('\n✅ PARALLEL HANDOFFS RESULTS:');
-  console.log('━'.repeat(80));
-  console.log(`📝 Aggregated Response (first 500 chars):`);
-  console.log(`   ${(parallelResult.aggregated || '').substring(0, 500)}...\n`);
-  
-  console.log(`🤖 Agents Executed:`);
-  console.log(`   ${parallelResult.results[0] ? '✅' : '❌'} Knowledge Agent - ${parallelResult.results[0] ? 'SUCCESS' : 'FAILED'}`);
-  console.log(`   ${parallelResult.results[1] ? '✅' : '❌'} Action Agent - ${parallelResult.results[1] ? 'SUCCESS' : 'FAILED'}`);
-  console.log(`   ${parallelResult.results[2] ? '✅' : '❌'} Escalation Agent - ${parallelResult.results[2] ? 'SUCCESS' : 'FAILED'}`);
-
-  const allSucceeded = parallelResult.results.length === 3;
-  
-  console.log(`\n📊 Execution Pattern:`);
-  console.log(`   Pattern: Parallel Handoffs via runParallel()`);
-  console.log(`   Agents: ${parallelResult.results.length}/3`);
-  console.log(`   Execution: PARALLEL ⚡ (Promise.all internally)`);
-  console.log(`   Aggregation: Custom aggregator function`);
-  console.log(`   Failed Agents: ${parallelResult.failedAgents?.length || 0}`);
-
-  console.log(`\n⏱️  Performance:`);
-  const totalTokens = parallelResult.results.reduce((sum, r) => sum + (r.metadata.totalTokens || 0), 0);
-  console.log(`   Total Tokens: ${totalTokens}`);
-  console.log(`   Total Latency: ${latency}ms`);
-  console.log(`   Parallel Duration: ${parallelResult.totalDuration}ms`);
-  console.log(`   Cost: ~$${((totalTokens * 0.00015) / 1000).toFixed(6)}`);
-
-  if (allSucceeded) {
-    console.log('\n🎉 SUCCESS: YOUR IDEA WORKS PERFECTLY!');
-    console.log('   ✅ All 3 agents ran simultaneously (not sequential)');
-    console.log('   ✅ Results aggregated into single response');
-    console.log('   ✅ This is the 3rd agentic pattern!');
-  } else {
-    console.log(`\n⚠️  PARTIAL: ${parallelResult.results.length}/3 agents succeeded`);
+  console.log('\n✅ Results:');
+  console.log(`📝 Answer: ${result.answer.substring(0, 400)}...`);
+  console.log(`📚 Citations: ${result.citations.length} documents`);
+  console.log(`🔄 Agent Path: ${result.agentPath}`);
+  console.log(`🤖 Agents Used: ${result.agentsUsed.join(', ')}`);
+  console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(0)}%`);
+  if (result.requiresEscalation) {
+    console.log(`🚨 Escalation: Required`);
   }
+  console.log(`📊 Tokens: ${result.totalTokens}`);
+  console.log(`⏱️  Latency: ${result.latency}ms`);
+  console.log(`💰 Cost: ~$${((result.totalTokens * 0.00015) / 1000).toFixed(6)}`);
 
-  return {
-    ...parallelResult,
-    latency,
-    allSucceeded,
-    totalTokens,
-  };
+  return result;
 }
 
 // ============================================
@@ -672,32 +732,48 @@ async function runAllTests(): Promise<void> {
     await verifyPineconeConnection();
 
     // Run all scenarios
+    // const result1 = await test1_SimpleBiographical();
+    // totalTokens += result1.totalTokens;
+    // totalCost += (result1.totalTokens * 0.00015) / 1000;
 
+    // const result2 = await test2_MultiDomainHistoricalScientific();
+    // totalTokens += result2.totalTokens;
+    // totalCost += (result2.totalTokens * 0.00015) / 1000;
 
+    // const result3 = await test3_ComplexMultiAgent();
+    // totalTokens += result3.totalTokens;
+    // totalCost += (result3.totalTokens * 0.00015) / 1000;
 
+    // const result4 = await test4_ScientificDeepDive();
+    // totalTokens += result4.totalTokens;
+    // totalCost += (result4.totalTokens * 0.00015) / 1000;
 
+    // const result5 = await test5_HistoricalImpact();
+    // totalTokens += result5.totalTokens;
+    // totalCost += (result5.totalTokens * 0.00015) / 1000;
 
+    // const result6 = await test6_PersonalLegal();
+    // totalTokens += result6.totalTokens;
+    // totalCost += (result6.totalTokens * 0.00015) / 1000;
 
+    // const result7 = await test7_PostWarScientific();
+    // totalTokens += result7.totalTokens;
+    // totalCost += (result7.totalTokens * 0.00015) / 1000;
 
-
-    // PARALLEL HANDOFFS TEST - All 3 specialist agents execute simultaneously
-    console.log('\n🎯 Running Test: PARALLEL HANDOFFS (runParallel)...\n');
-    const result = await test11_ParallelHandoffs();
-    totalTokens += result.totalTokens;
-    totalCost += (result.totalTokens * 0.00015) / 1000;
+    const result8 = await test8_UltimateStressTest();
+    totalTokens += result8.totalTokens;
+    totalCost += (result8.totalTokens * 0.00015) / 1000;
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     console.log('\n' + '━'.repeat(80));
-    console.log('✅ AGENTIC RAG E2E TEST COMPLETED!');
+    console.log('✅ ALL AGENTIC RAG E2E TESTS COMPLETED!');
     console.log('━'.repeat(80));
     console.log(`⏱️  Total Duration: ${duration}s`);
     console.log(`📊 Total Tokens: ${totalTokens}`);
     console.log(`💰 Total Cost: ~$${totalCost.toFixed(6)}`);
-    console.log(`\n🤖 Pattern Validated:`);
-    console.log(`   ✅ Parallel Handoffs: All 3 agents execute simultaneously`);
-    console.log(`   ✅ Uses runParallel() for explicit parallelization`);
-    console.log(`   ✅ Custom aggregator synthesizes results`);
+    console.log(`📈 Average Latency: ${((Date.now() - startTime) / 8 / 1000).toFixed(2)}s per query`);
+    console.log(`🤖 Agents Available: Triage, Knowledge, Action, Escalation`);
     console.log('━'.repeat(80) + '\n');
 
   } catch (error: any) {

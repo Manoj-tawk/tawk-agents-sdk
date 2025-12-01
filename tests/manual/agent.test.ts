@@ -8,7 +8,7 @@
  * - Context injection
  */
 
-import { Agent, run, setDefaultModel, tool } from '../../../src';
+import { Agent, run, setDefaultModel, tool } from '../../src';
 import { generateText } from 'ai';
 import { z } from 'zod';
 

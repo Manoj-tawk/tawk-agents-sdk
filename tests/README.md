@@ -12,44 +12,49 @@ Comprehensive test suite organized to match the source code structure.
 tests/
 ├── README.md                 # This file
 ├── STRUCTURE.md              # Structure documentation
-│
-├── unit/                     # Unit tests (mocked, fast)
-│   ├── __mocks__/           # Mock implementations
-│   ├── core/                # Core functionality tests
-│   │   ├── agent.test.ts
-│   │   ├── multi-agent.test.ts
-│   │   ├── race-agents.test.ts
-│   │   ├── streaming.test.ts
-│   │   ├── tool-calling.test.ts
-│   │   └── incremental.test.ts
-│   ├── tools/                # Tools tests
-│   │   └── content-creation.test.ts
-│   ├── sessions/             # Session management tests
-│   │   └── sessions.test.ts
-│   ├── guardrails/           # Guardrails tests
-│   │   └── guardrails.test.ts
-│   ├── tracing/              # Tracing tests
-│   │   └── tracing.test.ts
-│   ├── handoffs/             # Handoff tests (ready)
-│   ├── helpers/              # Helper tests (ready)
-│   ├── lifecycle/            # Lifecycle tests (ready)
-│   ├── approvals/            # Approval tests (ready)
-│   ├── mcp/                  # MCP tests (ready)
-│   └── types/                # Type tests (ready)
+├── TEST_SUMMARY.md           # Test results summary
 │
 ├── e2e/                      # End-to-end tests (real API)
 │   ├── 01-basic-e2e.test.ts
 │   ├── 02-multi-agent-e2e.test.ts
 │   ├── 03-streaming-sessions-e2e.test.ts
+│   ├── 04-agentic-rag-e2e.test.ts
+│   ├── 05-ecommerce-refund-escalation-e2e.test.ts
+│   ├── 06-comprehensive-issues-solution-e2e.test.ts
+│   ├── 07-multi-agent-research.test.ts
+│   ├── 08-toon-optimization.test.ts
+│   ├── 09-parallel-handoffs-pinecone.test.ts
+│   ├── 10-runstate-approvals.test.ts
+│   ├── 11-complete-features.test.ts
+│   ├── 12-comprehensive-sdk.test.ts
+│   ├── 13-tool-tracing.test.ts
 │   └── README.md
 │
 ├── integration/              # Integration tests (real API)
+│   ├── content-creation.test.ts
+│   ├── guardrails.test.ts
+│   ├── incremental.test.ts
+│   ├── multi-agent.test.ts
+│   ├── race-agents.test.ts
+│   ├── sessions.test.ts
+│   ├── streaming.test.ts
+│   ├── tool-calling.test.ts
+│   ├── tracing.test.ts
 │   ├── run-all-tests.ts
+│   └── README.md
+│
+├── manual/                   # Manual tests (interactive)
+│   ├── test-parallel-tools.ts
+│   ├── test-true-parallel.ts
+│   ├── test-multi-agent.ts
+│   ├── test-dynamic-approvals.ts
+│   ├── test-native-mcp.ts
 │   └── README.md
 │
 └── utils/                    # Test utilities
     ├── helpers.ts           # Test helpers and mocks
     ├── setup.ts             # Jest setup
+    ├── toon-format.ts       # TOON format utilities
     └── index.ts             # Exports
 ```
 
@@ -63,179 +68,177 @@ tests/
 # Install dependencies
 npm install
 
-# For unit tests (no API keys needed)
-npm test
-
-# For E2E/integration tests (API keys required)
+# For E2E/integration/manual tests (API keys required)
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys:
+#   OPENAI_API_KEY=sk-...
+#   ANTHROPIC_API_KEY=sk-ant-... (optional)
+#   LANGFUSE_PUBLIC_KEY=pk-... (optional)
+#   LANGFUSE_SECRET_KEY=sk-... (optional)
 ```
 
 ### Running Tests
 
 ```bash
-# Run all unit tests (fast, mocked)
-npm test
-
-# Run with coverage
-npm run test:coverage
-
-# Run in watch mode
-npm run test:watch
-
-# Run specific test file
-npm test -- unit/core/agent.test.ts
-npm test -- unit/sessions/sessions.test.ts
-
-# Run E2E tests (requires API keys)
+# Run all E2E tests
 npm run e2e
 
-# Run integration tests (requires API keys)
-npm run integration
+# Run specific E2E test
+npx tsx tests/e2e/01-basic-e2e.test.ts
+npx tsx tests/e2e/02-multi-agent-e2e.test.ts
+
+# Run all integration tests
+npx tsx tests/integration/run-all-tests.ts
+
+# Run specific integration test
+npx tsx tests/integration/tool-calling.test.ts
+
+# Run manual tests (interactive/debugging)
+npx tsx tests/manual/test-parallel-tools.ts
+npx tsx tests/manual/test-multi-agent.ts
 ```
 
 ---
 
 ## 📖 Test Categories
 
-### Unit Tests (`unit/`)
-
-**For:** Development and CI/CD
-
-- **Speed**: <1 second for all tests
-- **Requirements**: None (no API keys needed)
-- **Responses**: Mocked
-- **Results**: Deterministic
-- **Cost**: Free
-
-**Structure matches `src/` directory:**
-- `unit/core/` - Tests for `src/core/`
-- `unit/tools/` - Tests for `src/tools/`
-- `unit/sessions/` - Tests for `src/sessions/`
-- `unit/guardrails/` - Tests for `src/guardrails/`
-- `unit/tracing/` - Tests for `src/tracing/`
-- And more...
-
 ### E2E Tests (`e2e/`)
 
-**For:** Validation and learning
+**For:** Comprehensive validation with real API calls
 
 - **Speed**: 3-5 seconds per test
 - **Requirements**: API keys required
 - **Responses**: Real API calls
-- **Cost**: ~$0.005 for all tests
+- **Results**: Non-deterministic (LLM varies)
+- **Cost**: ~$0.01 for all tests
 
-**Tests:**
-- Basic agent functionality
-- Multi-agent patterns
-- Streaming and sessions
+**13 Test Files:**
+1. Basic agent functionality
+2. Multi-agent handoffs
+3. Streaming & sessions
+4. Agentic RAG patterns
+5. E-commerce workflows
+6. Issue resolution
+7. Multi-agent research
+8. TOON optimization
+9. Parallel handoffs (Pinecone)
+10. RunState & approvals
+11. Complete features showcase
+12. Comprehensive SDK test
+13. Tool tracing validation
 
 ### Integration Tests (`integration/`)
 
-**For:** Pre-release validation
+**For:** Fast integration validation
 
-- **Speed**: 30-60 seconds
+- **Speed**: 1-3 seconds per test
 - **Requirements**: API keys required
 - **Responses**: Real API calls
+- **Results**: Semi-deterministic
 - **Cost**: ~$0.05 for all tests
+
+**9 Test Files:**
+- Content creation tools
+- Guardrails validation
+- Incremental features
+- Multi-agent patterns
+- Race agents coordination
+- Session management
+- Streaming features
+- Tool calling scenarios
+- Tracing features
+
+### Manual Tests (`manual/`)
+
+**For:** Interactive testing & debugging
+
+- **Speed**: Varies (user interaction)
+- **Requirements**: API keys + user/services
+- **Responses**: Real API calls
+- **Results**: Visual verification
+- **Cost**: Varies
+
+**5 Test Files:**
+- Parallel tool execution (with timestamps)
+- True parallel validation
+- Multi-agent coordination
+- Dynamic HITL approvals (interactive)
+- MCP integration (requires MCP server)
 
 ---
 
-## 🧪 Unit Tests by Module
+## 🧪 Test Coverage by Category
 
-### Core (`unit/core/`)
+### E2E Tests (`e2e/`)
 
-**agent.test.ts** - Basic agent functionality
-- Agent creation and configuration
-- Basic execution
-- Tool calling
-- Context injection
-- Token tracking
-- Error handling
+Comprehensive end-to-end validation with real API calls:
 
-**multi-agent.test.ts** - Multi-agent systems
-- Agent handoffs
-- Multi-agent coordination
-- Trace management
+- ✅ **01-basic-e2e.test.ts** - Core agent features
+- ✅ **02-multi-agent-e2e.test.ts** - Multi-agent handoffs
+- ✅ **03-streaming-sessions-e2e.test.ts** - Streaming & sessions
+- ✅ **04-agentic-rag-e2e.test.ts** - RAG patterns
+- ✅ **05-ecommerce-refund-escalation-e2e.test.ts** - E-commerce workflows
+- ✅ **06-comprehensive-issues-solution-e2e.test.ts** - Issue resolution
+- ✅ **07-multi-agent-research.test.ts** - Research coordination
+- ✅ **08-toon-optimization.test.ts** - TOON encoding
+- ✅ **09-parallel-handoffs-pinecone.test.ts** - Parallel handoffs (Pinecone)
+- ✅ **10-runstate-approvals.test.ts** - RunState & HITL approvals
+- ✅ **11-complete-features.test.ts** - Complete feature showcase
+- ✅ **12-comprehensive-sdk.test.ts** - Full SDK coverage
+- ✅ **13-tool-tracing.test.ts** - Tool call tracing
 
-**race-agents.test.ts** - Parallel execution
-- Race agents pattern
-- Fastest response selection
-- Fallback patterns
+### Integration Tests (`integration/`)
 
-**streaming.test.ts** - Streaming responses
-- Real-time streaming
-- Stream events
-- Progressive output
+Fast integration tests with real API calls:
 
-**tool-calling.test.ts** - Advanced tool calling
-- Complex tool scenarios
-- Tool chaining
-- Error handling
+- ✅ **content-creation.test.ts** - AI tools (embeddings, images, audio)
+- ✅ **guardrails.test.ts** - Input/output validation
+- ✅ **incremental.test.ts** - Incremental features
+- ✅ **multi-agent.test.ts** - Multi-agent patterns
+- ✅ **race-agents.test.ts** - Agent racing & fallbacks
+- ✅ **sessions.test.ts** - Session management
+- ✅ **streaming.test.ts** - Streaming features
+- ✅ **tool-calling.test.ts** - Tool execution scenarios
+- ✅ **tracing.test.ts** - Tracing & observability
 
-**incremental.test.ts** - Incremental feature testing
-- Feature-by-feature validation
-- Breaking point identification
+### Manual Tests (`manual/`)
 
-### Tools (`unit/tools/`)
+Interactive tests for development & debugging:
 
-**content-creation.test.ts** - AI tools
-- Embeddings
-- Image generation
-- Audio (TTS/STT)
-- Reranking
-
-### Sessions (`unit/sessions/`)
-
-**sessions.test.ts** - Session management
-- In-memory sessions
-- Session history
-- Context persistence
-- Multiple sessions
-
-### Guardrails (`unit/guardrails/`)
-
-**guardrails.test.ts** - Safety and validation
-- Input guardrails
-- Output guardrails
-- Content safety
-- PII detection
-- Length limits
-
-### Tracing (`unit/tracing/`)
-
-**tracing.test.ts** - Observability
-- Trace creation
-- Token tracking
-- Generation spans
-- Handoff spans
-- Metadata tracking
+- ✅ **test-parallel-tools.ts** - Parallel tool execution
+- ✅ **test-true-parallel.ts** - Millisecond-level parallel validation
+- ✅ **test-multi-agent.ts** - Multi-agent coordination (3 patterns)
+- ✅ **test-dynamic-approvals.ts** - Dynamic HITL approvals (requires user)
+- ✅ **test-native-mcp.ts** - MCP integration (requires MCP server)
 
 ---
 
 ## 🛠️ Test Utilities
 
-### Helpers (`utils/helpers.ts`)
+Located in `utils/` folder:
 
+### `helpers.ts`
+- Test helper functions
+- Mock utilities (if needed)
+- Common test patterns
+
+### `setup.ts`
+- Test environment setup
+- Global configuration
+- Environment variable handling
+
+### `toon-format.ts`
+- TOON format encoding utilities
+- Used by TOON optimization tests
+
+### `index.ts`
+- Exports all utilities
+- Single import point
+
+**Usage:**
 ```typescript
-import { mockTextResponse, mockToolCallResponse } from '../utils/helpers';
-
-// Mock text response
-mockTextResponse('Output text', { prompt: 10, completion: 5 });
-
-// Mock tool call response
-mockToolCallResponse('Text', [
-  { name: 'tool1', args: {}, result: {} }
-]);
+import { /* utilities */ } from '../utils';
 ```
-
-### Setup (`utils/setup.ts`)
-
-Global Jest setup:
-- Environment variable mocks
-- Console suppression
-- Langfuse mocks
-- AI SDK mocks
 
 ---
 
@@ -243,98 +246,143 @@ Global Jest setup:
 
 ### File Naming
 
-- Unit tests: `*.test.ts`
-- E2E tests: `*-e2e.test.ts`
-- Integration tests: `*.test.ts` (in integration/)
+- E2E tests: `XX-name.test.ts` (numbered, sequential)
+- Integration tests: `name.test.ts` (descriptive)
+- Manual tests: `test-name.ts` (prefixed)
 
 ### Import Paths
 
 ```typescript
-// SDK imports (from unit/ directory)
-import { Agent, run } from '../../../src';
+// SDK imports
+import { Agent, run, tool } from '../../src';
+import { openai } from '@ai-sdk/openai';
 
 // Utility imports
-import { mockTextResponse } from '../../utils/helpers';
+import { /* helpers */ } from '../utils';
 ```
 
 ### Test Structure
 
 ```typescript
-import { Agent, run } from '../../../src';
-import { mockTextResponse } from '../../utils/helpers';
+import 'dotenv/config';
+import { Agent, run } from '../../src';
+import { openai } from '@ai-sdk/openai';
 
-describe('Feature Name', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+async function testFeature() {
+  console.log('Testing feature...');
+  
+  const agent = new Agent({
+    name: 'TestAgent',
+    instructions: 'Test instructions',
+    model: openai('gpt-4o-mini'),
   });
+  
+  const result = await run(agent, 'Test input');
+  console.log('Result:', result.finalOutput);
+}
 
-  it('should behave correctly', async () => {
-    // Test implementation
-  });
-});
+testFeature().catch(console.error);
 ```
 
 ---
 
-## 🎯 Test Coverage
+## 🎯 Feature Coverage
 
-### Current Coverage
+### Core Features
+- ✅ Agent creation & execution
+- ✅ Tool calling (parallel & sequential)
+- ✅ Multi-agent handoffs & coordination
+- ✅ Streaming responses
+- ✅ Session management
+- ✅ Context injection
+- ✅ Guardrails (input/output validation)
+- ✅ HITL approvals & interruptions
+- ✅ RunState management
+- ✅ TOON encoding optimization
 
-- ✅ Core functionality (agent, run, streaming)
-- ✅ Multi-agent systems
-- ✅ Tool calling
-- ✅ Sessions
-- ✅ Guardrails
-- ✅ Tracing
-- ✅ Tools (embeddings, images, audio)
+### Advanced Features
+- ✅ RAG patterns (with/without Pinecone)
+- ✅ Agent-as-tools pattern
+- ✅ Parallel handoffs (runParallel)
+- ✅ Race agents coordination
+- ✅ Langfuse tracing
+- ✅ Tool call tracing
+- ✅ E-commerce workflows
+- ✅ Issue resolution patterns
+- ✅ MCP integration
+- ✅ Dynamic approvals
 
-### Missing Coverage
-
-- ⚠️ Handoffs (tests needed)
-- ⚠️ MCP integration (tests needed)
-- ⚠️ Approvals (tests needed)
-- ⚠️ Helpers (tests needed)
-- ⚠️ Lifecycle (tests needed)
+### Agentic Patterns
+- ✅ Agents-as-tools (coordinator pattern)
+- ✅ Sequential handoffs (routing)
+- ✅ Parallel handoffs (explicit coordination)
+- ✅ Nested agent execution
+- ✅ Race agents (fastest wins)
 
 ---
 
 ## 🔧 Configuration
 
-### Jest Configuration
-
-Tests use Jest with TypeScript support. Configuration in `jest.config.js` or `package.json`.
-
 ### Environment Variables
 
-For E2E and integration tests:
+Create `.env` file in project root:
 
 ```bash
+# Required for all tests
 OPENAI_API_KEY=sk-...
+
+# Optional
 ANTHROPIC_API_KEY=sk-ant-...
+GROQ_API_KEY=gsk_...
+
+# Optional (for tracing)
 LANGFUSE_PUBLIC_KEY=pk-...
 LANGFUSE_SECRET_KEY=sk-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+
+# Optional (for Pinecone tests)
+PINECONE_API_KEY=...
+PINECONE_INDEX_NAME=...
+```
+
+### Running Specific Tests
+
+```bash
+# Run single E2E test
+npx tsx tests/e2e/01-basic-e2e.test.ts
+
+# Run single integration test
+npx tsx tests/integration/tool-calling.test.ts
+
+# Run single manual test
+npx tsx tests/manual/test-parallel-tools.ts
+
+# Run all integration tests
+npx tsx tests/integration/run-all-tests.ts
 ```
 
 ---
 
 ## 📊 Test Comparison
 
-| Type | Speed | Cost | Network | API Keys | Purpose |
-|------|-------|------|---------|----------|---------|
-| **Unit** | ⚡ <1s | Free | ❌ No | ❌ No | Development & CI/CD |
-| **E2E** | 🏃 3-5s | ~$0.005 | ✅ Yes | ✅ Yes | Validation & demos |
-| **Integration** | 🐌 30-60s | ~$0.05 | ✅ Yes | ✅ Yes | Pre-release validation |
+| Type | Files | Speed | Cost | Network | API Keys | Purpose |
+|------|-------|-------|------|---------|----------|---------|
+| **E2E** | 13 | 🏃 3-5s | ~$0.01 | ✅ Yes | ✅ Yes | Comprehensive validation |
+| **Integration** | 9 | ⚡ 1-3s | ~$0.05 | ✅ Yes | ✅ Yes | Fast integration checks |
+| **Manual** | 5 | 🐌 Varies | Varies | ✅ Yes | ✅ Yes | Interactive/debugging |
+
+**Total: 27 test files**
 
 ---
 
 ## 💡 Best Practices
 
-1. **Match Source Structure** - Tests mirror `src/` directory
-2. **Use Utilities** - Import from `utils/`
-3. **Mock External APIs** - Unit tests should be fast
-4. **Test Real APIs** - Use E2E/integration for validation
-5. **Keep Tests Focused** - One feature per test file
-6. **Update Tests** - Keep tests in sync with code
+1. **Organized Structure** - Tests grouped by type (e2e, integration, manual)
+2. **Consistent Naming** - Numbered e2e tests, descriptive integration tests
+3. **Real API Calls** - All tests validate against actual LLM responses
+4. **Proper Documentation** - Each test folder has README
+5. **Keep Tests Updated** - Tests aligned with source code
+6. **Test All Features** - Comprehensive coverage of SDK capabilities
 
 ---
 
@@ -343,16 +391,28 @@ LANGFUSE_SECRET_KEY=sk-...
 ### Common Issues
 
 **"Module not found"**
-- Check import paths: `from '../../../src'`
-- Verify file structure matches `src/`
-
-**"Mock not working"**
-- Check `utils/setup.ts` is loaded
-- Verify Jest configuration
+- Check import paths: `from '../../src'`
+- Verify `npm install` was run
 
 **"API key missing"**
-- E2E/integration tests require API keys
-- Use `.env` file for configuration
+- All tests require `OPENAI_API_KEY`
+- Create `.env` file in project root
+- Copy from `.env.example` if available
+
+**"Pinecone test fails"**
+- Test 09 requires Pinecone setup
+- Set `PINECONE_API_KEY` and `PINECONE_INDEX_NAME`
+- Skip if not using Pinecone: Just run other tests
+
+**"Test timeout"**
+- Some tests may take 10-30 seconds
+- LLM responses can be slow
+- Increase timeout if needed
+
+**"MCP test fails"**
+- `test-native-mcp.ts` requires MCP server running
+- Start MCP server before running test
+- See MCP documentation for setup
 
 ---
 
@@ -368,26 +428,66 @@ LANGFUSE_SECRET_KEY=sk-...
 
 ### Adding Tests
 
-1. **Choose Location** - Match `src/` structure
-2. **Use Utilities** - Import from `utils/`
-3. **Follow Naming** - Use `*.test.ts` convention
-4. **Update README** - Document new tests
+1. **Choose Location**
+   - E2E: For comprehensive feature validation
+   - Integration: For focused integration checks
+   - Manual: For interactive/debugging tests
 
-### Test Template
+2. **Follow Naming**
+   - E2E: `XX-descriptive-name.test.ts` (numbered)
+   - Integration: `feature-name.test.ts`
+   - Manual: `test-feature-name.ts`
+
+3. **Use Utilities**
+   - Import from `../utils/`
+   - Follow existing patterns
+
+4. **Update README**
+   - Document new tests
+   - Update file counts
+
+### Test Template (E2E)
 
 ```typescript
-import { Agent, run } from '../../../src';
-import { mockTextResponse } from '../../utils/helpers';
+import 'dotenv/config';
+import { Agent, run, tool } from '../../src';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
 
-describe('Feature Name', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+console.log('🧪 Testing Feature Name\n');
 
-  it('should work correctly', async () => {
-    // Test implementation
-  });
+const myTool = tool({
+  description: 'Tool description',
+  inputSchema: z.object({
+    param: z.string(),
+  }),
+  execute: async ({ param }) => {
+    return `Result for ${param}`;
+  },
 });
+
+async function testFeature() {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('TEST: Feature Description');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  const agent = new Agent({
+    name: 'TestAgent',
+    instructions: 'Agent instructions',
+    tools: { myTool },
+    model: openai('gpt-4o-mini'),
+  });
+
+  const result = await run(agent, 'Test input');
+  
+  console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('RESULTS:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('Final output:', result.finalOutput);
+  console.log('✅ Test completed successfully!');
+}
+
+testFeature().catch(console.error);
 ```
 
 ---
