@@ -6,47 +6,71 @@ This document describes the production-standard organization of the examples dir
 
 ```
 examples/
-├── README.md                 # Main documentation
-├── STRUCTURE.md              # This file
-├── run.ts                    # Example runner script (auto-discovers examples)
-├── all-features.ts           # Comprehensive reference (all 15 examples)
+├── README.md                         # Main documentation
+├── STRUCTURE.md                      # This file
+├── run.ts                            # Example runner script
+├── all-features.ts                   # Comprehensive reference (20 examples)
 │
-├── basic/                    # Beginner-friendly examples (coming soon)
-├── intermediate/             # Intermediate examples (coming soon)
+├── 01-basic/                        # 4 beginner examples (01-04)
+│   ├── 01-simple-agent.ts
+│   ├── 02-agent-with-tools.ts
+│   ├── 03-multi-agent.ts
+│   └── 04-sessions.ts
 │
-├── advanced/                 # Advanced examples
+├── 02-intermediate/                 # 4 intermediate examples (05-08)
+│   ├── 05-guardrails.ts
+│   ├── 06-streaming.ts
+│   ├── 07-tracing.ts
+│   └── 08-langfuse-tracing.ts
+│
+├── 03-advanced/                     # 6 advanced examples (09-14)
 │   ├── 09-embeddings-rag.ts
 │   ├── 10-vision.ts
-│   └── 11-toon-format.ts
+│   ├── 11-toon-format.ts
+│   ├── 12-mcp-integration.ts
+│   ├── 13-dynamic-approvals.ts
+│   └── 14-multi-agent-research.ts
 │
-├── production/               # Production-ready examples
-│   ├── ecommerce-system.ts
-│   └── complete-showcase.ts
+├── 04-production/                   # 2 production examples (15-16)
+│   ├── 15-ecommerce-system.ts
+│   └── 16-complete-showcase.ts
 │
-└── utils/                    # Shared utilities
-    ├── config.ts            # Configuration management
-    ├── errors.ts            # Error handling
-    ├── logger.ts            # Logging utilities
-    └── index.ts             # Exports
+├── 05-patterns/                     # 4 pattern examples (17-20)
+│   ├── 17-agentic-patterns.ts
+│   ├── 18-goal-planner-reflector.ts
+│   ├── 19-multi-agent-coordination.ts
+│   └── 20-real-coordination-demo.ts
+│
+└── utils/                           # Shared utilities
+    ├── config.ts                    # Configuration management
+    ├── errors.ts                    # Error handling
+    ├── logger.ts                    # Logging utilities
+    └── index.ts                     # Exports
 ```
 
 ## File Organization
 
 ### Naming Convention
 
-- **Advanced**: Numbered files (09-, 10-, 11-)
-- **Production**: Descriptive names (ecommerce-system.ts, complete-showcase.ts)
-- **Utilities**: Descriptive names (config.ts, errors.ts)
+- **All Examples**: Numbered format (01-04, 05-08, 09-14, 15-16, 17-20)
+- **Root Files**: Descriptive names (all-features.ts, run.ts)
+- **Utilities**: Descriptive names (config.ts, errors.ts, logger.ts)
 
 ### Import Paths
 
-All examples use relative imports:
+All examples use relative imports from their directory level:
 
 ```typescript
-// SDK imports
+// SDK imports (from basic/)
 import { Agent, run } from '../../src';
 
-// Utility imports
+// SDK imports (from intermediate/)
+import { Agent, run } from '../../src';
+
+// SDK imports (from patterns/)
+import { Agent, run } from '../../src';
+
+// Utility imports (from any directory)
 import { logger, handleError } from '../utils';
 ```
 
@@ -140,12 +164,16 @@ The runner automatically discovers examples from the filesystem:
 npx tsx examples/run.ts
 
 # Run by category
+npx tsx examples/run.ts --category basic
+npx tsx examples/run.ts --category intermediate
 npx tsx examples/run.ts --category advanced
 npx tsx examples/run.ts --category production
+npx tsx examples/run.ts --category patterns
 
 # Run specific example
-npx tsx examples/run.ts --example 09-embeddings-rag
-npx tsx examples/run.ts --example ecommerce-system
+npx tsx examples/run.ts --example 01-simple-agent
+npx tsx examples/run.ts --example 15-ecommerce-system
+npx tsx examples/run.ts --example 20-real-coordination-demo
 
 # Verbose logging
 npx tsx examples/run.ts --verbose
@@ -154,13 +182,15 @@ npx tsx examples/run.ts --verbose
 ### Direct Execution
 
 ```bash
-# Run individual example
-npx tsx examples/advanced/09-embeddings-rag.ts
-npx tsx examples/production/ecommerce-system.ts
+# Run individual examples
+npx tsx examples/01-basic/01-simple-agent.ts
+npx tsx examples/02-intermediate/05-guardrails.ts
+npx tsx examples/03-advanced/09-embeddings-rag.ts
+npx tsx examples/04-production/15-ecommerce-system.ts
+npx tsx examples/05-patterns/17-agentic-patterns.ts
 
 # Run comprehensive reference
 npx tsx examples/all-features.ts
-npx tsx examples/all-features.ts "basic-agent"
 ```
 
 ## Best Practices
