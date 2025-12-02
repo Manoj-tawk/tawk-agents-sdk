@@ -132,18 +132,12 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public agentMetrics: Map<string, AgentMetric> = new Map();
   public toolUseTracker: AgentToolUseTracker = new AgentToolUseTracker();
 
-  // Original input to the run
-  public originalInput: string | ModelMessage[];
-
   // Token usage tracking
   public usage: Usage = new Usage();
 
   // Handoff tracking
   public handoffChain: string[] = [];
   private handoffChainSet: Set<string> = new Set();
-
-  // Current messages
-  public messages: ModelMessage[];
 
   // Interruption state for HITL
   public pendingInterruptions: any[] = [];
