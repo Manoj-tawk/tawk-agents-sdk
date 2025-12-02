@@ -41,14 +41,13 @@ export function initializeLangfuse(): Langfuse | null {
       publicKey,
       secretKey,
       baseUrl,
-      flushAt: 1,
+      flushAt: 1, // Flush immediately for testing
+      flushInterval: 1000, // Flush every 1 second
       requestTimeout: 10000,
     });
 
     isEnabled = true;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Langfuse tracing initialized:', baseUrl);
-    }
+    console.log('✅ Langfuse tracing initialized:', baseUrl);
     return langfuseInstance;
   } catch (error) {
     console.error('❌ Failed to initialize Langfuse:', error);

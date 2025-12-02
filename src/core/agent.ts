@@ -20,28 +20,18 @@
  * @license MIT
  */
 
-import { generateText, streamText, type ModelMessage, type LanguageModel, convertToModelMessages } from 'ai';
+import { generateText, streamText, type ModelMessage, type LanguageModel, convertToModelMessages, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { Usage } from './usage';
 
 // Type alias for tool definitions (v5 compatibility)
-export type ToolDefinition = {
+type ToolDefinition = {
   description?: string;
   inputSchema?: z.ZodSchema<any>; // AI SDK v5 standard
   execute: (args: any, context?: any) => Promise<any> | any;
   enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
-  
-  // Dynamic approval support
-  needsApproval?: (context: any, args: any, callId: string) => Promise<boolean> | boolean;
-  approvalMetadata?: {
-    severity?: 'low' | 'medium' | 'high' | 'critical';
-    category?: string;
-    requiredRole?: string;
-    reason?: string;
-  };
 };
 export type CoreTool = ToolDefinition;
-export type { ModelMessage } from 'ai';
 import {
   createTrace,
   formatMessagesForLangfuse,
@@ -54,6 +44,8 @@ import {
   setCurrentSpan,
 } from '../tracing/context';
 import { AgentHooks, RunHooks } from '../lifecycle';
+import { createTransferTools, detectTransfer, extractUserQuery, createTransferContext } from './transfers';
+import type { TransferResult } from './transfers';
 
 // ============================================
 // TYPES
@@ -69,8 +61,8 @@ import { AgentHooks, RunHooks } from '../lifecycle';
  * @property {string | Function} instructions - System prompt or function that returns instructions dynamically
  * @property {LanguageModel} [model] - AI model to use (defaults to global default model)
  * @property {Record<string, CoreTool>} [tools] - Dictionary of tools the agent can use
- * @property {Agent[]} [handoffs] - List of agents this agent can delegate to
- * @property {string} [handoffDescription] - Description of when to delegate to this agent
+ * @property {Agent[]} [subagents] - List of sub-agents this agent can transfer to
+ * @property {string} [transferDescription] - Description of when to transfer to this agent
  * @property {Guardrail[]} [guardrails] - Input/output validation rules
  * @property {z.ZodSchema} [outputSchema] - Schema for structured output parsing
  * @property {z.ZodSchema} [outputType] - Alias for outputSchema (for backward compatibility)
@@ -89,8 +81,12 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   instructions: string | ((context: RunContextWrapper<TContext>) => string | Promise<string>);
   model?: LanguageModel;
   tools?: Record<string, CoreTool>;
+  subagents?: Agent<TContext, any>[];
+  transferDescription?: string;  // Description for when to transfer to this agent
+  
+  // Legacy support (deprecated - use subagents instead)
   handoffs?: Agent<TContext, any>[];
-  handoffDescription?: string;  // Description for when to delegate to this agent
+  handoffDescription?: string;
   guardrails?: Guardrail<TContext>[];
   outputSchema?: z.ZodSchema<TOutput>;
   outputType?: z.ZodSchema<TOutput>;  // Alias for outputSchema
@@ -105,9 +101,6 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   onStepFinish?: (step: StepResult) => void | Promise<void>;
   shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
   useTOON?: boolean; // If true, automatically encode all tool results to TOON format (18-33% token reduction)
-  
-  // Native MCP integration
-  mcpServers?: import('../mcp/enhanced').MCPServerConfig[];
 }
 
 /**
@@ -376,11 +369,14 @@ export interface GuardrailResult {
 
 export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext, TOutput> {
   public readonly name: string;
-  public handoffDescription?: string;  // Description for agent delegation
+  public transferDescription?: string;  // Description for agent transfers
+  
+  // Legacy (deprecated)
+  public handoffDescription?: string;
   private instructions: string | ((context: RunContextWrapper<TContext>) => string | Promise<string>);
   private model: LanguageModel;
   private tools: Record<string, CoreTool>;
-  private _handoffs: Agent<TContext, any>[] = [];  // Private with getter/setter
+  private _subagents: Agent<TContext, any>[] = [];  // Private with getter/setter
   private guardrails: Guardrail<TContext>[];
   private outputSchema?: z.ZodSchema<TOutput>;
   private maxSteps: number;
@@ -390,21 +386,22 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   private useTOON?: boolean; // If true, automatically encode all tool results to TOON format
   // Cached static instructions
   private cachedInstructions?: string;
-  
-  // Native MCP support
-  private mcpServers: import('../mcp/enhanced').EnhancedMCPServer[] = [];
-  private mcpToolsCache?: Record<string, CoreTool>;
-  private mcpToolsCacheTime?: number;
-  private readonly MCP_CACHE_TTL = 60000; // 1 minute
 
   constructor(config: AgentConfig<TContext, TOutput>) {
     super(); // Initialize EventEmitter
     this.name = config.name;
-    this.handoffDescription = config.handoffDescription;
+    
+    // Support both new (transferDescription) and old (handoffDescription) terminology
+    this.transferDescription = config.transferDescription || config.handoffDescription;
+    this.handoffDescription = config.transferDescription || config.handoffDescription;  // Backward compat
+    
     this.instructions = config.instructions;
     this.model = config.model || getDefaultModel();
     this.tools = config.tools || {};
-    this._handoffs = config.handoffs || [];
+    
+    // Support both new (subagents) and old (handoffs) terminology
+    this._subagents = config.subagents || config.handoffs || [];
+    
     this.guardrails = config.guardrails || [];
     this.outputSchema = config.outputSchema || config.outputType;  // Support both formats
     this.maxSteps = config.maxSteps || 10;
@@ -413,13 +410,8 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
     this.shouldFinish = config.shouldFinish;
     this.useTOON = config.useTOON || false;
 
-    // Initialize MCP servers
-    if (config.mcpServers) {
-      this._initializeMCPServers(config.mcpServers);
-    }
-
-    // Add handoff tools automatically
-    this._setupHandoffTools();
+    // Add transfer tools automatically
+    this._setupTransferTools();
   }
 
   /**
@@ -445,153 +437,60 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   }
 
   /**
-   * Get the list of agents this agent can delegate to.
+   * Get the list of sub-agents this agent can transfer to.
    * 
-   * @returns {Agent[]} Array of handoff agents
+   * @returns {Agent[]} Array of sub-agents
+   */
+  get subagents(): Agent<TContext, any>[] {
+    return this._subagents;
+  }
+  
+  /**
+   * Get handoffs (legacy/backward compatibility)
    */
   get handoffs(): Agent<TContext, any>[] {
-    return this._handoffs;
+    return this._subagents;
   }
 
   /**
-   * Set the list of agents this agent can delegate to.
-   * Automatically updates handoff tools when changed.
+   * Set the list of sub-agents this agent can transfer to.
+   * Automatically updates transfer tools when changed.
    * 
-   * @param {Agent[]} agents - Array of agents to delegate to
+   * @param {Agent[]} agents - Array of sub-agents
    */
-  set handoffs(agents: Agent<TContext, any>[]) {
-    // Remove old handoff tools first
-    const oldHandoffToolNames = Object.keys(this.tools).filter(name => name.startsWith('handoff_to_'));
-    for (const name of oldHandoffToolNames) {
+  set subagents(agents: Agent<TContext, any>[]) {
+    // Remove old transfer/handoff tools first
+    const oldToolNames = Object.keys(this.tools).filter(name => 
+      name.startsWith('transfer_to_') || name.startsWith('handoff_to_')
+    );
+    for (const name of oldToolNames) {
       delete this.tools[name];
     }
     
-    // Update handoffs
-    this._handoffs = agents || [];
+    // Update subagents
+    this._subagents = agents || [];
     
-    // Re-setup handoff tools
-    this._setupHandoffTools();
+    // Re-setup transfer tools
+    this._setupTransferTools();
+  }
+  
+  /**
+   * Set handoffs (legacy/backward compatibility)
+   */
+  set handoffs(agents: Agent<TContext, any>[]) {
+    this.subagents = agents;  // Delegate to subagents setter
   }
 
   /**
    * Create handoff tools for delegating to other agents
    */
-  private _setupHandoffTools(): void {
-    for (const handoffAgent of this._handoffs) {
-      const handoffToolName = `handoff_to_${handoffAgent.name.toLowerCase().replace(/\s+/g, '_')}`;
-      
-      // Use handoffDescription if available, otherwise use generic description
-      const description = handoffAgent.handoffDescription 
-        ? `Handoff to ${handoffAgent.name}: ${handoffAgent.handoffDescription}`
-        : `Handoff to ${handoffAgent.name} agent to handle this task`;
-      
-      this.tools[handoffToolName] = {
-        description,
-        inputSchema: z.object({
-          reason: z.string().describe('Reason for handing off to this agent'),
-          context: z.string().optional().describe('Additional context for the handoff')
-        }),
-        execute: async ({ reason, context: handoffContext }: { reason: string; context?: string }) => {
-          // Return a special marker with agent NAME only (not reference)
-          // The Runner will resolve the actual agent
-          return {
-            __handoff: true,
-            agentName: handoffAgent.name,  // Just the name, not the agent object
-            reason,
-            context: handoffContext
-          };
-        }
-      };
-    }
-  }
-
   /**
-   * Initialize MCP servers
+   * Create transfer tools for delegating to sub-agents
    */
-  private async _initializeMCPServers(configs: import('../mcp/enhanced').MCPServerConfig[]): Promise<void> {
-    const { EnhancedMCPServer } = await import('../mcp/enhanced');
-    
-    for (const config of configs) {
-      const server = new EnhancedMCPServer(config);
-      
-      // Auto-connect if specified (default: true)
-      if (config.autoConnect !== false) {
-        try {
-          await server.connect();
-        } catch (error) {
-          console.error(`Failed to connect to MCP server ${config.name}:`, error);
-        }
-      }
-      
-      this.mcpServers.push(server);
-    }
+  private _setupTransferTools(): void {
+    const transferTools = createTransferTools(this, this._subagents);
+    Object.assign(this.tools, transferTools);
   }
-
-  /**
-   * Get MCP tools automatically
-   */
-  async getMcpTools(): Promise<Record<string, CoreTool>> {
-    // Check cache
-    if (
-      this.mcpToolsCache &&
-      this.mcpToolsCacheTime &&
-      Date.now() - this.mcpToolsCacheTime < this.MCP_CACHE_TTL
-    ) {
-      return this.mcpToolsCache;
-    }
-
-    // Fetch from all servers
-    const tools: Record<string, CoreTool> = {};
-
-    for (const server of this.mcpServers) {
-      try {
-        const serverTools = await server.getCoreTools();
-        const mcpTools = await server.getTools();
-
-        for (let i = 0; i < serverTools.length; i++) {
-          const toolName = `mcp_${mcpTools[i].name}`;
-          tools[toolName] = serverTools[i];
-        }
-      } catch (error) {
-        console.error(`Failed to get tools from MCP server:`, error);
-      }
-    }
-
-    // Update cache
-    this.mcpToolsCache = tools;
-    this.mcpToolsCacheTime = Date.now();
-
-    return tools;
-  }
-
-  /**
-   * Get all tools (regular + MCP)
-   */
-  async getAllTools(): Promise<Record<string, CoreTool>> {
-    const mcpTools = await this.getMcpTools();
-    
-    return {
-      ...this.tools,
-      ...mcpTools,
-    };
-  }
-
-  /**
-   * Refresh MCP tool cache
-   */
-  async refreshMcpTools(): Promise<void> {
-    this.mcpToolsCache = undefined;
-    this.mcpToolsCacheTime = undefined;
-    await this.getMcpTools();
-  }
-
-  /**
-   * Cleanup MCP connections
-   */
-  async cleanup(): Promise<void> {
-    await Promise.all(this.mcpServers.map((server) => server.disconnect()));
-  }
-
 
   /**
    * Get system instructions for the agent.
@@ -609,11 +508,11 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
     }
     
     if (typeof this.instructions === 'function') {
-      // ✅ SAFE: Always call function (context might change)
+      // Always call function as context might change
       return await this.instructions(context);
     }
     
-    // ✅ SAFE: Cache static string instructions
+    // Cache static string instructions for performance
     this.cachedInstructions = this.instructions;
     return this.cachedInstructions;
   }
@@ -744,13 +643,16 @@ export async function run<TContext = any, TOutput = string>(
   input: string | ModelMessage[] | RunState,
   options: RunOptions<TContext> = {}
 ): Promise<RunResult<TOutput>> {
+  // Import runner from separate file for clean architecture
+  const { AgenticRunner } = await import('./runner');
+  
   // Handle resuming from RunState
   if (isRunState(input)) {
     return await resumeRun(input, options);
   }
 
-  const runner = new Runner(agent, options);
-  return await runner.execute(input);
+  const runner = new AgenticRunner<TContext, TOutput>(options);
+  return await runner.execute(agent, input, options);
 }
 
 /**
@@ -818,6 +720,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   private completionTokens = 0;
   private handoffChain: string[] = [];
   private handoffChainSet: Set<string> = new Set(); // Fast O(1) lookup for handoff chain
+  private originalInput: string | ModelMessage[] = '';  // Store original input for context isolation
   private agentMetrics: Map<string, AgentMetric> = new Map();
   private trace: any = null; // Langfuse trace
   private currentAgentSpan: any = null; // Current agent span for nesting
@@ -827,12 +730,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
   // Message formatting cache for Langfuse tracing
   private formattedMessagesCache: any[] | null = null;
   private lastMessageCount = 0;
-  // Performance: Incremental metadata tracking
+  // Incremental metadata tracking
   private totalToolCallsCount = 0; // Track incrementally instead of recalculating
-  // Performance: Handoff agent lookup cache (Map<agentName, Agent>)
-  private handoffAgentCache: Map<string, Agent<any, any>> | null = null;
-  private lastHandoffAgentName: string | null = null;
-  // Performance: Cache converted model messages to avoid repeated conversion
+  // Cache converted model messages to avoid repeated conversion
   private cachedModelMessages: ModelMessage[] | null = null;
   private lastHistoryLength = 0;
   // Handoff context for next agent (provider-agnostic approach)
@@ -864,7 +764,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         usage: this.reusableUsage,
       };
     } else {
-      // Just update references (much faster than creating new object)
+      // Update references for efficient property access
       this.contextWrapperCache.agent = agent;
       this.contextWrapperCache.messages = messages;
     }
@@ -895,9 +795,9 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
    */
   /**
    * Wrap tools with context injection and filter by enabled conditions
-   * Note: This is called on every agent step to ensure enabled conditions are re-evaluated
+   * Enabled conditions are re-evaluated on every agent step
    */
-  // Performance: Cache TOON encoder to avoid repeated dynamic imports
+  // Cache TOON encoder to avoid repeated dynamic imports
   private static cachedEncodeTOON: ((data: any) => string) | null = null;
   private static toonImportPromise: Promise<any> | null = null;
 
@@ -911,7 +811,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     const wrapped: Record<string, CoreTool> = {};
     
     // Import encodeTOON only if needed (lazy import for performance)
-    // Performance: Cache the import at class level to avoid repeated dynamic imports
+    // Cache the import at class level to avoid repeated dynamic imports
     let encodeTOON: ((data: any) => string) | null = null;
     if (useTOON) {
       // Use cached encoder if available
@@ -963,7 +863,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             const result = await originalExecute(args, contextWrapper as any);
             
             // Auto-encode to TOON if enabled and result is an object/array
-            // Performance: Skip encoding for small results to avoid overhead
+            // Skip encoding for small results to avoid overhead
             if (useTOON && encodeTOON && result !== null && result !== undefined) {
               // Skip encoding if already a string (might already be TOON or JSON string)
               // Only encode objects/arrays for maximum token savings
@@ -974,7 +874,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
                     return result;
                   }
                   
-                  // Performance: Quick heuristic - only encode arrays/objects with multiple items
+                  // Quick heuristic: only encode arrays/objects with multiple items
                   // Single-item objects or small arrays don't benefit enough from TOON
                   const isArray = Array.isArray(result);
                   if (isArray && result.length < 3) {
@@ -1010,12 +910,15 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     input: string | ModelMessage[],
     resumeState?: RunState
   ): Promise<RunResult<TOutput>> {
+    // Store original input for context isolation during transfers
+    this.originalInput = input;
+    
     // Auto-initialize Langfuse if credentials are available (enabled by default)
-    // This ensures tracing works automatically without manual initialization
+    // Tracing works automatically without manual initialization
     isLangfuseEnabled(); // This will auto-initialize if env vars are present
     
     // Prepare messages first to get input for trace
-    const messages = await this.prepareMessages(input);
+    let messages = await this.prepareMessages(input);
     
     // Get or create Langfuse trace from context
     let trace = getCurrentTrace();
@@ -1081,8 +984,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
                   total: tokensDelta.total,
                 },
               });
+              // Log success for debugging
+              if (process.env.DEBUG_LANGFUSE) {
+                console.log(`[Langfuse] Updated agent span usage: ${tokensDelta.prompt}/${tokensDelta.completion}/${tokensDelta.total}`);
+              }
             } catch (error) {
-              // Silently fail if update doesn't support usage
+              // Log error if usage update fails
+              console.warn(`[Langfuse] Failed to update agent span usage:`, error);
             }
           }
           
@@ -1180,10 +1088,11 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         currentAgent._useTOON || false
       );
 
-      // For coordinator agents with only handoff tools, require tool selection
-      const hasOnlyHandoffTools = Object.keys(wrappedTools).every(name => name.startsWith('handoff_to_'));
-      const toolChoice = hasOnlyHandoffTools && Object.keys(wrappedTools).length > 0 ? 'required' : undefined;
-      const _maxSteps = hasOnlyHandoffTools ? 1 : currentAgent._maxSteps; // Single step for handoffs
+      // Let the model decide whether to call tools or generate text
+      // We rely on instructions and shouldFinish callback to guide behavior
+      // This makes the SDK compatible with all providers (including Groq)
+      const toolChoice = undefined; // Optional - let model decide
+      const _maxSteps = currentAgent._maxSteps;
 
       // Debug: Log tools structure
       if (process.env.DEBUG_TOOLS) {
@@ -1203,24 +1112,32 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
 
       // Execute agent step (single step, we manage loop manually)
-      // CRITICAL FIX: Ensure messages are properly converted to ModelMessage[] before generateText
-      // Claude is stricter than OpenAI and requires ModelMessage[] (not UIMessage[])
-      // Check if any message has 'parts' property (indicates UIMessage[]) and convert if needed
-      let finalMessages = messages;
-      if (messages.length > 0) {
-        const firstMessage = messages[0];
-        // UIMessage has 'parts' property, ModelMessage does not
-        if (firstMessage && typeof firstMessage === 'object' && 'parts' in firstMessage) {
-          // Messages are UIMessage[] (have 'parts' property), need conversion to ModelMessage[]
-          try {
-            finalMessages = convertToModelMessages(messages as any);
-          } catch (error) {
-            // If conversion fails, log warning but try using as-is (might already be ModelMessage[])
-            console.warn('[Agent] Failed to convert UIMessage[] to ModelMessage[], using as-is:', error);
-            finalMessages = messages;
-          }
-        }
+      // Ensure messages are properly converted to ModelMessage[] before generateText
+      // All providers (OpenAI, Anthropic, Groq) require ModelMessage[] (not UIMessage[])
+      // Always convert to be safe - AI SDK's convertToModelMessages is idempotent
+      
+      // Debug logging only in development
+      if (process.env.DEBUG_MESSAGES) {
+        console.log(`\n[🔍 MESSAGE DEBUG] Step ${stepNumber} - Agent: ${currentAgent.name}, Messages: ${messages.length}`);
       }
+      
+      // Messages are ModelMessage[] from prepareMessages(), but may contain
+      // array content (tool calls/results) that needs deep cloning to prevent
+      // corruption during AI SDK's internal JSON serialization.
+      // String content can be used directly (no cloning needed).
+      const finalMessages: ModelMessage[] = messages.map((msg: any): ModelMessage => {
+        if (typeof msg.content === 'string') {
+          // String content - use directly, no cloning needed
+          return { role: msg.role, content: msg.content };
+        }
+        if (Array.isArray(msg.content)) {
+          // Array content (tool calls/results) - deep clone to prevent corruption
+          // Required because AI SDK's internal processing can mutate references
+          return { role: msg.role, content: JSON.parse(JSON.stringify(msg.content)) };
+        }
+        // Fallback
+        return { role: msg.role, content: msg.content };
+      });
       
       const result = await generateText({
         model: currentAgent._model,
@@ -1228,7 +1145,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         messages: finalMessages,
         tools: wrappedTools as any,
         toolChoice: toolChoice as any,
-        // No maxSteps - let AI SDK handle single generation naturally
+        stopWhen: stepCountIs(_maxSteps),
         temperature: currentAgent._modelSettings?.temperature,
         topP: currentAgent._modelSettings?.topP,
         maxTokens: currentAgent._modelSettings?.maxTokens,
@@ -1314,39 +1231,54 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
           total: result.usage.totalTokens || 0,
         }, toolCalls.length);
 
-        // Update and END Langfuse generation with usage data
-        if (generation) {
-          // For tool calls, include tool info in output, otherwise use text
-          const generationOutput = result.finishReason === 'tool-calls' && toolCalls.length > 0
-            ? { toolCalls: toolCalls.map(tc => ({ tool: tc.toolName, args: tc.args })), text: result.text || '' }
-            : result.text;
-            
-          generation.end({
-            output: generationOutput,
-            usage: {
-              input: result.usage.inputTokens || 0,
-              output: result.usage.outputTokens || 0,
-              total: result.usage.totalTokens || 0,
-            },
-            metadata: {
-              finishReason: result.finishReason,
-              toolCallsCount: toolCalls.length,
-              totalToolCalls: toolCalls.length,
-            },
-          });
-        }
+        // Only end generation when agent task is truly complete
+        // Don't end it here - we'll end it after checking for handoffs/finish
+        // Generation captures the complete output (tool calls + final text)
+        // The generation will be ended in the finish block or when handoff occurs
       }
 
-      // Record step
+      // Filter unwanted text when tool calls are present
+      // Some models (e.g., Groq/Llama) generate text alongside tool calls
+      // For handoff tools, ignore text to let the target agent respond
+      // For other tools, keep text only if finishReason is 'stop' (final answer with tool result)
+      const hasHandoffCall = toolCalls.some(tc => tc.result?.__handoff === true);
+      const isRoutingAgent = currentAgent.handoffs && currentAgent.handoffs.length > 0;
+      const shouldIgnoreText = hasHandoffCall || (toolCalls.length > 0 && result.finishReason !== 'stop');
+      
+      // Normalize text: handle cases where model returns object instead of string
+      let normalizedText = '';
+      if (result.text) {
+        if (typeof result.text === 'string') {
+          normalizedText = result.text;
+        } else if (typeof result.text === 'object') {
+          // Model returned object in text field (shouldn't happen, but handle gracefully)
+          normalizedText = '';
+        }
+      }
+      
+      // Validation: Routing agents should NOT generate text alongside tool calls
+      if (isRoutingAgent && toolCalls.length > 0 && normalizedText && normalizedText.trim().length > 0) {
+        if (process.env.NODE_ENV === 'development' || process.env.DEBUG_ROUTING) {
+          console.warn(
+            `⚠️  [Agent: ${currentAgent.name}] Routing agent generated text alongside tool calls. ` +
+            `This text will be filtered out. Consider updating agent instructions to prevent text generation.`
+          );
+        }
+      }
+      
       const step: StepResult = {
         stepNumber,
         toolCalls,
-        text: result.text,
-        finishReason: result.finishReason
+        text: shouldIgnoreText ? '' : normalizedText, // Ignore text for handoffs or mid-flow tool calls
+        // Override finishReason if tool calls exist but SDK returned "stop"
+        // Some models (e.g., gpt-4o-mini) return "stop" even when making tool calls
+        finishReason: toolCalls.length > 0 && result.finishReason === 'stop' 
+          ? 'tool-calls' 
+          : result.finishReason
       };
       this.steps.push(step);
       
-      // Performance: Track total tool calls incrementally (O(1) instead of O(n) reduce)
+      // Track total tool calls incrementally for efficiency
       this.totalToolCallsCount += toolCalls.length;
 
       // Call step finish hook
@@ -1354,140 +1286,206 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
         await currentAgent._onStepFinish(step);
       }
 
-      // Add ALL response messages (assistant + tool calls + tool results)
-      // AI SDK v5 returns these in response.messages - they are ALREADY ModelMessage[]
-      // DO NOT convert them - convertToModelMessages doesn't support 'tool' role messages
-      // Performance: Use push.apply for better performance with large arrays
+      // Check for transfers (context isolation for true agentic behavior)
+      const transfer = detectTransfer(toolCalls, currentAgent);
+      
+      // Add response messages
       if (result.response && result.response.messages && Array.isArray(result.response.messages)) {
-        const newMessages = result.response.messages;
-        // result.response.messages are already ModelMessage[] (can include 'tool' role)
-        // Use push.apply for better performance than spread operator
-        if (newMessages.length > 0) {
-          Array.prototype.push.apply(messages, newMessages as ModelMessage[]);
-        }
+        Array.prototype.push.apply(messages, result.response.messages);
       } else {
-        // Fallback: just add assistant message
-        messages.push({
-          role: 'assistant',
-          content: result.text
-        });
+        // Fallback: add assistant message (only if no transfer)
+        if (!transfer) {
+          messages.push({
+            role: 'assistant',
+            content: normalizedText
+          });
+        }
       }
 
-      // Check for handoffs AFTER adding messages
-      const handoff = this.detectHandoff(toolCalls, currentAgent);
-      if (handoff) {
-        // Emit agent_handoff event
-        const contextWrapper = this.getContextWrapper(currentAgent, messages);
-        this.emit('agent_handoff', contextWrapper, handoff.agent);
-        currentAgent.emit('agent_handoff', contextWrapper, handoff.agent);
-
-        // Close current agent span before switching agents
+      if (transfer) {
+        // **CONTEXT ISOLATION** - True agentic behavior
+        // Each agent starts FRESH - no message history carried over!
+        
+        // Close current agent span before transferring
         if (this.currentAgentSpan && !this.currentAgentSpan._ended) {
-          const agentMetric = this.agentMetrics.get(this.currentAgentSpan._agentName);
-
-          const tokensDelta = {
-            prompt: this.promptTokens - (this.currentAgentSpan._startTokens?.prompt || 0),
-            completion: this.completionTokens - (this.currentAgentSpan._startTokens?.completion || 0),
-            total: this.totalTokens - (this.currentAgentSpan._startTokens?.total || 0),
-          };
-          
-          // Langfuse: Update span with usage before ending (spans don't accept usage in end())
-          if (tokensDelta.total > 0 && this.currentAgentSpan.update) {
-            try {
-              this.currentAgentSpan.update({
-                usage: {
-                  input: tokensDelta.prompt,
-                  output: tokensDelta.completion,
-                  total: tokensDelta.total,
-                },
-              });
-            } catch (error) {
-              // Silently fail if update doesn't support usage
-            }
-          }
-          
           this.currentAgentSpan.end({
             output: {
-              handoffTo: handoff.agent.name,
-              handoffReason: handoff.reason,
-              stepCount: this.steps.length - (this.currentAgentSpan._startStepCount || 0),
-              totalSteps: this.steps.length,
-              totalToolCalls: agentMetric?.toolCalls || 0,
+              transferTo: transfer.agent.name,
+              transferReason: transfer.reason,
             },
             metadata: {
-              totalSteps: this.steps.length,
-              totalToolCalls: agentMetric?.toolCalls || 0,
-              handoffTo: handoff.agent.name,
-              handoffReason: handoff.reason,
-              type: 'handoff',
+              transferTo: transfer.agent.name,
+              type: 'transfer',
+              isolated: true,  // Context isolation flag
             },
           });
           this.currentAgentSpan._ended = true;
-          this.currentAgentSpan = null;
           setCurrentSpan(null);
+          this.currentAgentSpan = null;
         }
+        
+        // Emit transfer event
+        const contextWrapper = this.getContextWrapper(currentAgent, messages);
+        this.emit('agent_transfer', contextWrapper, transfer.agent);
+        currentAgent.emit('agent_transfer', contextWrapper, transfer.agent);
+        
+        // CONTEXT ISOLATION: Extract clean user query only
+        const isolatedQuery = transfer.query || extractUserQuery(this.originalInput);
+        
+        // Create fresh message history with ONLY the query
+        messages = [
+          {
+            role: 'user',
+            content: isolatedQuery
+          }
+        ];
+        
+        // Add transfer context to system message (will be prepended on next iteration)
+        this.pendingHandoffContext = createTransferContext(currentAgent.name, transfer.agent.name, transfer.reason);
+        
+        // Switch to new agent (fresh start!)
+        currentAgent = transfer.agent;
+        
+        // Track transfer in chain
+        this.handoffChain.push(transfer.agent.name);
+        
+        // Continue loop - new agent span will be created on next iteration with isolated context
+        continue;
+      }
 
-        // Track handoff chain
-        // Performance: Use Set for O(1) lookup instead of O(n) includes()
-        if (!this.handoffChainSet.has(currentAgent.name)) {
-          this.handoffChain.push(currentAgent.name);
-          this.handoffChainSet.add(currentAgent.name);
+      // End generation when finishReason is 'tool-calls' (tool call only, no final text yet)
+      // This happens when generateText does only the tool call step, not the final text step
+      // Handle cases where SDK returns "stop" but tool calls exist
+      const effectiveFinishReason = toolCalls.length > 0 && result.finishReason === 'stop' 
+        ? 'tool-calls' 
+        : result.finishReason;
+      
+      if (generation && result.usage && effectiveFinishReason === 'tool-calls') {
+        try {
+          generation.end({
+            output: {
+              toolCalls: toolCalls.map(tc => ({
+                tool: tc.toolName,
+                args: tc.args,
+                result: tc.result
+              })),
+              text: ''
+            },
+            usage: {
+              input: result.usage.inputTokens || 0,
+              output: result.usage.outputTokens || 0,
+              total: result.usage.totalTokens || 0,
+            },
+            metadata: {
+              finishReason: effectiveFinishReason,
+              toolCallsCount: toolCalls.length,
+              totalToolCalls: toolCalls.length,
+            },
+          });
+        } catch (error) {
+          console.error('[Generation] Failed to end generation:', error);
         }
-        if (!this.handoffChainSet.has(handoff.agent.name)) {
-          this.handoffChain.push(handoff.agent.name);
-          this.handoffChainSet.add(handoff.agent.name);
-        }
-        
-        // Switch to handoff agent
-        currentAgent = handoff.agent;
-        
-        // PROVIDER-AGNOSTIC FIX: Store handoff context to prepend to next agent's system message
-        // This avoids multiple system messages in the array (Anthropic restriction)
-        // and works seamlessly with all providers (OpenAI, Groq, Claude, Google, etc.)
-        // The handoff context will be merged into the system message on the next iteration
-        this.pendingHandoffContext = `[Handoff Context] You are now ${currentAgent.name}. ${handoff.reason ? `Reason: ${handoff.reason}` : ''}`;
-        
-        // Continue loop - new agent span will be created on next iteration
-        // The handoff context will be automatically included in the system message
+        // Continue loop - next iteration will create a new generation for the final text
         continue;
       }
 
       // Check if we should finish
-      // AI SDK v5: finishReason='stop' means model generated final text (not just tool calls)
-      // finishReason='tool-calls' means model only generated tool calls (needs continuation)
-      const shouldFinish = currentAgent._shouldFinish 
+      // finishReason='stop' indicates model generated final text (not tool calls only)
+      // finishReason='tool-calls' indicates model only generated tool calls (needs continuation)
+      let shouldFinish = currentAgent._shouldFinish 
         ? currentAgent._shouldFinish(this.context, toolCalls.map(tc => tc.result))
         : result.finishReason === 'stop' || result.finishReason === 'length' || result.finishReason === 'content-filter';
 
+      // SAFETY CHECK: Detect infinite loops for routing agents
+      // If a routing agent (with shouldFinish callback) generates text without calling tools,
+      // and shouldFinish returns false, the agent will loop forever.
+      // Solution: After 2 consecutive text-only generations, force finish with a clear error message
+      let overrideText: string | undefined;
+      if (!shouldFinish && currentAgent._shouldFinish && toolCalls.length === 0 && result.text) {
+        // Count consecutive text-only generations for this agent
+        const recentSteps = this.steps.slice(-2);
+        const consecutiveTextOnlySteps = recentSteps.filter(s => 
+          s.toolCalls.length === 0 && s.text && s.text.length > 0
+        ).length;
+        
+        if (consecutiveTextOnlySteps >= 2) {
+          // Force finish to prevent infinite loop
+          shouldFinish = true;
+          // Override the text with a clear error message
+          overrideText = "I apologize, but I'm unable to process this request. The query doesn't match my routing capabilities. If you need assistance, please rephrase your question or contact support.";
+          console.warn(`[Agent: ${currentAgent.name}] Detected infinite loop - forcing finish after ${consecutiveTextOnlySteps} text-only generations`);
+        }
+      }
+
       if (shouldFinish) {
+        // Use override text if loop was detected, otherwise use result.text
+        const finalText = overrideText ?? result.text;
+        
+        // End generation with final output (text + tool calls if any)
+        if (generation && result.usage) {
+          let generationOutput: any;
+          if (toolCalls.length > 0) {
+            // Include tool calls if they exist (from previous step)
+            generationOutput = {
+              toolCalls: toolCalls.map(tc => ({
+                tool: tc.toolName,
+                args: tc.args,
+                result: tc.result
+              })),
+              text: finalText || ''
+            };
+          } else {
+            // No tool calls - use text output only
+            generationOutput = finalText || null;
+          }
+          
+          try {
+            generation.end({
+              output: generationOutput,
+              usage: {
+                input: result.usage.inputTokens || 0,
+                output: result.usage.outputTokens || 0,
+                total: result.usage.totalTokens || 0,
+              },
+              metadata: {
+                finishReason: result.finishReason,
+                toolCallsCount: toolCalls.length,
+                totalToolCalls: toolCalls.length,
+              },
+            });
+          } catch (error) {
+            console.error('[Generation] Failed to end generation:', error);
+          }
+        }
+
         // Run output guardrails
-        await this.runOutputGuardrails(result.text);
+        await this.runOutputGuardrails(finalText);
 
         // Parse output if schema provided
-        // Performance: Add error handling for JSON parsing
+        // Add error handling for JSON parsing
         let finalOutput: TOutput;
         if (currentAgent._outputSchema) {
           try {
-            const parsed = JSON.parse(result.text);
+            const parsed = JSON.parse(finalText);
             finalOutput = currentAgent._outputSchema.parse(parsed);
           } catch (error: any) {
             // Fallback: try to extract JSON from markdown code blocks
-            const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/);
+            const jsonMatch = finalText.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch && jsonMatch[1]) {
               try {
                 const parsed = JSON.parse(jsonMatch[1]);
                 finalOutput = currentAgent._outputSchema.parse(parsed);
               } catch {
                 // Final fallback: return text as-is
-                finalOutput = result.text as TOutput;
+                finalOutput = finalText as TOutput;
               }
             } else {
               // Fallback: return text as-is
-              finalOutput = result.text as TOutput;
+              finalOutput = finalText as TOutput;
             }
           }
         } else {
-          finalOutput = result.text as TOutput;
+          finalOutput = finalText as TOutput;
         }
 
         // Save to session
@@ -1514,8 +1512,13 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
                   total: tokensDelta.total,
                 },
               });
+              // Log success for debugging
+              if (process.env.DEBUG_LANGFUSE) {
+                console.log(`[Langfuse] Updated agent span usage: ${tokensDelta.prompt}/${tokensDelta.completion}/${tokensDelta.total}`);
+              }
             } catch (error) {
-              // Silently fail if update doesn't support usage
+              // Log error if usage update fails
+              console.warn(`[Langfuse] Failed to update agent span usage:`, error);
             }
           }
           
@@ -1570,7 +1573,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
             promptTokens: this.promptTokens,
             completionTokens: this.completionTokens,
             finishReason: result.finishReason,
-            // Performance: Use incrementally tracked count instead of O(n) reduce
+            // Use incrementally tracked count for efficiency
             totalToolCalls: this.totalToolCallsCount,
             handoffChain: this.handoffChain.length > 0 ? this.handoffChain : undefined,
             agentMetrics: Array.from(this.agentMetrics.values()),
@@ -1602,7 +1605,28 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       this.currentAgentSpan._ended = true;
     }
     
-    throw new Error('Max turns exceeded');
+    // Get recent activity for debugging
+    const lastStep = this.steps[this.steps.length - 1];
+    const lastStepInfo = lastStep 
+      ? `Last step (#${lastStep.stepNumber}): ${lastStep.text?.substring(0, 150) || 'tool calls only'}...`
+      : 'No steps completed';
+    
+    const maxTurns = this.options.maxTurns || 50;
+    const traceUrl = this.trace?.url || 'N/A';
+    
+    throw new Error(
+      `Max turns exceeded (${stepNumber}/${maxTurns}).\n` +
+      `Current agent: ${currentAgent.name}\n` +
+      `${lastStepInfo}\n\n` +
+      `Possible causes:\n` +
+      `  - Infinite loop: Agent keeps generating text without calling tools\n` +
+      `  - Missing handoff: Routing agent not calling handoff tools\n` +
+      `  - Complex query: Task requires more steps than maxTurns allows\n\n` +
+      `Solutions:\n` +
+      `  - Check agent instructions for clarity\n` +
+      `  - Increase maxTurns if the task is genuinely complex\n` +
+      `  - Review Langfuse trace for patterns: ${traceUrl}`
+    );
     
     } finally {
       // Cleanup spans in all cases (success, error, interruption)
@@ -1719,7 +1743,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     result: any,
     messages: ModelMessage[]
   ): Promise<RunResult<TOutput>> {
-    // Performance: Use array for string concatenation (much faster than +=)
+    // Use array for efficient string concatenation
     const textChunks: string[] = [];
     const toolCalls: Array<{ toolName: string; args: any; result: any }> = [];
 
@@ -1735,7 +1759,7 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
       }
     }
     
-    // Performance: Join once at the end (O(n) instead of O(n²))
+    // Join array at the end for efficiency
     const fullText = textChunks.join('');
 
     // Add assistant message
@@ -1810,42 +1834,91 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     if (typeof input === 'string') {
       newMessages = [{ role: 'user', content: input }];
     } else {
-      newMessages = input;
+      // Smart conversion: Only convert if messages are UIMessage[] (have 'parts' property)
+      const hasUIMessageFormat = input.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+      
+      if (hasUIMessageFormat) {
+        try {
+          newMessages = convertToModelMessages(input as any);
+        } catch (error) {
+          if (process.env.DEBUG_MESSAGES) {
+            console.warn(`[⚠️ PREPARE MESSAGES] Failed to convert UIMessage[] input, using as-is:`, error);
+          }
+          newMessages = input;
+        }
+      } else {
+        // Already ModelMessage[] - use as-is
+        newMessages = input;
+      }
     }
 
     // Load session history if available
     if (this.session) {
       const history = await this.session.getHistory();
       
-      // Performance: Only convert if history exists and has messages
+      // Only convert if history exists and has messages
       // Skip conversion if history is empty (common case)
       if (history.length === 0) {
         return newMessages;
       }
       
-      // Performance: Cache converted messages to avoid repeated conversion
+      // Cache converted messages to avoid repeated conversion
       // Only re-convert if history length changed (new messages added)
       let modelHistory: ModelMessage[];
       if (this.cachedModelMessages && history.length === this.lastHistoryLength) {
         // Reuse cached conversion
         modelHistory = this.cachedModelMessages;
       } else {
-        // Convert CoreMessage[] to ModelMessage[] (sessions use CoreMessage which includes UIMessage)
-        // This ensures compatibility with AI SDK's generateText which requires ModelMessage[]
-        modelHistory = convertToModelMessages(history as any);
-        // Cache the result
-        this.cachedModelMessages = modelHistory;
-        this.lastHistoryLength = history.length;
+        // Smart conversion: Only convert if history is UIMessage[] (have 'parts' property)
+        // Sessions return ModelMessage[] which may include UIMessage[]
+        const hasUIMessageFormat = history.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+        
+        if (hasUIMessageFormat) {
+          try {
+            modelHistory = convertToModelMessages(history as any);
+            // Cache the result
+            this.cachedModelMessages = modelHistory;
+            this.lastHistoryLength = history.length;
+          } catch (error) {
+            if (process.env.DEBUG_MESSAGES) {
+              console.error(`[❌ PREPARE MESSAGES] Failed to convert UIMessage[] history:`, error);
+            }
+            // Fallback: try to use history as-is (might already be ModelMessage[])
+            modelHistory = history as ModelMessage[];
+          }
+        } else {
+          // History is already ModelMessage[] (stored as-is by sessions)
+          // No normalization needed - trust the AI SDK and storage!
+          modelHistory = history as ModelMessage[];
+          // Cache the result
+          this.cachedModelMessages = modelHistory;
+          this.lastHistoryLength = history.length;
+        }
       }
       
       if (this.options.sessionInputCallback) {
         const callbackResult = this.options.sessionInputCallback(modelHistory, newMessages);
-        // Callback is typed to return ModelMessage[], so no conversion needed
-        return callbackResult;
+        // Smart conversion: Only convert if callback result is UIMessage[]
+        const hasCallbackUIFormat = callbackResult.some((msg: any) => 'parts' in msg && Array.isArray((msg as any).parts));
+        
+        if (hasCallbackUIFormat) {
+          try {
+            return convertToModelMessages(callbackResult as any);
+          } catch (error) {
+            if (process.env.DEBUG_MESSAGES) {
+              console.warn(`[⚠️ PREPARE MESSAGES] Failed to convert UIMessage[] callback result, using as-is:`, error);
+            }
+            return callbackResult;
+          }
+        } else {
+          // Already ModelMessage[] - use as-is
+          return callbackResult;
+        }
       }
       
-      // Performance: Use concat for better performance than spread operator
-      return modelHistory.concat(newMessages);
+      // Use concat for efficient array concatenation
+      const result = modelHistory.concat(newMessages);
+      return result;
     }
 
     return newMessages;
@@ -1878,10 +1951,18 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.status === 'rejected') {
-        throw new Error(`Input guardrail "${inputGuardrails[i].name}" failed: ${result.reason}`);
+        throw new Error(
+          `Input guardrail "${inputGuardrails[i].name}" failed (error during validation).\n` +
+          `Reason: ${result.reason}\n\n` +
+          `Tip: Check if the guardrail implementation has bugs or missing dependencies.`
+        );
       }
       if (!result.value.passed) {
-        throw new Error(`Input guardrail "${inputGuardrails[i].name}" failed: ${result.value.message}`);
+        throw new Error(
+          `Input guardrail "${inputGuardrails[i].name}" blocked the request.\n` +
+          `Reason: ${result.value.message}\n\n` +
+          `The user input violated the guardrail policy. Review the input and guardrail configuration.`
+        );
       }
     }
   }
@@ -1902,50 +1983,22 @@ class Runner<TContext = any, TOutput = string> extends RunHooks<TContext, TOutpu
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.status === 'rejected') {
-        throw new Error(`Output guardrail "${outputGuardrails[i].name}" failed: ${result.reason}`);
+        throw new Error(
+          `Output guardrail "${outputGuardrails[i].name}" failed (error during validation).\n` +
+          `Reason: ${result.reason}\n\n` +
+          `Tip: Check if the guardrail implementation has bugs or missing dependencies.`
+        );
       }
       if (!result.value.passed) {
-        throw new Error(`Output guardrail "${outputGuardrails[i].name}" failed: ${result.value.message}`);
+        throw new Error(
+          `Output guardrail "${outputGuardrails[i].name}" blocked the response.\n` +
+          `Reason: ${result.value.message}\n\n` +
+          `The agent's output violated the guardrail policy. Review the agent instructions and guardrail configuration.`
+        );
       }
     }
   }
 
-  private detectHandoff(toolCalls: Array<{ toolName: string; args: any; result: any }>, currentAgent: Agent<any, any>) {
-    // Performance: Early exit if no tool calls
-    if (toolCalls.length === 0) return null;
-    
-    // Performance: Cache handoff agent lookup Map for O(1) lookup
-    // Only rebuild cache if agent changed
-    if (!this.handoffAgentCache || this.lastHandoffAgentName !== currentAgent.name) {
-      this.handoffAgentCache = new Map();
-      for (const agent of currentAgent.handoffs) {
-        this.handoffAgentCache.set(agent.name, agent);
-      }
-      this.lastHandoffAgentName = currentAgent.name;
-    }
-    
-    for (const tc of toolCalls) {
-      if (tc.result?.__handoff) {
-        // Resolve agent by name from the cached Map (O(1) instead of O(n) find)
-        const agentName = tc.result.agentName;
-        const targetAgent = this.handoffAgentCache.get(agentName);
-        
-        if (!targetAgent) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn(`⚠️  Handoff target agent "${agentName}" not found in ${currentAgent.name}'s handoffs`);
-          }
-          return null;
-        }
-        
-        return {
-          agent: targetAgent,
-          reason: tc.result.reason,
-          context: tc.result.context
-        };
-      }
-    }
-    return null;
-  }
 
   /**
    * Record agent usage metrics for tracking
@@ -2011,7 +2064,17 @@ export function setDefaultModel(model: LanguageModel): void {
  */
 function getDefaultModel(): LanguageModel {
   if (!defaultModel) {
-    throw new Error('No default model set. Call setDefaultModel() first or provide a model in AgentConfig.');
+    throw new Error(
+      'No default model configured.\n\n' +
+      'You must either:\n' +
+      '  1. Set a default model: setDefaultModel(openai("gpt-4o"))\n' +
+      '  2. Or provide a model in AgentConfig: new Agent({ model: openai("gpt-4o"), ... })\n\n' +
+      'Example:\n' +
+      '  import { openai } from "@ai-sdk/openai";\n' +
+      '  import { setDefaultModel, Agent } from "@tawk-agents-sdk/core";\n\n' +
+      '  setDefaultModel(openai("gpt-4o"));\n' +
+      '  const agent = new Agent({ name: "MyAgent", instructions: "..." });'
+    );
   }
   return defaultModel;
 }

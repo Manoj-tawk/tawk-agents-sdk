@@ -17,6 +17,18 @@ import type { CoreTool } from '../core/agent';
 // TYPES
 // ============================================
 
+/**
+ * Extended CoreTool with approval fields
+ */
+export interface ApprovalTool extends CoreTool {
+  needsApproval?: ApprovalFunction | boolean;
+  approvalMetadata?: {
+    reason?: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    requiredRole?: string;
+  };
+}
+
 export interface ApprovalRequest {
   id: string;
   toolName: string;
@@ -57,7 +69,7 @@ export class ApprovalManager {
    * Check if a tool call needs approval
    */
   async checkNeedsApproval(
-    tool: CoreTool,
+    tool: ApprovalTool,
     context: any,
     args: any,
     callId: string
@@ -67,7 +79,10 @@ export class ApprovalManager {
     }
 
     try {
-      return await Promise.resolve(tool.needsApproval(context, args, callId));
+      if (typeof tool.needsApproval === 'function') {
+        return await Promise.resolve(tool.needsApproval(context, args, callId));
+      }
+      return tool.needsApproval;
     } catch (error) {
       console.error('Error in needsApproval function:', error);
       // Default to requiring approval on error (safer)
@@ -80,7 +95,7 @@ export class ApprovalManager {
    */
   createApprovalRequest(
     toolName: string,
-    tool: CoreTool,
+    tool: ApprovalTool,
     args: any,
     callId: string,
     context: any,
@@ -287,10 +302,10 @@ export function toolWithApproval(config: {
   approvalMetadata?: {
     severity?: 'low' | 'medium' | 'high' | 'critical';
     category?: string;
-    requiredRole?: string;
-    reason?: string;
-  };
-}): CoreTool {
+  requiredRole?: string;
+  reason?: string;
+};
+}): ApprovalTool {
   return {
     description: config.description,
     inputSchema: config.inputSchema,

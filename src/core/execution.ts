@@ -109,14 +109,21 @@ export async function executeToolsInParallel<TContext = any>(
 
     // Execute tool with tracing
     const span = createContextualSpan(`Tool: ${toolCall.toolName}`, {
-      input: toolCall.args,
+      input: toolCall.args || {},  // Ensure we have an object, not undefined
       metadata: {
         toolName: toolCall.toolName,
         agentName: contextWrapper.agent.name,
+        argsReceived: !!toolCall.args,
+        argsKeys: toolCall.args ? Object.keys(toolCall.args) : []
       },
     });
 
     try {
+      // Log for debugging
+      if (!toolCall.args || Object.keys(toolCall.args).length === 0) {
+        console.warn(`⚠️  Tool ${toolCall.toolName} called with empty/undefined args:`, toolCall);
+      }
+      
       const result = await tool.execute(toolCall.args, contextWrapper as any);
 
       if (span) {
@@ -172,18 +179,24 @@ export function processModelResponse(
     for (const tc of response.toolCalls) {
       const toolName = (tc as any).toolName;
       
-      // Check if this is a handoff tool
-      if (toolName.startsWith('handoff_to_')) {
-        const targetAgentName = toolName.replace('handoff_to_', '').replace(/_/g, ' ');
+      // Extract args - AI SDK might use 'args' or 'input'
+      const toolArgs = (tc as any).args || (tc as any).input || {};
+      
+      // Check if this is a transfer/handoff tool (support both naming conventions)
+      if (toolName.startsWith('transfer_to_') || toolName.startsWith('handoff_to_')) {
+        const targetAgentName = toolName
+          .replace('transfer_to_', '')
+          .replace('handoff_to_', '')
+          .replace(/_/g, ' ');
         handoffRequests.push({
           agentName: targetAgentName,
-          reason: (tc as any).args?.reason || 'Handoff requested',
-          context: (tc as any).args?.context,
+          reason: toolArgs?.reason || 'Transfer requested',
+          context: toolArgs?.context,
         });
       } else {
         toolCalls.push({
           toolName,
-          args: (tc as any).args,
+          args: toolArgs,
           toolCallId: (tc as any).toolCallId,
         });
       }
@@ -326,17 +339,8 @@ export async function executeSingleStep<TContext = any>(
   const preStepMessages = [...state.messages];
   const newMessages = [...processed.newMessages];
 
-  // Add tool results to messages
-  if (toolResults.length > 0) {
-    for (const toolResult of toolResults) {
-      if (toolResult.result !== null && !toolResult.error) {
-        newMessages.push({
-          role: 'tool',
-          content: JSON.stringify(toolResult.result),
-        } as any);
-      }
-    }
-  }
+  // NOTE: Tool results are already included in processed.newMessages from the AI SDK response
+  // We don't need to add them again manually
 
   // Combine messages
   const combinedMessages = [...state.messages, ...newMessages];

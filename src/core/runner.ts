@@ -21,11 +21,13 @@ import {
   isLangfuseEnabled,
   formatMessagesForLangfuse,
   extractModelName,
+  getLangfuse,
 } from '../lifecycle/langfuse';
 import {
   getCurrentTrace,
   setCurrentSpan,
   createContextualSpan,
+  runWithTraceContext,
 } from '../tracing/context';
 import { RunHooks } from '../lifecycle';
 
@@ -125,10 +127,10 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         : input.find((m) => m.role === 'user')?.content || input;
 
       trace = createTrace({
-        name: `Agent Run: ${agent.name}`,
+        name: `Agent Run`,
         input: initialInput,
         metadata: {
-          agentName: agent.name,
+          initialAgent: agent.name,
           maxTurns,
         },
         tags: ['agent', 'run', 'agentic'],
@@ -137,36 +139,80 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
     state.trace = trace;
 
-    // Run input guardrails
-    await this.runInputGuardrails(agent, state);
+    // Run everything within trace context so spans nest properly
+    return await runWithTraceContext(trace, async () => {
+      // Run input guardrails
+      await this.runInputGuardrails(agent, state);
 
-    // Emit agent_start event
-    const contextWrapper = this.getContextWrapper(agent, state);
-    this.emit('agent_start', contextWrapper, agent);
-    agent.emit('agent_start', contextWrapper, agent);
+      // Emit agent_start event
+      const contextWrapper = this.getContextWrapper(agent, state);
+      this.emit('agent_start', contextWrapper, agent);
+      agent.emit('agent_start', contextWrapper, agent);
 
+      try {
+        return await this.executeAgentLoop(agent, state, contextWrapper, maxTurns);
+      } catch (error) {
+        if (state.currentAgentSpan) {
+          state.currentAgentSpan.end({
+            output: { error: String(error) },
+            level: 'ERROR',
+          });
+        }
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Main agent execution loop
+   */
+  private async executeAgentLoop(
+    agent: Agent<TContext, TOutput>,
+    state: RunState<TContext, Agent<TContext, TOutput>>,
+    contextWrapper: RunContextWrapper<TContext>,
+    maxTurns: number
+  ): Promise<RunResult<TOutput>> {
     try {
       // Main agentic execution loop
       while (!state.isMaxTurnsExceeded()) {
         state.incrementTurn();
 
         // Create agent span if needed
+        // CRITICAL: Create spans directly from TRACE to make them SIBLINGS, not nested!
         if (!state.currentAgentSpan || state.currentAgentSpan._agentName !== state.currentAgent.name) {
           if (state.currentAgentSpan) {
-            state.currentAgentSpan.end();
+            // End previous agent span with accumulated token usage
+            const prevAgentName = state.currentAgentSpan._agentName;
+            const prevAgentMetrics = prevAgentName ? state.agentMetrics.get(prevAgentName) : null;
+            
+            state.currentAgentSpan.end({
+              usage: prevAgentMetrics ? {
+                input: prevAgentMetrics.tokens.input,
+                output: prevAgentMetrics.tokens.output,
+                total: prevAgentMetrics.tokens.total
+              } : undefined
+            });
           }
 
-          state.currentAgentSpan = createContextualSpan(`Agent: ${state.currentAgent.name}`, {
+          // Create span as DIRECT CHILD of trace (not from context!)
+          // This makes all agents siblings instead of nested
+          const agentSpan = state.trace?.span({
+            name: `Agent: ${state.currentAgent.name}`,
             input: { messages: formatMessagesForLangfuse(state.messages) },
             metadata: {
               agentName: state.currentAgent.name,
               tools: Object.keys(state.currentAgent._tools || {}),
-              handoffs: state.currentAgent.handoffs.map((a) => a.name),
+              subagents: state.currentAgent.subagents.map((a) => a.name),
               turn: state.currentTurn,
             },
           });
-          state.currentAgentSpan._agentName = state.currentAgent.name;
-          setCurrentSpan(state.currentAgentSpan);
+          
+          state.currentAgentSpan = agentSpan;
+          if (agentSpan) {
+            agentSpan._agentName = state.currentAgent.name;
+            // Update context span for nested generations/tools
+            setCurrentSpan(agentSpan);
+          }
         }
 
         // Get system instructions
@@ -177,6 +223,28 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
         // Prepare tools
         const tools = state.currentAgent._tools;
+
+        // Create GENERATION (not span) for LLM call - this properly tracks tokens in Langfuse
+        const generation = state.currentAgentSpan?.generation({
+          name: `LLM Generation: ${state.currentAgent.name}`,
+          model: extractModelName(model),
+          modelParameters: {
+            temperature: state.currentAgent._modelSettings?.temperature,
+            topP: state.currentAgent._modelSettings?.topP,
+            maxTokens: state.currentAgent._modelSettings?.maxTokens,
+          },
+          input: {
+            system: systemMessage.substring(0, 200),
+            messages: state.messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content.substring(0, 100) : '...' })),
+            tools: Object.keys(tools || {})
+          },
+          metadata: {
+            agentName: state.currentAgent.name,
+            turn: state.currentTurn,
+            modelName: extractModelName(model),
+            toolCount: Object.keys(tools || {}).length
+          }
+        });
 
         // Call model
         const modelResponse = await generateText({
@@ -190,6 +258,27 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
           frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
         } as any);
+
+        // End generation with proper usage tracking
+        if (generation) {
+          const usage = modelResponse.usage || {};
+          generation.end({
+            output: {
+              text: modelResponse.text.substring(0, 200),
+              toolCalls: modelResponse.toolCalls?.length || 0,
+              finishReason: modelResponse.finishReason
+            },
+            // Use Langfuse's usage parameter to track tokens properly
+            usage: {
+              input: usage.inputTokens || 0,
+              output: usage.outputTokens || 0,
+              total: usage.totalTokens || 0,
+            },
+            metadata: {
+              finishReason: modelResponse.finishReason,
+            }
+          });
+        }
 
         // Execute single step with AUTONOMOUS decision making
         const stepResult = await executeSingleStep(
@@ -206,8 +295,21 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         const nextStep = stepResult.nextStep;
 
         if (nextStep.type === 'next_step_final_output') {
-          // Agent decided to finish
-          await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
+          // Agent decided to finish - check guardrails first
+          const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
+          
+          if (!guardrailResult.passed) {
+            // Guardrail failed - add feedback and retry
+            console.log(`🔄 Guardrail failed, asking agent to retry...`);
+            
+            state.messages.push({
+              role: 'system',
+              content: guardrailResult.feedback || 'Please regenerate your response.'
+            });
+            
+            // Continue loop to let agent retry
+            continue;
+          }
 
           // Parse output if schema provided
           let finalOutput: TOutput;
@@ -222,20 +324,56 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             finalOutput = nextStep.output as TOutput;
           }
 
-          // End agent span
+          // IMPORTANT: For user-facing output, always ensure it's a string
+          // If outputSchema returned an object, stringify it
+          const finalOutputString = typeof finalOutput === 'string' 
+            ? finalOutput 
+            : JSON.stringify(finalOutput, null, 2);
+
+          // End agent span with accumulated token usage
           if (state.currentAgentSpan) {
+            const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
+            
             state.currentAgentSpan.end({
-              output: typeof finalOutput === 'string' ? finalOutput.substring(0, 500) : finalOutput,
+              output: finalOutputString.substring(0, 500),
+              usage: agentMetrics ? {
+                input: agentMetrics.tokens.input,
+                output: agentMetrics.tokens.output,
+                total: agentMetrics.tokens.total
+              } : undefined
             });
           }
 
           // Emit agent_end event
-          this.emit('agent_end', contextWrapper, agent, finalOutput);
-          agent.emit('agent_end', contextWrapper, finalOutput);
+          this.emit('agent_end', contextWrapper, agent, finalOutputString as any);
+          agent.emit('agent_end', contextWrapper, finalOutputString as any);
 
-          // Return final result
+          // Update trace with final output and aggregated metadata
+          if (state.trace) {
+            state.trace.update({
+              output: finalOutputString, // Just the text, not an object
+              metadata: {
+                agentPath: state.handoffChain.length > 0 ? state.handoffChain : [agent.name],
+                success: true,
+                totalTokens: state.usage.totalTokens,
+                promptTokens: state.usage.inputTokens,
+                completionTokens: state.usage.outputTokens,
+                totalCost: (state.usage.totalTokens || 0) * 0.00000015, // ~$0.15 per 1M tokens
+                duration: state.getDuration(),
+                agentCount: state.agentMetrics.size,
+                totalToolCalls: state.steps.reduce((sum, s) => sum + (s.toolCalls?.length || 0), 0),
+                totalTransfers: state.handoffChain.length,
+                finishReason: stepResult.stepResult?.finishReason,
+              }
+            });
+          }
+
+          // Flush Langfuse traces before returning
+          await this.flushTraces();
+
+          // Return final result (always ensure finalOutput is a string)
           return {
-            finalOutput,
+            finalOutput: finalOutputString as TOutput,
             messages: state.messages,
             steps: state.steps,
             state,
@@ -251,33 +389,50 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             },
           };
         } else if (nextStep.type === 'next_step_handoff') {
-          // Agent decided to handoff
+          // Agent decided to transfer to another agent
           if (state.currentAgentSpan) {
+            const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
+            
             state.currentAgentSpan.end({
               output: {
-                handoffTo: nextStep.newAgent.name,
-                handoffReason: nextStep.reason,
+                transferTo: nextStep.newAgent.name,
+                transferReason: nextStep.reason,
               },
+              metadata: {
+                type: 'transfer',
+                isolated: true,  // Context isolation enabled
+                // Include usage in metadata for Langfuse visibility
+                usage: agentMetrics ? {
+                  input: agentMetrics.tokens.input,
+                  output: agentMetrics.tokens.output,
+                  total: agentMetrics.tokens.total
+                } : undefined
+              },
+              usage: agentMetrics ? {
+                input: agentMetrics.tokens.input,
+                output: agentMetrics.tokens.output,
+                total: agentMetrics.tokens.total
+              } : undefined
             });
             state.currentAgentSpan = undefined;
           }
 
-          // Track handoff
+          // Track transfer in chain
           state.trackHandoff(nextStep.newAgent.name);
 
           // Switch to new agent
           const previousAgent = state.currentAgent;
           state.currentAgent = nextStep.newAgent as any;
 
-          // Emit handoff event
+          // Emit transfer event
           this.emit('agent_handoff', contextWrapper, previousAgent, nextStep.newAgent);
           previousAgent.emit('agent_handoff', contextWrapper, nextStep.newAgent);
 
-          // Add handoff context to messages
+          // Add transfer context to messages
           if (nextStep.reason) {
             state.messages.push({
               role: 'system',
-              content: `[Handoff] Transferred to ${nextStep.newAgent.name}. Reason: ${nextStep.reason}${nextStep.context ? `. Context: ${nextStep.context}` : ''}`,
+              content: `[Transfer] Transferred to ${nextStep.newAgent.name}. Reason: ${nextStep.reason}${nextStep.context ? `. Context: ${nextStep.context}` : ''}`,
             });
           }
 
@@ -339,7 +494,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
   }
 
   /**
-   * Run input guardrails
+   * Run input guardrails with tracing at TRACE level
    */
   private async runInputGuardrails(
     agent: Agent<TContext, any>,
@@ -356,32 +511,215 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
     const contextWrapper = this.getContextWrapper(agent, state);
 
-    for (const guardrail of guardrails) {
-      const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
-      if (!result.passed) {
-        throw new Error(`Input guardrail "${guardrail.name}" failed: ${result.message}`);
+    // Create parent span for all input guardrails at TRACE level
+    const guardrailsSpan = state.trace?.span({
+      name: 'Input Guardrails',
+      metadata: {
+        type: 'input',
+        guardrailCount: guardrails.length,
+        agentName: agent.name
       }
+    });
+
+    try {
+      for (const guardrail of guardrails) {
+        // Create individual guardrail span under guardrailsSpan
+        const guardrailSpan = guardrailsSpan?.span({
+          name: `Guardrail: ${guardrail.name}`,
+          input: { 
+            content: lastUserMessage.content.substring(0, 200),
+            type: 'input'
+          },
+          metadata: {
+            guardrailName: guardrail.name,
+            guardrailType: 'input',
+            agentName: agent.name
+          }
+        });
+        
+        try {
+          const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
+          
+          if (guardrailSpan) {
+            guardrailSpan.end({
+              output: {
+                passed: result.passed,
+                message: result.message
+              },
+              level: result.passed ? 'DEFAULT' : 'WARNING'
+            });
+          }
+          
+          if (!result.passed) {
+            console.error(`❌ Input guardrail "${guardrail.name}" failed: ${result.message}`);
+            if (guardrailsSpan) guardrailsSpan.end({ level: 'ERROR' });
+            throw new Error(`Input guardrail "${guardrail.name}" failed: ${result.message}`);
+          }
+          
+          console.log(`✅ Input guardrail "${guardrail.name}" passed`);
+        } catch (error) {
+          if (guardrailSpan) {
+            guardrailSpan.end({
+              output: { error: String(error) },
+              level: 'ERROR'
+            });
+          }
+          throw error;
+        }
+      }
+      
+      // Close parent guardrails span
+      if (guardrailsSpan) {
+        guardrailsSpan.end({
+          output: { allPassed: true },
+          metadata: { totalChecks: guardrails.length }
+        });
+      }
+    } catch (error) {
+      if (guardrailsSpan) guardrailsSpan.end({ level: 'ERROR' });
+      throw error;
     }
   }
 
   /**
-   * Run output guardrails
+   * Run output guardrails with retry mechanism and tracing at TRACE level
+   * Returns specific, actionable feedback when validation fails
    */
   private async runOutputGuardrails(
     agent: Agent<TContext, any>,
     state: RunState<TContext, any>,
     output: string
-  ): Promise<void> {
+  ): Promise<{ passed: boolean; feedback?: string }> {
     const guardrails = agent._guardrails.filter((g) => g.type === 'output');
-    if (guardrails.length === 0) return;
+    if (guardrails.length === 0) return { passed: true };
 
     const contextWrapper = this.getContextWrapper(agent, state);
 
-    for (const guardrail of guardrails) {
-      const result = await guardrail.validate(output, contextWrapper);
-      if (!result.passed) {
-        throw new Error(`Output guardrail "${guardrail.name}" failed: ${result.message}`);
+    // Create parent span for all output guardrails at TRACE level
+    const guardrailsSpan = state.trace?.span({
+      name: 'Output Guardrails',
+      metadata: {
+        type: 'output',
+        guardrailCount: guardrails.length,
+        agentName: agent.name,
+        outputLength: output.length
       }
+    });
+
+    for (const guardrail of guardrails) {
+      // Create individual guardrail span under guardrailsSpan
+      const guardrailSpan = guardrailsSpan?.span({
+        name: `Guardrail: ${guardrail.name}`,
+        input: { 
+          content: output.substring(0, 200),
+          type: 'output',
+          fullLength: output.length
+        },
+        metadata: {
+          guardrailName: guardrail.name,
+          guardrailType: 'output',
+          agentName: agent.name
+        }
+      });
+      
+      try {
+        const result = await guardrail.validate(output, contextWrapper);
+        
+        if (guardrailSpan) {
+          guardrailSpan.end({
+            output: {
+              passed: result.passed,
+              message: result.message,
+              willRetry: !result.passed
+            },
+            level: result.passed ? 'DEFAULT' : 'WARNING'
+          });
+        }
+        
+        if (!result.passed) {
+          // Generate ACTIONABLE feedback based on guardrail type
+          let actionableFeedback = result.message || 'Validation failed';
+          
+          // Make feedback specific and actionable
+          if (guardrail.name === 'length_check' || result.message?.includes('too long')) {
+            // Extract max length from message if possible
+            const maxMatch = result.message?.match(/max[:\s]+(\d+)/i);
+            const maxLength = maxMatch ? parseInt(maxMatch[1]) : 1500;
+            const currentLength = output.length;
+            const reduction = Math.round(((currentLength - maxLength) / currentLength) * 100);
+            
+            actionableFeedback = `Your response is too long (${currentLength} characters, max: ${maxLength}). Please CONDENSE your existing response to be ${reduction}% shorter. Keep all key points but make it more concise. DO NOT fetch more data - just summarize what you already have.`;
+          } else if (guardrail.name === 'pii_check' || result.message?.includes('PII')) {
+            actionableFeedback = `Your response contains personally identifiable information (PII). Please rewrite your response without including any personal data, email addresses, phone numbers, or sensitive information.`;
+          } else if (result.message?.includes('profanity') || result.message?.includes('inappropriate')) {
+            actionableFeedback = `Your response contains inappropriate content. Please rewrite your response using professional and appropriate language.`;
+          } else if (result.message?.includes('format')) {
+            actionableFeedback = `Your response format is invalid. ${result.message}. Please reformat your response to match the required structure.`;
+          } else {
+            // Generic actionable feedback
+            actionableFeedback = `Your response failed validation: ${result.message}. Please revise your response to address this issue without fetching additional data.`;
+          }
+          
+          console.warn(`⚠️  Output guardrail "${guardrail.name}" failed: ${result.message}`);
+          if (guardrailsSpan) {
+            guardrailsSpan.end({ 
+              output: { 
+                someFailed: true,
+                feedback: actionableFeedback 
+              },
+              level: 'WARNING' 
+            });
+          }
+          
+          return { 
+            passed: false, 
+            feedback: actionableFeedback
+          };
+        }
+        
+        console.log(`✅ Output guardrail "${guardrail.name}" passed`);
+      } catch (error) {
+        if (guardrailSpan) {
+          guardrailSpan.end({
+            output: { error: String(error) },
+            level: 'ERROR'
+          });
+        }
+        // Return error as feedback
+        if (guardrailsSpan) guardrailsSpan.end({ level: 'ERROR' });
+        return {
+          passed: false,
+          feedback: `Guardrail check failed: ${String(error)}. Please regenerate your response.`
+        };
+      }
+    }
+    
+    // Close parent guardrails span
+    if (guardrailsSpan) {
+      guardrailsSpan.end({
+        output: { allPassed: true },
+        metadata: { totalChecks: guardrails.length }
+      });
+    }
+    
+    return { passed: true };
+  }
+
+  /**
+   * Flush Langfuse traces to ensure they're sent
+   */
+  private async flushTraces(): Promise<void> {
+    if (!isLangfuseEnabled()) return;
+    
+    try {
+      const langfuse = getLangfuse();
+      if (langfuse) {
+        console.log('🔄 Flushing Langfuse traces...');
+        await langfuse.flushAsync();
+        console.log('✅ Langfuse traces flushed');
+      }
+    } catch (error) {
+      console.error('❌ Failed to flush Langfuse traces:', error);
     }
   }
 }

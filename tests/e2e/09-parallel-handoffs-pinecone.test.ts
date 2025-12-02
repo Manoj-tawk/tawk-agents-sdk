@@ -186,7 +186,7 @@ Be fast and decisive. Route immediately without hesitation.`,
       },
     }),
   },
-  handoffs: [], // Will be set after other agents are created
+  subagents: [], // Will be set after other agents are created
   useTOON: true,
 });
 
@@ -199,7 +199,7 @@ Be fast and decisive. Route immediately without hesitation.`,
 const knowledgeAgent = new Agent({
   name: 'Knowledge',
   // Claude 3.5 Sonnet - Best for RAG synthesis and complex reasoning
-  model: anthropic('claude-3-5-sonnet-20241022'),
+  model: openai('gpt-4o-mini'),
   modelSettings: {
     temperature: 0,
   },
@@ -227,10 +227,10 @@ CRITICAL: Complete the entire workflow in minimal turns. Be fast and efficient.`
     searchKnowledgeBase: pineconeSearchTool,
   },
   guardrails: [
-    lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
+    lengthGuardrail({ type: 'output', maxLength: 2500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no transfers
   useTOON: true,
 });
 
@@ -301,7 +301,7 @@ CRITICAL: Execute tools and generate direct response. No handoffs needed.`,
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no transfers
   useTOON: true,
 });
 
@@ -372,12 +372,12 @@ CRITICAL: Generate direct escalation response. No handoffs needed.`,
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no transfers
   useTOON: true,
 });
 
 // Configure handoff chain: Triage → [Knowledge | Action | Escalation]
-triageAgent.handoffs = [knowledgeAgent, actionAgent, escalationAgent];
+triageAgent.subagents = [knowledgeAgent, actionAgent, escalationAgent];
 
 // ============================================
 // ORCHESTRATION FUNCTION
@@ -407,7 +407,7 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
   console.log('🚀 Starting Multi-Agent RAG with Pinecone - Intelligent Triage & Direct Response\n');
 
   // Multi-agent workflow: Triage → [Knowledge | Action | Escalation] → Direct Response
-  const result = await run(triageAgent, query, { maxTurns: 4 });
+  const result = await run(triageAgent, query, { maxTurns: 10 });
 
   // Extract handoff chain from metadata
   const handoffChain = result.metadata.handoffChain || [];

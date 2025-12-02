@@ -162,6 +162,21 @@ export function createContextualSpan(
 }
 
 /**
+ * Run function within trace context
+ * This ensures all spans created inside are nested under the trace
+ */
+export async function runWithTraceContext<T>(
+  trace: any,
+  fn: () => Promise<T>
+): Promise<T> {
+  if (!trace) {
+    return await fn();
+  }
+  
+  return await traceStorage.run({ trace, span: null }, fn);
+}
+
+/**
  * Create a generation in the current context
  * 
  * Automatically nests under current span or trace
