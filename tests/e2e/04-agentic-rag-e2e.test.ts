@@ -495,7 +495,7 @@ CRITICAL: Generate direct escalation response. No handoffs needed.`,
 });
 
 // Configure handoff chain: Triage → [Knowledge | Action | Escalation]
-triageAgent.handoffs = [knowledgeAgent, actionAgent, escalationAgent];
+triageAgent.subagents = [knowledgeAgent, actionAgent, escalationAgent];
 
 // ============================================
 // ORCHESTRATION FUNCTION

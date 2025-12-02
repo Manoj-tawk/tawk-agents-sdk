@@ -257,7 +257,7 @@ export async function example4_MultiAgentHandoffs() {
     instructions: 'You are a triage agent. Route users to sales for pricing questions, support for technical issues.',
   });
   
-  triageAgent.handoffs = [salesAgent, supportAgent];
+  triageAgent.subagents = [salesAgent, supportAgent];
   
   const result = await run(triageAgent, 'I need help with pricing', { maxTurns: 10 });
   console.log('Response:', result.finalOutput);

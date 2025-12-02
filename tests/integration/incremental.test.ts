@@ -341,7 +341,7 @@ async function main() {
       }
     });
     
-    triage.handoffs = [specialist];
+    triage.subagents = [specialist];
     
     const result = await run(triage, 'Search for "test" and get it analyzed', { maxTurns: 12 });
     console.log('   Response:', result.finalOutput.substring(0, 80));
@@ -498,9 +498,9 @@ async function main() {
       instructions: 'You are the initiator. Transfer to validator agent.',
     });
     
-    agentA.handoffs = [agentB];
-    agentB.handoffs = [agentC];
-    agentC.handoffs = [agentD];
+    agentA.subagents = [agentB];
+    agentB.subagents = [agentC];
+    agentC.subagents = [agentD];
     
     const result = await run(agentA, 'Start the workflow', { maxTurns: 20 });
     console.log('   Response:', result.finalOutput.substring(0, 80));
@@ -847,7 +847,7 @@ async function main() {
       instructions: 'Route tasks based on complexity. Transfer to complex-handler for complex tasks, simple-handler for simple tasks.',
     });
     
-    router1.handoffs = [complexAgent, simpleAgent];
+    router1.subagents = [complexAgent, simpleAgent];
     
     // Test with complex task
     const result1 = await run(router1, 'Handle this complex task', {
@@ -863,7 +863,7 @@ async function main() {
       instructions: 'Route tasks based on complexity. Transfer to complex-handler for complex tasks, simple-handler for simple tasks.',
     });
     
-    router2.handoffs = [complexAgent, simpleAgent];
+    router2.subagents = [complexAgent, simpleAgent];
     
     // Test with simple task
     const result2 = await run(router2, 'Handle this simple task', {

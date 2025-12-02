@@ -101,8 +101,8 @@ async function example2_AutonomousHandoffs() {
   });
 
   // Configure handoffs
-  researchAgent.handoffs = [analysisAgent];
-  analysisAgent.handoffs = [reportAgent];
+  researchAgent.subagents = [analysisAgent];
+  analysisAgent.subagents = [reportAgent];
 
   const result = await run(researchAgent, 'Research and analyze AI safety');
 
