@@ -60,7 +60,7 @@ async function test06() {
       tools: {
         search: tool({
           description: 'Search for information',
-          parameters: z.object({
+          inputSchema: z.object({
             query: z.string(),
           }),
           execute: async ({ query }) => {
@@ -88,7 +88,7 @@ async function test06() {
     const coordinator = new Agent({
       name: 'Coordinator',
       instructions: 'Coordinate with specialists.',
-      handoffs: [specialist],
+      subagents: [specialist],
     });
 
     const result3 = await run(coordinator, 'Complex task', { maxTurns: 10 });

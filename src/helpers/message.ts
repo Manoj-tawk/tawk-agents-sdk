@@ -1,9 +1,26 @@
 /**
- * Message Helper Functions
- * 
- * Utilities for creating and manipulating messages across different AI providers.
+ * Message Helper Utilities
  * 
  * @module helpers/message
+ * @description
+ * Production-ready utilities for creating and manipulating AI messages.
+ * 
+ * **Features**:
+ * - Type-safe message creation
+ * - Multi-provider compatibility
+ * - Message filtering and extraction
+ * - Content manipulation utilities
+ * - Zero overhead abstractions
+ * 
+ * **Supported Message Types**:
+ * - User messages
+ * - Assistant messages
+ * - System messages
+ * - Tool messages
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import type { ModelMessage } from 'ai';

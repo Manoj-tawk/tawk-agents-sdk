@@ -8,7 +8,7 @@ Key features and capabilities of Tawk Agents SDK.
 
 - **Agent Creation** - Define agents with name, instructions, and model
 - **Multi-Agent Support** - Coordinate multiple specialized agents
-- **Agent Handoffs** - Seamless transfer between agents
+- **Agent Transfers** - Seamless transfer between agents
 - **Dynamic Instructions** - Function-based instructions with context
 - **Model Configuration** - Temperature, max tokens, top-p settings
 
@@ -33,7 +33,7 @@ Key features and capabilities of Tawk Agents SDK.
 Generate embeddings for semantic search:
 
 ```typescript
-import { generateEmbeddingAI, createEmbeddingTool } from '@tawk-agents-sdk/core';
+import { generateEmbeddingAI, createEmbeddingTool } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 // Single embedding
@@ -61,7 +61,7 @@ const agent = new Agent({
 Generate images from text:
 
 ```typescript
-import { createImageGenerationTool } from '@tawk-agents-sdk/core';
+import { createImageGenerationTool } from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -79,7 +79,7 @@ Transcription and text-to-speech:
 import { 
   createTranscriptionTool,
   createTextToSpeechTool 
-} from '@tawk-agents-sdk/core';
+} from 'tawk-agents-sdk';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -95,12 +95,31 @@ const agent = new Agent({
 Improve search relevance:
 
 ```typescript
-import { createRerankTool } from '@tawk-agents-sdk/core';
+import { createRerankTool } from 'tawk-agents-sdk';
 import { cohere } from '@ai-sdk/cohere';
 
 const agent = new Agent({
   tools: {
     rerank: createRerankTool(cohere.reranking('rerank-v3.5'))
+  }
+});
+```
+
+### RAG Tools
+
+Search Pinecone vector database:
+
+```typescript
+import { createPineconeSearchTool } from 'tawk-agents-sdk';
+import { openai } from '@ai-sdk/openai';
+
+const agent = new Agent({
+  tools: {
+    search: createPineconeSearchTool({
+      indexUrl: process.env.PINECONE_INDEX_URL!,
+      apiKey: process.env.PINECONE_API_KEY!,
+      embeddingModel: openai.embedding('text-embedding-3-small')
+    })
   }
 });
 ```
@@ -118,7 +137,7 @@ import {
   lengthGuardrail,
   languageGuardrail,
   customGuardrail
-} from '@tawk-agents-sdk/core';
+} from 'tawk-agents-sdk';
 
 // Guardrails are configured in AgentConfig
 const agent = new Agent({
@@ -154,6 +173,19 @@ const agent = new Agent({
           message: 'Service only available 9 AM - 5 PM'
         };
       }
+    }),
+    // Topic Relevance
+    topicRelevanceGuardrail({
+      type: 'output',
+      model: openai('gpt-4o-mini'),
+      allowedTopics: ['technical support', 'programming'],
+      threshold: 7
+    }),
+    // Toxicity Check
+    toxicityGuardrail({
+      type: 'input',
+      model: openai('gpt-4o-mini'),
+      threshold: 5
     })
   ]
 });
@@ -171,7 +203,7 @@ const result = await run(agent, input);
 - **HybridSession** - Redis + MongoDB (production)
 
 ```typescript
-import { RedisSession, DatabaseSession, HybridSession } from '@tawk-agents-sdk/core';
+import { RedisSession, DatabaseSession, HybridSession } from 'tawk-agents-sdk';
 
 // Redis
 const redisSession = new RedisSession('user-123', {
@@ -204,7 +236,7 @@ const hybridSession = new HybridSession('user-123', {
 Track all agent interactions:
 
 ```typescript
-import { initializeLangfuse } from '@tawk-agents-sdk/core';
+import { initializeLangfuse } from 'tawk-agents-sdk';
 
 // Initialize once at app startup
 initializeLangfuse({
@@ -229,7 +261,7 @@ View in Langfuse dashboard:
 Run multiple agents in parallel, use fastest response:
 
 ```typescript
-import { raceAgents } from '@tawk-agents-sdk/core';
+import { raceAgents } from 'tawk-agents-sdk';
 
 const result = await raceAgents(
   [fastAgent, smartAgent, cheapAgent],
@@ -241,7 +273,7 @@ console.log(`Winner: ${result.winningAgent.name}`);
 console.log(result.finalOutput);
 ```
 
-### Agent Handoffs
+### Agent Transfers
 
 Coordinate specialized agents:
 
@@ -250,7 +282,7 @@ const coordinator = new Agent({
   name: 'coordinator',
   model: openai('gpt-4o'),
   instructions: 'You coordinate between agents.',
-  handoffs: [researchAgent, writerAgent, editorAgent]
+  subagents: [researchAgent, writerAgent, editorAgent]
 });
 
 // Automatically routes to the right agent
@@ -290,7 +322,7 @@ const result = await run(agent, 'Get 100 records');
 **Manual TOON encoding** (for custom use cases):
 
 ```typescript
-import { encodeTOON, decodeTOON } from '@tawk-agents-sdk/core';
+import { encodeTOON, decodeTOON } from 'tawk-agents-sdk';
 
 const data = { users: [{ id: 1, name: 'Alice' }] };
 const toon = encodeTOON(data); // 42% smaller than JSON
@@ -307,14 +339,14 @@ const decoded = decodeTOON(toon);
 - **18-33% token reduction** in most scenarios
 - **10-20% faster latency** in most scenarios
 - **Automatic encoding/decoding** (no code changes needed)
-- **Handoff-safe** - handoff markers preserved
+- **Transfer-safe** - transfer markers preserved
 
 ### MCP Integration
 
 Use Model Context Protocol tools:
 
 ```typescript
-import { registerMCPServer, getMCPTools, getGlobalMCPManager } from '@tawk-agents-sdk/core';
+import { registerMCPServer, getMCPTools, getGlobalMCPManager } from 'tawk-agents-sdk';
 
 await registerMCPServer({
   name: 'filesystem',
@@ -340,7 +372,7 @@ const agent = new Agent({
 Require approval for critical actions:
 
 ```typescript
-import { createCLIApprovalHandler, getGlobalApprovalManager } from '@tawk-agents-sdk/core';
+import { createCLIApprovalHandler, getGlobalApprovalManager } from 'tawk-agents-sdk';
 
 const agent = new Agent({
   name: 'approval-agent',
@@ -349,7 +381,7 @@ const agent = new Agent({
   tools: {
     deleteFile: {
       description: 'Delete a file (requires approval)',
-      parameters: z.object({ path: z.string() }),
+      inputSchema: z.object({ path: z.string() }),
       execute: async ({ path }) => {
         const approvalManager = getGlobalApprovalManager();
         const approved = await approvalManager.requestApproval(

@@ -80,12 +80,12 @@ const agent = new Agent({
 - **18-33% token reduction** in most scenarios
 - **10-20% faster latency** in most scenarios
 - **Zero code changes** - automatic encoding/decoding
-- **Handoff-safe** - handoff markers preserved
+- **Transfer-safe** - transfer markers preserved
 
 **Manual TOON encoding** (for custom use cases):
 
 ```typescript
-import { encodeTOON } from '@tawk-agents-sdk/core';
+import { encodeTOON } from 'tawk-agents-sdk';
 
 const agent = new Agent({
   tools: {
@@ -305,7 +305,7 @@ const result = await run(agent, 'Hello', { session });
 **What gets converted:**
 - ✅ Session history (`ModelMessage[]` → `ModelMessage[]`)
 - ✅ Tool results (already `ModelMessage[]` compatible)
-- ✅ Handoff messages (preserved as `ModelMessage[]`)
+- ✅ Transfer messages (preserved as `ModelMessage[]`)
 - ✅ User input (already `ModelMessage[]`)
 
 **No action required** - conversion happens automatically in `prepareMessages()`.

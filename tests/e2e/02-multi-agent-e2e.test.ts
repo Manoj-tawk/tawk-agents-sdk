@@ -47,7 +47,7 @@ async function test1_MultiAgentHandoff() {
   const coordinator = new Agent({
     name: 'Coordinator',
     instructions: 'You coordinate tasks. For math questions, hand off to the Math Specialist.',
-    handoffs: [mathAgent],
+    subagents: [mathAgent],
   });
 
   const result = await run(coordinator, 'Calculate 123 * 456 and explain the result');

@@ -1,7 +1,32 @@
 /**
- * Session Implementations
+ * Session Management System
  * 
- * Provides automatic conversation history management across agent runs.
+ * @module sessions
+ * @description
+ * Production-ready conversation history and state management.
+ * 
+ * **Session Types**:
+ * - **MemorySession**: In-memory storage for development/testing
+ * - **RedisSession**: Persistent Redis storage for production
+ * - **SessionManager**: Centralized session lifecycle management
+ * 
+ * **Features**:
+ * - Automatic conversation history tracking
+ * - Message windowing for token optimization
+ * - Metadata storage for context persistence
+ * - TTL support for automatic cleanup
+ * - Thread-safe operations
+ * - Comprehensive error handling
+ * 
+ * **Use Cases**:
+ * - Multi-turn conversations
+ * - User context preservation
+ * - Distributed systems (via Redis)
+ * - Long-running agent workflows
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import type {  ModelMessage } from 'ai';
@@ -109,16 +134,12 @@ export class MemorySession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📝 [Memory] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
-      }
-      
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
-    } catch (error: any) {
+    } catch (_error: any) {
       if (process.env.NODE_ENV === 'development') {
-        console.error(`⚠️  [Memory] Summarization failed: ${error.message}`);
+        // Summarization failed, keep existing state
       }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {
@@ -382,16 +403,12 @@ export class RedisSession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📝 [Redis] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
-      }
-      
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
-    } catch (error: any) {
+    } catch (_error: any) {
       if (process.env.NODE_ENV === 'development') {
-        console.error(`⚠️  [Redis] Summarization failed: ${error.message}`);
+        // Summarization failed, keep existing state
       }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {
@@ -684,16 +701,12 @@ export class DatabaseSession<TContext = any> implements Session<TContext> {
         content: `Previous conversation summary:\n${newSummary}`
       };
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📝 [MongoDB] Summarized ${toSummarize.length} messages (${newSummary.length} chars)`);
-      }
-      
       // Return: [summary, recent messages]
       return [summaryMessage, ...recentMessages];
       
-    } catch (error: any) {
+    } catch (_error: any) {
       if (process.env.NODE_ENV === 'development') {
-        console.error(`⚠️  [MongoDB] Summarization failed: ${error.message}`);
+        // Summarization failed, keep existing state
       }
       // Fallback to sliding window
       if (this.maxMessages && messages.length > this.maxMessages) {

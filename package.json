@@ -1,7 +1,7 @@
 {
   "name": "tawk-agents-sdk",
   "version": "1.0.0",
-  "description": "Production-ready AI agent framework with multi-agent orchestration, tool calling, guardrails, and observability.",
+  "description": "Production-ready AI agent framework with true agentic architecture, multi-agent orchestration, dynamic HITL approvals, native MCP integration, and full observability.",
   "author": "Tawk.to <support@tawk.to>",
   "license": "MIT",
   "repository": {
@@ -12,6 +12,7 @@
   "bugs": {
     "url": "https://github.com/Manoj-tawk/tawk-agents-sdk/issues"
   },
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -29,19 +30,29 @@
   "keywords": [
     "ai",
     "agents",
+    "agentic",
+    "multi-agent",
+    "agent-framework",
     "openai",
     "anthropic",
     "google",
+    "groq",
     "langfuse",
     "mcp",
+    "model-context-protocol",
     "vercel-ai-sdk",
-    "multi-agent",
-    "agent-framework",
     "typescript",
     "production-ready",
     "tracing",
+    "observability",
     "guardrails",
-    "human-in-the-loop"
+    "human-in-the-loop",
+    "hitl",
+    "approvals",
+    "tool-calling",
+    "parallel-execution",
+    "handoffs",
+    "streaming"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -74,9 +85,9 @@
     "docker:down": "docker-compose down -v",
     "docker:logs": "docker-compose logs -f",
     "example": "ts-node examples/complete-examples.ts",
-    "lint": "eslint src tests --ext .ts",
+    "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublish": "npm run build && npm test"
   },
   "dependencies": {
     "@ai-sdk/groq": "^2.0.29",

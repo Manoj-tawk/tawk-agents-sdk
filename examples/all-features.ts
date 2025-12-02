@@ -104,7 +104,7 @@ export async function example1_BasicAgent() {
  *   tools: {
  *     calculator: tool({
  *       description: 'Perform calculations',
- *       parameters: z.object({ expression: z.string() }),
+ *       inputSchema: z.object({ expression: z.string() }),
  *       execute: async ({ expression }) => eval(expression)
  *     })
  *   }
@@ -219,7 +219,7 @@ export async function example3_ContextInjection() {
 // ============================================
 
 /**
- * Example 4: Multi-Agent Handoffs
+ * Example 4: Multi-Agent Transfers
  * 
  * Shows how to create a multi-agent system where one agent can
  * delegate tasks to specialized agents.
@@ -228,12 +228,12 @@ export async function example3_ContextInjection() {
  * ```typescript
  * const specialist = new Agent({
  *   name: 'specialist',
- *   handoffDescription: 'Expert in specific domain'
+ *   transferDescription: 'Expert in specific domain'
  * });
  * 
  * const coordinator = new Agent({
  *   name: 'coordinator',
- *   handoffs: [specialist]
+ *   subagents: [specialist]
  * });
  * ```
  */
@@ -257,7 +257,7 @@ export async function example4_MultiAgentHandoffs() {
     instructions: 'You are a triage agent. Route users to sales for pricing questions, support for technical issues.',
   });
   
-  triageAgent.handoffs = [salesAgent, supportAgent];
+  triageAgent.subagents = [salesAgent, supportAgent];
   
   const result = await run(triageAgent, 'I need help with pricing', { maxTurns: 10 });
   console.log('Response:', result.finalOutput);

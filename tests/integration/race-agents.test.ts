@@ -180,7 +180,7 @@ async function testRaceWithTools() {
 
   const calculator = {
     description: 'Calculate math expressions',
-    parameters: z.object({
+    inputSchema: z.object({
       expression: z.string(),
     }),
     execute: async ({ expression }: any) => {

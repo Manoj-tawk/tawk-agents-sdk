@@ -1,12 +1,36 @@
 /**
- * Langfuse Tracing Integration for Tawk Agents SDK
+ * Langfuse Tracing Integration
  * 
- * @module langfuse
+ * @module lifecycle/langfuse
+ * @description
+ * Enterprise-grade observability and tracing for AI agents.
+ * 
+ * **Features**:
+ * - End-to-end trace visualization
+ * - Agent execution tracking
+ * - Tool call monitoring
+ * - LLM generation tracing
+ * - Guardrail execution tracking
+ * - Token usage analytics
+ * - Cost tracking
+ * - Performance metrics
+ * 
+ * **Trace Hierarchy**:
+ * ```
+ * Trace (Agent Run)
+ * ├── Agent Span (Coordinator)
+ * │   ├── Generation (LLM Call)
+ * │   └── Tool Span (Tool Execution)
+ * └── Agent Span (Specialist)
+ *     ├── Guardrail Span (Input Validation)
+ *     ├── Generation (LLM Call)
+ *     └── Guardrail Span (Output Validation)
+ * ```
+ * 
+ * @see {@link https://langfuse.com Langfuse Documentation}
  * @author Tawk.to
  * @license MIT
- * 
- * Provides automatic tracing and observability for agent interactions
- * using Langfuse (https://langfuse.com)
+ * @version 2.0.0
  */
 
 import { Langfuse } from 'langfuse';
@@ -41,14 +65,13 @@ export function initializeLangfuse(): Langfuse | null {
       publicKey,
       secretKey,
       baseUrl,
-      flushAt: 1,
+      flushAt: 1, // Flush immediately for testing
+      flushInterval: 1000, // Flush every 1 second
       requestTimeout: 10000,
     });
 
     isEnabled = true;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Langfuse tracing initialized:', baseUrl);
-    }
+    console.log('✅ Langfuse tracing initialized:', baseUrl);
     return langfuseInstance;
   } catch (error) {
     console.error('❌ Failed to initialize Langfuse:', error);

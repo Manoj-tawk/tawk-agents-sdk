@@ -1,427 +1,212 @@
 # 📚 Tawk Agents SDK - Examples
 
-Production-ready examples demonstrating all features of the Tawk Agents SDK.
+Complete collection of examples demonstrating all features of the SDK, organized from basic to advanced.
 
----
-
-## 📁 Directory Structure
-
-```
-examples/
-├── README.md                 # This file
-├── STRUCTURE.md              # Structure documentation
-├── run.ts                    # Example runner script
-├── all-features.ts           # Comprehensive reference (all 15 examples)
-│
-├── basic/                    # Beginner-friendly examples (coming soon)
-├── intermediate/             # Intermediate examples (coming soon)
-│
-├── advanced/                 # Advanced examples
-│   ├── 09-embeddings-rag.ts # Embeddings & RAG system
-│   ├── 10-vision.ts         # Vision and image analysis
-│   └── 11-toon-format.ts    # TOON format for efficiency
-│
-├── production/              # Production-ready examples
-│   ├── ecommerce-system.ts  # Complete e-commerce system
-│   └── complete-showcase.ts # Complete feature showcase
-│
-└── utils/                   # Shared utilities
-    ├── config.ts           # Configuration management
-    ├── errors.ts           # Error handling
-    ├── logger.ts           # Logging utilities
-    └── index.ts            # Exports
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
+## 🎯 Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your API keys
-```
+# Run any example
+npx tsx 01-basic/01-simple-agent.ts
 
-### 2. Run Examples
-
-```bash
-# Run all examples
-npx tsx examples/run.ts
-
-# Run specific category
-npx tsx examples/run.ts --category advanced
-npx tsx examples/run.ts --category production
-
-# Run specific example
-npx tsx examples/run.ts --example 09-embeddings-rag
-npx tsx examples/run.ts --example ecommerce-system
-
-# Run with verbose logging
-npx tsx examples/run.ts --verbose
-```
-
-### 3. Run Individual Examples
-
-```bash
-# Advanced examples
-npx tsx examples/advanced/09-embeddings-rag.ts
-npx tsx examples/advanced/10-vision.ts
-npx tsx examples/advanced/11-toon-format.ts
-
-# Production examples
-npx tsx examples/production/ecommerce-system.ts
-npx tsx examples/production/complete-showcase.ts
-
-# Comprehensive reference
-npx tsx examples/all-features.ts
-npx tsx examples/all-features.ts "basic-agent"
+# Or use the universal runner
+npx tsx run.ts 01
 ```
 
 ---
 
-## 📖 Available Examples
+## 📖 Examples by Level
 
-### 🎯 Comprehensive Reference
+### 01-basic/ - Getting Started
 
-**`all-features.ts`** - Complete reference with 15 examples covering all features:
-- Basic Agent
-- Agent with Tools
-- Context Injection
-- Multi-Agent Handoffs
-- Streaming
-- Session Management
-- Guardrails
-- Structured Output
-- Embeddings
-- Image Generation
-- Reranking
-- Race Agents
-- TOON Format
-- Dynamic Instructions
-- Dynamic Tool Enabling
+Perfect for beginners. Learn the fundamentals.
 
-**Usage:**
-```bash
-# Run all examples
-npx tsx examples/all-features.ts
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **01-simple-agent.ts** | Basic conversational agent | Agent creation, run() |
+| **02-agent-with-tools.ts** | Adding capabilities | Tools, parallel execution |
+| **03-multi-agent.ts** | Agent coordination | Handoffs, specialization |
+| **04-sessions.ts** | Conversation memory | Sessions, context |
 
-# Run specific example
-npx tsx examples/all-features.ts "basic-agent"
-npx tsx examples/all-features.ts "multi-agent-handoffs"
-```
+### 02-intermediate/ - Core Features
 
-### 🔴 Advanced Examples
+Intermediate features for production apps.
 
-#### 09-embeddings-rag.ts
-**Embeddings & RAG System**
-- Generate embeddings for documents
-- Semantic similarity search
-- Complete RAG system
-- Embedding tools for agents
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **05-guardrails.ts** | Safety and validation | Input/output guardrails |
+| **06-streaming.ts** | Real-time responses | Streaming, events |
+| **07-tracing.ts** | Observability | Langfuse, debugging |
 
-**Run:**
-```bash
-npx tsx examples/advanced/09-embeddings-rag.ts
-```
+### 03-advanced/ - Advanced Features
 
-#### 10-vision.ts
-**Vision and Image Analysis**
-- Image analysis with GPT-4o
-- Multimodal understanding
-- Structured data extraction from images
+Advanced patterns and integrations.
 
-**Run:**
-```bash
-npx tsx examples/advanced/10-vision.ts
-```
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **09-embeddings-rag.ts** | Semantic search | Embeddings, RAG |
+| **10-vision.ts** | Image understanding | Vision models, multimodal |
+| **11-toon-format.ts** | Token optimization | TOON format, efficiency |
+| **12-mcp-integration.ts** | Model Context Protocol | MCP servers, tool discovery |
+| **13-dynamic-approvals.ts** | Human-in-the-loop | Approvals, safety |
+| **14-multi-agent-research.ts** | Complex coordination | Research patterns |
 
-**Note:** Requires actual image URLs to test vision features.
+### 04-production/ - Production Ready
 
-#### 11-toon-format.ts
-**TOON Format for Efficiency**
-- TOON encoding/decoding
-- Token savings comparison (40%+ reduction)
-- Real-world use cases
-- Database query results
+Complete production-ready systems.
 
-**Run:**
-```bash
-npx tsx examples/advanced/11-toon-format.ts
-```
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **15-ecommerce-system.ts** | E-commerce assistant | Full system, workflows |
+| **16-complete-showcase.ts** | All features | Comprehensive demo |
 
-### 🏭 Production Examples
+### 05-patterns/ - Design Patterns
 
-#### ecommerce-system.ts
-**Complete E-commerce System**
-- Multi-agent orchestration
-- Session management (Redis, MongoDB, Hybrid)
-- Agent as tool pattern
-- Complete shopping workflow
+Proven agentic patterns and architectures.
 
-**Run:**
-```bash
-npx tsx examples/production/ecommerce-system.ts
-```
-
-**Note:** Some examples require Redis/MongoDB setup.
-
-#### complete-showcase.ts
-**Complete Feature Showcase**
-- All SDK features in one script
-- Production-ready patterns
-- Usage tracking
-- Error handling
-- Complete workflow
-
-**Run:**
-```bash
-npx tsx examples/production/complete-showcase.ts
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file in the project root:
-
-```bash
-# Required
-OPENAI_API_KEY=sk-...
-
-# Optional - for other providers
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-COHERE_API_KEY=...
-
-# Optional - for sessions
-REDIS_URL=redis://localhost:6379
-MONGODB_URI=mongodb://localhost:27017
-
-# Optional - for tracing
-LANGFUSE_PUBLIC_KEY=pk-...
-LANGFUSE_SECRET_KEY=sk-...
-LANGFUSE_HOST=https://cloud.langfuse.com
-
-# Optional - model overrides
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-```
-
-### Configuration Management
-
-All examples use centralized configuration:
-
-```typescript
-import { getExampleConfig, validateConfig } from '../utils';
-
-const config = getExampleConfig();
-validateConfig(config, ['openai']); // Check required config
-```
-
----
-
-## 🛠️ Utilities
-
-### Error Handling
-
-Consistent error handling across all examples:
-
-```typescript
-import { handleError, isAPIKeyError } from '../utils/errors';
-
-try {
-  // Your code
-} catch (error) {
-  if (isAPIKeyError(error)) {
-    handleError(error, 'API call');
-  } else {
-    handleError(error);
-  }
-}
-```
-
-### Logging
-
-Structured logging:
-
-```typescript
-import { logger } from '../utils/logger';
-
-logger.info('Starting example');
-logger.success('Example completed');
-logger.warn('Warning message');
-logger.error('Error message');
-logger.section('Section Title');
-logger.step(1, 'Step Title');
-```
-
----
-
-## 📋 Prerequisites
-
-### Required Dependencies
-
-```bash
-# Clone and install dependencies
-git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
-cd tawk-agents-sdk
-npm install
-```
-
-### Optional Dependencies
-
-```bash
-# For Anthropic models
-npm install @ai-sdk/anthropic
-
-# For Google models
-npm install @ai-sdk/google
-
-# For Cohere reranking
-npm install @ai-sdk/cohere
-
-# For Redis sessions
-npm install ioredis
-
-# For MongoDB sessions
-npm install mongodb
-```
-
----
-
-## 💡 Best Practices
-
-1. **Start with all-features.ts** - Comprehensive reference for all features
-2. **Use Environment Variables** - Never hardcode API keys
-3. **Handle Errors Gracefully** - Use error utilities
-4. **Monitor Usage** - Track tokens and costs
-5. **Use Logging** - Consistent logging across examples
-6. **Follow Structure** - Use the organized directory structure
-7. **Test Examples** - Verify examples work before sharing
+| File | Description | Key Concepts |
+|------|-------------|--------------|
+| **17-agentic-patterns.ts** | Agentic design patterns | Architecture, best practices |
 
 ---
 
 ## 🎓 Learning Path
 
-### For Beginners
+### Beginner Path (30 minutes)
+1. 01-simple-agent.ts → Learn basic agent creation
+2. 02-agent-with-tools.ts → Add capabilities
+3. 03-multi-agent.ts → Agent coordination
+4. 04-sessions.ts → Add memory
 
-1. Start with `all-features.ts` - Run individual examples
-2. Study the code structure
-3. Try modifying examples
-4. Move to advanced examples when ready
+### Intermediate Path (1 hour)
+5. 05-guardrails.ts → Add safety
+6. 06-streaming.ts → Real-time UX
+7. 07-tracing.ts → Observability
 
-### For Developers
-
-1. Review `all-features.ts` for all features
-2. Study production examples
-3. Build your own applications
-4. Contribute improvements
-
-### For Experts
-
-1. Review all examples
-2. Study production patterns
-3. Customize for your needs
-4. Optimize for production
+### Advanced Path (2+ hours)
+8. 09-embeddings-rag.ts → Semantic search
+9. 12-mcp-integration.ts → Tool discovery
+10. 13-dynamic-approvals.ts → HITL safety
+11. 15-ecommerce-system.ts → Full system
 
 ---
 
-## 🐛 Troubleshooting
+## 🚀 Running Examples
 
-### Common Issues
+### Option 1: Direct Execution
+```bash
+npx tsx 01-basic/01-simple-agent.ts
+```
 
-**"API key is missing"**
-- Check `.env` file has `OPENAI_API_KEY=sk-...`
-- Verify `dotenv/config` is imported
-- Use `checkAPIKey()` utility to verify
+### Option 2: Universal Runner
+```bash
+# Run by number
+npx tsx run.ts 01
 
-**"Module not found"**
-- Run `npm install`
-- Check import paths: `from '../../src'`
-- Verify TypeScript configuration
+# Run by name
+npx tsx run.ts simple-agent
 
-**"Connection failed"**
-- Check service availability (Redis, MongoDB)
-- Verify connection strings
-- Use `MemorySession` for testing
+# List all examples
+npx tsx run.ts --list
+```
 
-**"Example not found"**
-- Check file exists in correct directory
-- Verify naming convention
-- Check `run.ts` configuration
+### Option 3: Watch Mode
+```bash
+# Auto-reload on changes
+npx tsx watch 01-basic/01-simple-agent.ts
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create a `.env` file:
+
+```env
+# Required
+OPENAI_API_KEY=sk-...
+
+# Optional
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_AI_API_KEY=...
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
+```
 
 ---
 
 ## 📚 Additional Resources
 
-- **[Documentation](../docs/)** - Complete API reference
-- **[GETTING_STARTED.md](../docs/GETTING_STARTED.md)** - Step-by-step tutorial
-- **[FEATURES.md](../docs/FEATURES.md)** - Full feature list
-- **[API.md](../docs/API.md)** - Complete API documentation
-- **[ARCHITECTURE.md](../docs/ARCHITECTURE.md)** - System design
-- **[STRUCTURE.md](./STRUCTURE.md)** - Examples structure documentation
+### Reference Files
+- **all-features.ts** - Comprehensive feature reference
+- **run.ts** - Universal example runner
+- **STRUCTURE.md** - Detailed structure documentation
+
+### Documentation
+- [Getting Started Guide](../docs/getting-started/GETTING_STARTED.md)
+- [Core Concepts](../docs/guides/CORE_CONCEPTS.md)
+- [API Reference](../docs/reference/API.md)
+- [Full Documentation](../docs/README.md)
+
+---
+
+## 🎯 Quick Reference
+
+### Most Common Tasks
+
+**Create a basic agent:**
+```typescript
+const agent = new Agent({
+  name: 'Assistant',
+  model: openai('gpt-4o-mini'),
+  instructions: 'You are helpful.',
+});
+const result = await run(agent, 'Hello!');
+```
+
+**Add tools:**
+```typescript
+const tool = tool({
+  description: 'Calculate',
+  inputSchema: z.object({ expr: z.string() }),
+  execute: async ({ expr }) => eval(expr)
+});
+```
+
+**Multi-agent coordination:**
+```typescript
+const coordinator = new Agent({
+  subagents: [specialist1, specialist2]
+});
+```
+
+**Add memory:**
+```typescript
+const session = new MemorySession('user-id');
+await run(agent, 'Hello', { session });
+```
 
 ---
 
 ## 🤝 Contributing
 
-### Adding New Examples
-
-1. **Choose Category** - Place in appropriate directory (basic/intermediate/advanced/production)
-2. **Follow Naming** - Use descriptive names with numbers for ordered examples
-3. **Use Utilities** - Import from `utils/` directory
-4. **Handle Errors** - Use error handling utilities
-5. **Add Documentation** - Document in README
-6. **Test Example** - Verify it works
-7. **Update README** - Add to appropriate section
-
-### Example Template
-
-```typescript
-/**
- * Example: [Title]
- * 
- * [Description]
- */
-
-import 'dotenv/config';
-import { Agent, run } from '../../src';
-import { logger, handleError } from '../utils';
-import { openai } from '@ai-sdk/openai';
-
-async function main() {
-  logger.section('Example: [Title]');
-  
-  try {
-    // Your example code here
-    
-    logger.success('Example completed successfully!');
-  } catch (error) {
-    handleError(error, 'Example');
-  }
-}
-
-if (require.main === module) {
-  main().catch(console.error);
-}
-
-export { main };
-```
+Want to add an example? Follow the structure:
+1. Create file with number prefix (e.g., `08-my-example.ts`)
+2. Add clear comments explaining what and why
+3. Keep it focused on ONE concept
+4. Update this README
 
 ---
 
-## 📝 License
+## 📝 Notes
 
-MIT © [Tawk.to](https://www.tawk.to)
+- All examples use TypeScript
+- Examples are self-contained and runnable
+- Check `utils/` folder for shared helpers
+- Examples use `gpt-4o-mini` by default (change if needed)
 
----
-
-**Ready to build amazing AI applications? Start with [`all-features.ts`](./all-features.ts)!** 🚀
+**Ready to start?** Begin with `01-basic/01-simple-agent.ts`! 🚀
