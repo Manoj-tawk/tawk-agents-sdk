@@ -1,10 +1,26 @@
 /**
- * Transfer System - True Agentic Architecture
+ * Agent Transfer System
  * 
- * Implements agent-to-agent transfers with context isolation for optimal performance.
- * Each transfer starts fresh - no message history carried over.
+ * @module core/transfers
+ * @description
+ * Multi-agent coordination with context isolation for true agentic architecture.
  * 
- * @module transfers
+ * **Key Features**:
+ * - Agent-to-agent transfers with isolated contexts
+ * - Automatic transfer tool generation
+ * - Clean message filtering (no history carryover)
+ * - Query extraction for targeted delegation
+ * - Performance-optimized for minimal overhead
+ * 
+ * **Design Philosophy**:
+ * Each transfer starts fresh with only the necessary context,
+ * ensuring agents remain focused and performant. This approach
+ * mimics human delegation patterns where you provide just enough
+ * context for the specialist to complete their task.
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import { Agent } from './agent';
@@ -96,9 +112,7 @@ export function detectTransfer(
       const targetAgent = subagentMap.get(agentName);
       
       if (!targetAgent) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`⚠️  Transfer target agent "${agentName}" not found`);
-        }
+        // Agent not found
         return null;
       }
       

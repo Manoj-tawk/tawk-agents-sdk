@@ -37,7 +37,7 @@ export interface ApprovalDecision {
 /**
  * HITL result with interruption state
  */
-export interface HITLResult<TOutput = string> {
+export interface HITLResult {
   state: RunState;
   pendingApprovals: ApprovalRequest[];
   messages: ModelMessage[];
@@ -51,9 +51,9 @@ export interface HITLResult<TOutput = string> {
  * @param result - Run result to check
  * @returns True if there are pending approvals
  */
-export function needsApproval<TOutput = string>(
+export function needsApproval(
   result: any
-): result is HITLResult<TOutput> {
+): result is HITLResult {
   return result.state?.hasInterruptions() || false;
 }
 

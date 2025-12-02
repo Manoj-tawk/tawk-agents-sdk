@@ -98,7 +98,7 @@ export async function raceAgents<TContext = any, TOutput = string>(
     };
   }
 
-  const startTime = Date.now();
+  const _startTime = Date.now();
 
   // Execute all agents in parallel
   const promises = agents.map(async (agent) => {
@@ -131,7 +131,7 @@ export async function raceAgents<TContext = any, TOutput = string>(
           participantAgents: agents.map((a) => a.name),
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Timeout or first agent failed, wait for others
     }
   }
@@ -351,7 +351,7 @@ export async function runHierarchical<TContext = any, TOutput = string>(
 ): Promise<RunResult<TOutput>> {
   // The coordinator agent should have handoffs configured
   if (coordinatorAgent.handoffs.length === 0) {
-    console.warn('Coordinator agent has no handoffs - running as normal agent');
+    // No handoffs - run as normal agent
   }
 
   // Run coordinator - it will autonomously delegate to specialists

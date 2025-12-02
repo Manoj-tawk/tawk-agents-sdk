@@ -1,10 +1,26 @@
 /**
  * Tracing Context Management
  * 
- * Context management for hierarchical tracing using AsyncLocalStorage.
- * Enables automatic trace propagation across async boundaries.
- * 
  * @module tracing/context
+ * @description
+ * Context propagation for hierarchical distributed tracing.
+ * 
+ * **Features**:
+ * - AsyncLocalStorage-based context isolation
+ * - Automatic trace propagation across async boundaries
+ * - Thread-safe context management
+ * - Support for nested spans and generations
+ * - Zero-overhead when tracing is disabled
+ * 
+ * **Architecture**:
+ * Uses Node.js AsyncLocalStorage to maintain trace context
+ * throughout the execution lifecycle without explicit parameter
+ * passing. This enables clean, maintainable code while providing
+ * comprehensive observability.
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import { AsyncLocalStorage } from 'async_hooks';

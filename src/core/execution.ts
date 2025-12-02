@@ -1,13 +1,25 @@
 /**
- * Execution Engine - Agent-driven autonomous execution
+ * Agent Execution Engine
  * 
- * This module implements the core execution patterns for true agentic behavior:
- * - Parallel tool execution
- * - Agent-driven decision making
+ * @module core/execution
+ * @description
+ * Core execution logic for agent-driven autonomous behavior.
+ * 
+ * **Core Capabilities**:
+ * - Parallel tool execution for optimal performance
+ * - Agent-controlled decision making
  * - Autonomous state transitions
- * - Proper handoff coordination
+ * - Multi-agent transfer coordination
+ * - Comprehensive error handling
  * 
- * @module execution
+ * **Architecture**:
+ * This module processes each execution step, handling tool calls,
+ * agent transfers, and state management. It maintains proper
+ * separation of concerns between execution logic and orchestration.
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import type { Agent, CoreTool, RunContextWrapper } from './agent';
@@ -19,7 +31,7 @@ import { createContextualSpan } from '../tracing/context';
 /**
  * Processed model response with categorized actions
  */
-export interface ProcessedResponse<TContext = any> {
+export interface ProcessedResponse {
   text?: string;
   finishReason?: string;
   toolCalls: Array<{
@@ -120,11 +132,8 @@ export async function executeToolsInParallel<TContext = any>(
 
     try {
       // Log for debugging
-      if (!toolCall.args || Object.keys(toolCall.args).length === 0) {
-        console.warn(`⚠️  Tool ${toolCall.toolName} called with empty/undefined args:`, toolCall);
-      }
-      
-      const result = await tool.execute(toolCall.args, contextWrapper as any);
+      // Extract arguments for tool execution
+      const result = await tool.execute(toolCall.args || {}, contextWrapper as any);
 
       if (span) {
         span.end({
@@ -168,7 +177,7 @@ export async function executeToolsInParallel<TContext = any>(
  */
 export function processModelResponse(
   response: any,
-  currentAgent: Agent<any, any>
+  _currentAgent: Agent<any, any>
 ): ProcessedResponse {
   const toolCalls: ProcessedResponse['toolCalls'] = [];
   const handoffRequests: ProcessedResponse['handoffRequests'] = [];
@@ -324,7 +333,7 @@ export async function executeSingleStep<TContext = any>(
   state: RunState<TContext, Agent<TContext, any>>,
   contextWrapper: RunContextWrapper<TContext>,
   modelResponse: any
-): Promise<SingleStepResult<TContext>> {
+): Promise<SingleStepResult> {
   // 1. Process model response
   const processed = processModelResponse(modelResponse, agent);
 

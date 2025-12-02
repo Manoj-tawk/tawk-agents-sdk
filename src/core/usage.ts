@@ -1,9 +1,27 @@
 /**
- * Usage Tracking
+ * Token Usage Tracking
  * 
- * Tracks token usage and request counts across agent runs.
+ * @module core/usage
+ * @description
+ * Comprehensive token usage and cost tracking for agent runs.
  * 
- * @module usage
+ * **Tracked Metrics**:
+ * - Input tokens consumed
+ * - Output tokens generated
+ * - Total tokens used
+ * - Number of API requests
+ * - Estimated costs
+ * 
+ * **Features**:
+ * - Automatic accumulation across runs
+ * - Per-agent metrics
+ * - Cost estimation support
+ * - Zero-overhead tracking
+ * - Thread-safe operations
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 /**

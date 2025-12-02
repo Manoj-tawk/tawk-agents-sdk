@@ -1,10 +1,32 @@
 /**
- * RunState - Proper state abstraction for agent execution
+ * Agent Run State Management
  * 
- * This module provides a proper state container for agent runs,
- * enabling interruption, resumption, and stateful agent execution.
+ * @module core/runstate
+ * @description
+ * Production-grade state container for agent execution lifecycle.
  * 
- * @module runstate
+ * **Core Capabilities**:
+ * - Stateful agent execution
+ * - Interruption and resumption support
+ * - Type-safe state transitions
+ * - Message history management
+ * - Agent context tracking
+ * - Metrics aggregation
+ * 
+ * **State Machine**:
+ * - `next_step_run_again`: Continue execution
+ * - `next_step_handoff`: Transfer to another agent
+ * - `next_step_final_output`: Execution complete
+ * - `next_step_interruption`: Pause for human input
+ * 
+ * **Architecture**:
+ * Provides a clean abstraction over agent execution state,
+ * enabling features like pause/resume, debugging, and
+ * complex multi-agent coordination patterns.
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import type { Agent } from './agent';
@@ -295,7 +317,7 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
  * Result of a single turn/step execution
  * Used internally by the runner to manage state transitions
  */
-export class SingleStepResult<TContext = any> {
+export class SingleStepResult {
   constructor(
     public originalInput: string | ModelMessage[],
     public messages: ModelMessage[],

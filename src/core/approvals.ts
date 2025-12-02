@@ -83,8 +83,7 @@ export class ApprovalManager {
         return await Promise.resolve(tool.needsApproval(context, args, callId));
       }
       return tool.needsApproval;
-    } catch (error) {
-      console.error('Error in needsApproval function:', error);
+    } catch (_error) {
       // Default to requiring approval on error (safer)
       return true;
     }
@@ -123,7 +122,7 @@ export class ApprovalManager {
   /**
    * Approve a tool call
    */
-  approve(callId: string, reason?: string, approver?: string): void {
+  approve(callId: string, reason?: string, _approver?: string): void {
     const request = this.pendingApprovals.get(callId);
     if (request) {
       request.status = 'approved';

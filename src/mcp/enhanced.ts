@@ -171,7 +171,7 @@ export class EnhancedMCPServer {
     }
 
     // Cancel pending requests
-    for (const [id, pending] of this.pendingRequests.entries()) {
+    for (const [_id, pending] of this.pendingRequests.entries()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error('Server disconnected'));
     }
@@ -290,7 +290,7 @@ export class EnhancedMCPServer {
       const response = await this.sendRequest('resources/list', {});
       this.resources = response.resources || [];
       return this.resources;
-    } catch (error) {
+    } catch (_error) {
       // Resources might not be supported
       return [];
     }
@@ -308,7 +308,7 @@ export class EnhancedMCPServer {
       const response = await this.sendRequest('prompts/list', {});
       this.prompts = response.prompts || [];
       return this.prompts;
-    } catch (error) {
+    } catch (_error) {
       // Prompts might not be supported
       return [];
     }

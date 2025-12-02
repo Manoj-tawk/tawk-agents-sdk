@@ -1,21 +1,34 @@
 /**
- * Runner - Agent-Driven Autonomous Execution Engine
+ * Agent Execution Runner
  * 
- * This runner implements TRUE agentic patterns:
- * - Agents control their own execution lifecycle
- * - Parallel tool execution for performance
- * - Autonomous decision making (not SDK-controlled)
- * - Proper state management for interruption/resumption
- * - Agent coordination and handoff support
+ * @module core/runner
+ * @description
+ * Production-grade agent execution engine implementing true agentic architecture.
  * 
- * @module runner
+ * **Core Principles**:
+ * - Agents drive their own execution lifecycle
+ * - Parallel tool execution for optimal performance
+ * - Autonomous decision-making (agent-controlled, not SDK-controlled)
+ * - State management for interruption and resumption
+ * - Seamless multi-agent coordination and transfers
+ * - End-to-end observability with Langfuse tracing
+ * 
+ * **Features**:
+ * - Streaming support for real-time responses
+ * - Input/output guardrails with automatic feedback
+ * - Token usage tracking and optimization
+ * - Comprehensive error handling
+ * - Production-ready reliability
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
-import { generateText, streamText, type LanguageModel, type ModelMessage } from 'ai';
-import type { Agent, RunContextWrapper, Guardrail } from './agent';
-import { RunState, type NextStep } from './runstate';
-import { executeSingleStep, type ProcessedResponse } from './execution';
-import { Usage } from './usage';
+import { generateText, type LanguageModel, type ModelMessage } from 'ai';
+import type { Agent, RunContextWrapper } from './agent';
+import { RunState } from './runstate';
+import { executeSingleStep } from './execution';
 import {
   createTrace,
   isLangfuseEnabled,
@@ -26,7 +39,6 @@ import {
 import {
   getCurrentTrace,
   setCurrentSpan,
-  createContextualSpan,
   runWithTraceContext,
 } from '../tracing/context';
 import { RunHooks } from '../lifecycle';
@@ -194,7 +206,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         state.incrementTurn();
 
         // Create agent span if needed
-        // CRITICAL: Create spans directly from TRACE to make them SIBLINGS, not nested!
+        // IMPORTANT: Create spans directly from TRACE to maintain sibling hierarchy
         if (!state.currentAgentSpan || state.currentAgentSpan._agentName !== state.currentAgent.name) {
           if (state.currentAgentSpan) {
             // End previous agent span with accumulated token usage
@@ -210,7 +222,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             });
           }
 
-          // Create span as DIRECT CHILD of trace (not from context!)
+          // Create span as direct child of trace to maintain proper hierarchy
           // This makes all agents siblings instead of nested
           const agentSpan = state.trace?.span({
             name: `Agent: ${state.currentAgent.name}`,
@@ -316,8 +328,6 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           
           if (!guardrailResult.passed) {
             // Guardrail failed - add feedback and retry
-            console.log(`🔄 Guardrail failed, asking agent to retry...`);
-            
             state.messages.push({
               role: 'system',
               content: guardrailResult.feedback || 'Please regenerate your response.'
@@ -350,8 +360,21 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           if (state.currentAgentSpan) {
             const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
             
+            // Configurable truncation for Langfuse (default: 5000 chars, set to 0 for no truncation)
+            const maxOutputLength = process.env.LANGFUSE_MAX_OUTPUT_LENGTH 
+              ? parseInt(process.env.LANGFUSE_MAX_OUTPUT_LENGTH) 
+              : 5000;
+            
+            const truncatedOutput = maxOutputLength > 0 && finalOutputString.length > maxOutputLength
+              ? finalOutputString.substring(0, maxOutputLength) + '... (truncated)'
+              : finalOutputString;
+            
             state.currentAgentSpan.end({
-              output: finalOutputString.substring(0, 500),
+              output: truncatedOutput,
+              metadata: {
+                fullLength: finalOutputString.length,
+                truncated: finalOutputString.length > maxOutputLength
+              },
               usage: agentMetrics ? {
                 input: agentMetrics.tokens.input,
                 output: agentMetrics.tokens.output,
@@ -444,7 +467,16 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           this.emit('agent_handoff', contextWrapper, previousAgent, nextStep.newAgent);
           previousAgent.emit('agent_handoff', contextWrapper, nextStep.newAgent);
 
-          // Add transfer context to messages
+          // CONTEXT ISOLATION: Reset messages to only user query
+          // Extract original user query
+          const originalUserMessage = Array.isArray(state.originalInput)
+            ? state.originalInput.filter((m: any) => m.role === 'user')
+            : [{ role: 'user' as const, content: state.originalInput }];
+          
+          // Reset messages to just the user query
+          state.messages = [...originalUserMessage];
+          
+          // Add transfer context as system message (optional: remove if too verbose)
           if (nextStep.reason) {
             state.messages.push({
               role: 'system',
@@ -452,7 +484,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             });
           }
 
-          // Continue loop with new agent
+          // Continue loop with new agent (now with isolated context)
           continue;
         } else if (nextStep.type === 'next_step_interruption') {
           // Agent needs human approval
@@ -527,8 +559,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
     const contextWrapper = this.getContextWrapper(agent, state);
 
-    // Create parent span for all input guardrails at TRACE level
-    const guardrailsSpan = state.trace?.span({
+    // Create parent span for all input guardrails UNDER the agent span
+    const guardrailsSpan = state.currentAgentSpan?.span({
       name: 'Input Guardrails',
       metadata: {
         type: 'input',
@@ -566,13 +598,10 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             });
           }
           
-          if (!result.passed) {
-            console.error(`❌ Input guardrail "${guardrail.name}" failed: ${result.message}`);
-            if (guardrailsSpan) guardrailsSpan.end({ level: 'ERROR' });
-            throw new Error(`Input guardrail "${guardrail.name}" failed: ${result.message}`);
-          }
-          
-          console.log(`✅ Input guardrail "${guardrail.name}" passed`);
+        if (!result.passed) {
+          if (guardrailsSpan) guardrailsSpan.end({ level: 'ERROR' });
+          throw new Error(`Input guardrail "${guardrail.name}" failed: ${result.message}`);
+        }
         } catch (error) {
           if (guardrailSpan) {
             guardrailSpan.end({
@@ -611,8 +640,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
     const contextWrapper = this.getContextWrapper(agent, state);
 
-    // Create parent span for all output guardrails at TRACE level
-    const guardrailsSpan = state.trace?.span({
+    // Create parent span for all output guardrails UNDER the agent span
+    const guardrailsSpan = state.currentAgentSpan?.span({
       name: 'Output Guardrails',
       metadata: {
         type: 'output',
@@ -676,7 +705,6 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             actionableFeedback = `Your response failed validation: ${result.message}. Please revise your response to address this issue without fetching additional data.`;
           }
           
-          console.warn(`⚠️  Output guardrail "${guardrail.name}" failed: ${result.message}`);
           if (guardrailsSpan) {
             guardrailsSpan.end({ 
               output: { 
@@ -693,7 +721,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           };
         }
         
-        console.log(`✅ Output guardrail "${guardrail.name}" passed`);
+        if (guardrailSpan) guardrailSpan.end();
       } catch (error) {
         if (guardrailSpan) {
           guardrailSpan.end({
@@ -730,12 +758,10 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
     try {
       const langfuse = getLangfuse();
       if (langfuse) {
-        console.log('🔄 Flushing Langfuse traces...');
         await langfuse.flushAsync();
-        console.log('✅ Langfuse traces flushed');
       }
-    } catch (error) {
-      console.error('❌ Failed to flush Langfuse traces:', error);
+    } catch (_error) {
+      // Silently fail - tracing errors should not break execution
     }
   }
 }

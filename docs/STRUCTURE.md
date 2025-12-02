@@ -1,287 +1,293 @@
 # 📁 Documentation Structure
 
-**Clean, organized documentation for production use**
+**Clean, organized documentation aligned with `src/` codebase**
 
 ---
 
 ## 🎯 Quick Access
 
+**Visual Learner?** → [Flow Diagrams](./reference/FLOW_DIAGRAMS.md) ⭐  
 **Just starting?** → [Getting Started](./getting-started/GETTING_STARTED.md)  
-**Need a feature?** → [Features Guide](./guides/FEATURES.md)  
-**Production ready?** → [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md)  
+**Need architecture?** → [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md)  
 **API reference?** → [API Documentation](./reference/API.md)
 
 ---
 
-## 📚 Clean Structure (18 Files)
+## 📚 Complete Structure
 
 ```
 docs/
-├── README.md                          # Main navigation (you are here)
+├── README.md                          # 📍 You are here - Main navigation
 ├── STRUCTURE.md                       # This file
 │
-├── getting-started/                   # 🚀 Quick Start (1 file)
-│   └── GETTING_STARTED.md            # 15 min tutorial
+├── 🚀 getting-started/               # Quick Start
+│   └── GETTING_STARTED.md            [15 min] Installation & first agent
 │
-├── guides/                            # 🎓 Feature Guides (9 files)
-│   ├── CORE_CONCEPTS.md              # Fundamentals
-│   ├── FEATURES.md                   # All features
-│   ├── ADVANCED_FEATURES.md          # Power features
-│   ├── AGENTIC_RAG.md                # RAG systems
-│   ├── HUMAN_IN_THE_LOOP.md          # HITL workflows
-│   ├── TRACING.md                    # Observability
-│   ├── ERROR_HANDLING.md             # Error patterns
-│   ├── LIFECYCLE_HOOKS.md            # Event hooks
-│   └── TOON_OPTIMIZATION.md          # Token optimization
+├── 🎓 guides/                        # Feature Guides (9 files)
+│   ├── CORE_CONCEPTS.md              [20 min] Fundamentals
+│   ├── FEATURES.md                   [30 min] All features overview
+│   ├── ADVANCED_FEATURES.md          [45 min] Power features
+│   ├── AGENTIC_RAG.md                [30 min] RAG with Pinecone
+│   ├── HUMAN_IN_THE_LOOP.md          [20 min] Approval workflows
+│   ├── TRACING.md                    [15 min] Langfuse observability
+│   ├── ERROR_HANDLING.md             [15 min] Error patterns
+│   ├── LIFECYCLE_HOOKS.md            [15 min] Event hooks
+│   └── TOON_OPTIMIZATION.md          [15 min] Token optimization
 │
-├── reference/                         # 📘 Technical Reference (3 files)
-│   ├── COMPLETE_ARCHITECTURE.md      # System architecture with diagrams
-│   ├── API.md                        # API reference
-│   └── PERFORMANCE.md                # Performance guide
+├── 📘 reference/                     # Technical Reference (4 files)
+│   ├── FLOW_DIAGRAMS.md              [30 min] ⭐ 7 sequence diagrams
+│   ├── COMPLETE_ARCHITECTURE.md      [60 min] System architecture (12+ diagrams)
+│   ├── API.md                        Complete API reference
+│   └── PERFORMANCE.md                [30 min] Optimization guide
 │
-├── analysis/                          # 📊 Verification Reports (3 files)
-│   ├── EXAMPLES_TESTS_VERIFIED.md    # Examples verification
-│   ├── TEST_SUITE_VERIFIED.md        # Test suite results
-│   └── VERIFICATION_COMPLETE.md      # Final verification
+├── 📊 analysis/                      # Verification Reports (5 files)
+│   ├── DOCUMENTATION_COVERAGE.md     Export coverage analysis
+│   ├── EXAMPLES_TESTS_VERIFIED.md    19 examples verified
+│   ├── TEST_SUITE_VERIFIED.md        Test suite results
+│   ├── REFACTORING_SUMMARY.md        Architecture improvements
+│   └── VERIFICATION_COMPLETE.md      Final verification
 │
-└── archive/                           # 📦 Internal Dev Docs (13 files)
+└── 📦 archive/                       # Historical Dev Docs (13 files)
     └── ... (archived development documents)
 ```
 
----
-
-## 📖 Documentation Categories
-
-### 🚀 Getting Started (1 file, 15 min)
-
-**Purpose**: Get from zero to working agent
-
-- **GETTING_STARTED.md** - Quick start tutorial
-  - Installation
-  - First agent
-  - Tool calling
-  - Multi-agent basics
-
----
-
-### 🎓 Feature Guides (9 files, ~4 hours)
-
-**Purpose**: Learn all SDK features
-
-**Essential** (3 files):
-- **CORE_CONCEPTS.md** (20 min) - Architecture fundamentals
-- **FEATURES.md** (30 min) - All features overview
-- **ADVANCED_FEATURES.md** (45 min) - Power user features
-
-**Specialized** (6 files):
-- **AGENTIC_RAG.md** (30 min) - RAG with Pinecone
-- **HUMAN_IN_THE_LOOP.md** (20 min) - Approval workflows
-- **TRACING.md** (15 min) - Langfuse observability
-- **ERROR_HANDLING.md** (15 min) - Error patterns
-- **LIFECYCLE_HOOKS.md** (15 min) - Event hooks
-- **TOON_OPTIMIZATION.md** (15 min) - Token reduction
-
----
-
-### 📘 Technical Reference (3 files)
-
-**Purpose**: Deep technical documentation
-
-- **COMPLETE_ARCHITECTURE.md** (60 min) - Complete system with 12+ diagrams
-  - System overview
-  - Directory structure
-  - Component relationships
-  - Execution flows
-  - Multi-agent coordination
-  - Guardrails flow
-  - Tracing integration
-  - Session management
-  - Tool execution
-  - End-to-end complete flow
-
-- **API.md** - Complete API reference
-
-- **PERFORMANCE.md** (30 min) - Optimization strategies
-
----
-
-### 📊 Verification Reports (3 files)
-
-**Purpose**: Quality verification documentation
-
-- **EXAMPLES_TESTS_VERIFIED.md** - Examples verification (19 files verified)
-- **TEST_SUITE_VERIFIED.md** - Test suite results (96% passing, 26/27)
-- **VERIFICATION_COMPLETE.md** - Final verification summary
-
----
-
-### 📦 Archive (13 files)
-
-**Purpose**: Historical development documents
-
-- Internal analysis documents
-- Implementation plans
-- Gap analyses
-- Development journey
-
-*Not needed for SDK usage - kept for reference*
-
----
-
-## 🎯 Learning Paths
-
-### Path 1: Beginner Developer (2-3 hours)
-
-```mermaid
-graph LR
-    A[Getting Started] --> B[Core Concepts]
-    B --> C[Features]
-    C --> D[Build Your App]
-    
-    style A fill:#50c878
-    style D fill:#ffd700
-```
-
-1. [Getting Started](./getting-started/GETTING_STARTED.md) - 15 min
-2. [Core Concepts](./guides/CORE_CONCEPTS.md) - 20 min
-3. [Features](./guides/FEATURES.md) - 30 min
-4. Start building!
-
----
-
-### Path 2: Experienced Developer (1-2 hours)
-
-```mermaid
-graph LR
-    A[Core Concepts] --> B[Complete Architecture]
-    B --> C[Advanced Features]
-    C --> D[Production Ready]
-    
-    style A fill:#50c878
-    style D fill:#ffd700
-```
-
-1. [Core Concepts](./guides/CORE_CONCEPTS.md) - 20 min
-2. [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md) - 60 min
-3. [Advanced Features](./guides/ADVANCED_FEATURES.md) - 45 min
-4. Build production system
-
----
-
-### Path 3: Production Engineer (2 hours)
-
-```mermaid
-graph LR
-    A[Complete Architecture] --> B[Performance]
-    B --> C[Error Handling]
-    C --> D[Tracing]
-    D --> E[Deploy]
-    
-    style A fill:#50c878
-    style E fill:#ffd700
-```
-
-1. [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md) - 60 min
-2. [Performance](./reference/PERFORMANCE.md) - 30 min
-3. [Error Handling](./guides/ERROR_HANDLING.md) - 15 min
-4. [Tracing](./guides/TRACING.md) - 15 min
-5. Deploy with confidence
-
----
-
-## 📊 Documentation Statistics
-
-| Category | Files | Lines | Purpose |
-|----------|-------|-------|---------|
-| **Getting Started** | 1 | ~300 | Quick start |
-| **Guides** | 9 | ~4,500 | Feature docs |
-| **Reference** | 3 | ~2,000 | Technical |
-| **Verification** | 3 | ~600 | Quality reports |
-| **Archive** | 13 | ~3,000 | Historical |
-| **TOTAL** | **29** | **~10,400** | Complete |
-
-**User-facing docs**: 16 files (55%)  
-**Internal/archive**: 13 files (45%)
-
----
-
-## ✅ What Changed?
-
-### Before Cleanup (32 files)
-- Too many analysis documents
-- Duplicate architecture docs
-- Mixed internal/external docs
-- Confusing structure
-
-### After Cleanup (18 user-facing files)
-- ✅ Clean user-facing docs
-- ✅ Single comprehensive architecture
-- ✅ Clear categorization
-- ✅ Archived internal docs
-- ✅ 59% reduction in active docs
-
----
-
-## 🔍 Finding What You Need
-
-### By Topic
-
-**"How do I start?"**  
-→ [Getting Started](./getting-started/GETTING_STARTED.md)
-
-**"How does feature X work?"**  
-→ [Features Guide](./guides/FEATURES.md)
-
-**"How is the system architected?"**  
-→ [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md)
-
-**"API details?"**  
-→ [API Reference](./reference/API.md)
-
-**"Production optimization?"**  
-→ [Performance](./reference/PERFORMANCE.md)
+**Total**: 32 markdown files  
+**User-facing**: 19 files (59%)  
+**Analysis/Archive**: 13 files (41%)
 
 ---
 
 ## 🎨 Documentation Quality
 
-### Every Document Includes:
+### Every Guide Includes:
 
-✅ Clear purpose statement  
-✅ Table of contents  
-✅ Mermaid diagrams (where applicable)  
-✅ Code examples  
-✅ Reading time estimate  
-✅ Related docs links  
+✅ **Clear purpose statement**  
+✅ **Reading time estimate**  
+✅ **Table of contents**  
+✅ **Mermaid diagrams** (visual explanations)  
+✅ **Code examples** (copy-paste ready)  
+✅ **Related docs links** (easy navigation)  
+✅ **Aligned with `src/`** (100% accuracy)
+
+---
+
+## 🔄 Alignment with `src/`
+
+### Documentation → Source Code Mapping
+
+| Documentation | Source Code | Status |
+|--------------|-------------|--------|
+| Agent basics | `src/core/agent/` | ✅ Aligned |
+| Tools | `src/core/agent/tools.ts` | ✅ Aligned |
+| Multi-agent | `src/core/transfers.ts` | ✅ Aligned |
+| Guardrails | `src/guardrails/index.ts` | ✅ Aligned |
+| Tracing | `src/tracing/`, `src/lifecycle/langfuse/` | ✅ Aligned |
+| Sessions | `src/sessions/session.ts` | ✅ Aligned |
+| Helpers | `src/helpers/` | ✅ Aligned |
+| All exports | `src/index.ts` (76 items) | ✅ 100% coverage |
+
+---
+
+## 📖 Learning Paths
+
+### Path 1: Visual Learner (1.5 hours)
+
+```mermaid
+flowchart LR
+    A[Flow Diagrams<br/>30 min] --> B[Complete Architecture<br/>30 min]
+    B --> C[Features<br/>30 min]
+    C --> D[Start Building]
+    
+    style A fill:#e1f5ff
+    style D fill:#c8e6c9
+```
+
+1. **[Flow Diagrams](./reference/FLOW_DIAGRAMS.md)** - See all execution flows
+2. **[Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md)** - System design
+3. **[Features Guide](./guides/FEATURES.md)** - Learn features
+4. Build your app!
+
+---
+
+### Path 2: Quick Start (1 hour)
+
+```mermaid
+flowchart LR
+    A[Getting Started<br/>15 min] --> B[Features<br/>30 min]
+    B --> C[API Reference<br/>15 min]
+    C --> D[Build]
+    
+    style A fill:#e3f2fd
+    style D fill:#c8e6c9
+```
+
+1. **[Getting Started](./getting-started/GETTING_STARTED.md)** - First agent
+2. **[Features](./guides/FEATURES.md)** - Core features
+3. **[API Reference](./reference/API.md)** - Check APIs
+4. Start coding!
+
+---
+
+### Path 3: Deep Dive (3 hours)
+
+```mermaid
+flowchart LR
+    A[Core Concepts<br/>20 min] --> B[Flow Diagrams<br/>30 min]
+    B --> C[Architecture<br/>60 min]
+    C --> D[Advanced<br/>45 min]
+    D --> E[Performance<br/>30 min]
+    E --> F[Production Ready]
+    
+    style A fill:#e3f2fd
+    style F fill:#c8e6c9
+```
+
+1. **[Core Concepts](./guides/CORE_CONCEPTS.md)** - Fundamentals
+2. **[Flow Diagrams](./reference/FLOW_DIAGRAMS.md)** - Execution flows
+3. **[Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md)** - Full system
+4. **[Advanced Features](./guides/ADVANCED_FEATURES.md)** - Power features
+5. **[Performance](./reference/PERFORMANCE.md)** - Optimization
+6. Deploy!
+
+---
+
+## 🎯 Finding Information
+
+### By Task
+
+| I need to... | Document | Time |
+|-------------|----------|------|
+| Install & create first agent | [Getting Started](./getting-started/GETTING_STARTED.md) | 15 min |
+| Understand execution flow | [Flow Diagrams](./reference/FLOW_DIAGRAMS.md) | 30 min |
+| Learn multi-agent patterns | [Flow Diagrams #3](./reference/FLOW_DIAGRAMS.md#3-multi-agent-transfer-flow) | 10 min |
+| Implement guardrails | [Flow Diagrams #4](./reference/FLOW_DIAGRAMS.md#4-guardrails-validation-flow) | 10 min |
+| Add tracing/observability | [Tracing Guide](./guides/TRACING.md) | 15 min |
+| Use sessions/memory | [Flow Diagrams #6](./reference/FLOW_DIAGRAMS.md#6-session-management-flow) | 10 min |
+| Build RAG system | [RAG Guide](./guides/AGENTIC_RAG.md) | 30 min |
+| Add approvals (HITL) | [HITL Guide](./guides/HUMAN_IN_THE_LOOP.md) | 20 min |
+| Optimize performance | [Performance Guide](./reference/PERFORMANCE.md) | 30 min |
+| Check all APIs | [API Reference](./reference/API.md) | Reference |
+
+---
+
+### By Component
+
+```mermaid
+graph TD
+    Start[Component] --> Agent[Agent System]
+    Start --> Tools[Tools]
+    Start --> Multi[Multi-Agent]
+    Start --> Guard[Guardrails]
+    Start --> Trace[Tracing]
+    Start --> Sess[Sessions]
+    
+    Agent --> Agent1[Getting Started]
+    Agent --> Agent2[Core Concepts]
+    Agent --> Agent3[Flow Diagrams #1]
+    
+    Tools --> Tools1[Features Guide]
+    Tools --> Tools2[Flow Diagrams #2]
+    
+    Multi --> Multi1[Flow Diagrams #3]
+    Multi --> Multi2[Complete Architecture]
+    
+    Guard --> Guard1[Flow Diagrams #4]
+    Guard --> Guard2[Features: Guardrails]
+    
+    Trace --> Trace1[Tracing Guide]
+    Trace --> Trace2[Flow Diagrams #5]
+    
+    Sess --> Sess1[Flow Diagrams #6]
+    Sess --> Sess2[Advanced Features]
+    
+    style Start fill:#e1f5ff
+```
+
+---
+
+## 🔍 Source Code Reference
+
+### Key `src/` Modules
+
+| Source Path | Documentation | Description |
+|------------|---------------|-------------|
+| `src/core/agent/` | [Flow Diagrams #1](./reference/FLOW_DIAGRAMS.md#1-basic-agent-execution) | Agent class, types, run logic |
+| `src/core/runner.ts` | [Complete Architecture](./reference/COMPLETE_ARCHITECTURE.md) | Main execution engine |
+| `src/core/transfers.ts` | [Flow Diagrams #3](./reference/FLOW_DIAGRAMS.md#3-multi-agent-transfer-flow) | Multi-agent transfers |
+| `src/guardrails/` | [Flow Diagrams #4](./reference/FLOW_DIAGRAMS.md#4-guardrails-validation-flow) | 10 validation guardrails |
+| `src/lifecycle/langfuse/` | [Flow Diagrams #5](./reference/FLOW_DIAGRAMS.md#5-langfuse-tracing-flow) | Langfuse integration |
+| `src/sessions/` | [Flow Diagrams #6](./reference/FLOW_DIAGRAMS.md#6-session-management-flow) | Memory/Redis/MongoDB sessions |
+| `src/tracing/` | [Tracing Guide](./guides/TRACING.md) | Context & utilities |
+| `src/helpers/` | [Advanced Features](./guides/ADVANCED_FEATURES.md) | message, safe-execute, toon |
+| `src/index.ts` | [API Reference](./reference/API.md) | All exports (76 items) |
+
+---
+
+## 📊 Documentation Statistics
+
+| Category | Files | Lines | Coverage |
+|----------|-------|-------|----------|
+| **Getting Started** | 1 | 300 | 100% |
+| **Guides** | 9 | 4,500 | 100% |
+| **Reference** | 4 | 3,000 | 100% |
+| **Analysis** | 5 | 1,000 | N/A |
+| **Archive** | 13 | 3,000 | N/A |
+| **TOTAL** | **32** | **~11,800** | **100%** |
+
+---
+
+## ✨ What's New?
+
+### Recent Enhancements
+
+✅ **[Flow Diagrams](./reference/FLOW_DIAGRAMS.md)** (NEW)
+- 7 comprehensive Mermaid sequence diagrams
+- Visual explanation of all execution flows
+- Production-ready examples
+
+✅ **Updated Architecture**
+- All docs aligned with current `src/` structure
+- LLM guardrails documented with GENERATION tracing
+- Complete export coverage verification
+
+✅ **Quality Improvements**
+- Zero broken links
+- Consistent formatting
+- Professional diagrams throughout
 
 ---
 
 ## 🔄 Maintenance
 
-### Regular Updates
+### Documentation Updates
 
-**Per Release**:
-- Update CHANGELOG
-- Update API reference
-- Add new feature docs
+**After Code Changes:**
+1. Update relevant feature guides
+2. Update API reference if exports change
+3. Add/update flow diagrams if architecture changes
+4. Update examples
 
-**Quarterly**:
-- Review getting-started
+**Quarterly:**
+- Review all diagrams for accuracy
 - Update code examples
-- Fix broken links
+- Fix any broken links
+- Refresh getting-started guide
 
 ---
 
-## 🆘 Need Help?
+## 🆘 Support
 
-**Found an issue?**  
+**Questions about the docs?**  
 → [Open an issue](https://github.com/Manoj-tawk/tawk-agents-sdk/issues)
 
-**Want to contribute?**  
-→ See [CONTRIBUTING.md](../CONTRIBUTING.md)
+**Want to improve docs?**  
+→ [Contribute](../CONTRIBUTING.md)
+
+**Need help using the SDK?**  
+→ Start with [Flow Diagrams](./reference/FLOW_DIAGRAMS.md)
 
 ---
 
-**Clean, focused documentation for production use.**
+**Clean, professional documentation - aligned with world-class codebase.**
 
 **Made with ❤️ by [Tawk.to](https://www.tawk.to)**

@@ -1,12 +1,37 @@
 /**
- * Guardrails
+ * Guardrails System
  * 
- * Built-in and custom guardrails for input/output validation
+ * @module guardrails
+ * @description
+ * Production-ready input/output validation and safety guardrails.
+ * 
+ * **Available Guardrails**:
+ * - Content Safety: Block harmful or inappropriate content
+ * - Length Control: Enforce output length constraints
+ * - PII Detection: Detect and filter personal information
+ * - Topic Relevance: Ensure responses stay on-topic
+ * - Sentiment Analysis: Control response tone
+ * - Toxicity Detection: Filter toxic content
+ * - Language Detection: Enforce language requirements
+ * - Rate Limiting: Control execution frequency
+ * - Custom Guardrails: Build your own validators
+ * 
+ * **Features**:
+ * - AI-powered validation for advanced checks
+ * - Regex-based validation for simple checks
+ * - Automatic feedback generation for regeneration
+ * - Comprehensive error handling
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import type { Guardrail, GuardrailResult, RunContextWrapper } from '../core/agent';
 import { generateText } from 'ai';
 import { z } from 'zod';
+import { getCurrentSpan } from '../tracing/context';
+import { extractModelName } from '../lifecycle/langfuse';
 
 // ============================================
 // CONTENT SAFETY GUARDRAILS
@@ -54,6 +79,24 @@ export function contentSafetyGuardrail<TContext = any>(config: {
         'self-harm'
       ];
 
+      // Get parent span for nesting (from guardrails span)
+      const parentSpan = getCurrentSpan();
+      
+      // Create GENERATION trace for this LLM-based guardrail
+      const generation = parentSpan?.generation({
+        name: `Guardrail: ${config.name || 'content_safety'}`,
+        model: extractModelName(config.model),
+        input: {
+          system: `You are a content moderation system. Analyze the following text and determine if it contains any of these categories: ${categories.join(', ')}. Respond with a JSON object.`,
+          prompt: content.substring(0, 500) // Truncate for display
+        },
+        metadata: {
+          guardrailName: config.name || 'content_safety',
+          guardrailType: config.type,
+          categories
+        }
+      });
+
       const result = await generateText({
         model: config.model,
         system: `You are a content moderation system. Analyze the following text and determine if it contains any of these categories: ${categories.join(', ')}. Respond with a JSON object.`,
@@ -72,6 +115,21 @@ export function contentSafetyGuardrail<TContext = any>(config: {
       });
 
       const classification = result.toolCalls?.[0]?.input as any;
+
+      // End generation with usage tracking
+      if (generation) {
+        generation.end({
+          output: {
+            classification,
+            passed: !classification || classification.isSafe
+          },
+          usage: {
+            input: result.usage?.inputTokens || 0,
+            output: result.usage?.outputTokens || 0,
+            total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0)
+          }
+        });
+      }
 
       if (!classification || classification.isSafe) {
         return { passed: true };
@@ -264,6 +322,24 @@ export function topicRelevanceGuardrail<TContext = any>(config: {
     name: config.name || 'topic_relevance',
     type: config.type,
     validate: async (content: string) => {
+      // Get parent span for nesting
+      const parentSpan = getCurrentSpan();
+      
+      // Create GENERATION trace for this LLM-based guardrail
+      const generation = parentSpan?.generation({
+        name: `Guardrail: ${config.name || 'topic_relevance'}`,
+        model: extractModelName(config.model),
+        input: {
+          system: `Analyze if the following text is relevant to these topics: ${config.allowedTopics.join(', ')}. Rate relevance from 0-10.`,
+          prompt: content.substring(0, 500)
+        },
+        metadata: {
+          guardrailName: config.name || 'topic_relevance',
+          guardrailType: config.type,
+          allowedTopics: config.allowedTopics
+        }
+      });
+
       const result = await generateText({
         model: config.model,
         system: `Analyze if the following text is relevant to these topics: ${config.allowedTopics.join(', ')}. Rate relevance from 0-10.`,
@@ -284,6 +360,21 @@ export function topicRelevanceGuardrail<TContext = any>(config: {
 
       const rating = result.toolCalls?.[0]?.input as any;
       const threshold = config.threshold || 5;
+
+      // End generation with usage tracking
+      if (generation) {
+        generation.end({
+          output: {
+            rating,
+            passed: rating && rating.isRelevant && rating.relevanceScore >= threshold
+          },
+          usage: {
+            input: result.usage?.inputTokens || 0,
+            output: result.usage?.outputTokens || 0,
+            total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0)
+          }
+        });
+      }
 
       if (!rating || !rating.isRelevant || rating.relevanceScore < threshold) {
         return {
@@ -530,6 +621,24 @@ export function languageGuardrail<TContext = any>(config: {
     name: config.name || 'language_detection',
     type: config.type,
     validate: async (content: string) => {
+      // Get parent span for nesting
+      const parentSpan = getCurrentSpan();
+      
+      // Create GENERATION trace for this LLM-based guardrail
+      const generation = parentSpan?.generation({
+        name: `Guardrail: ${config.name || 'language_detection'}`,
+        model: extractModelName(config.model),
+        input: {
+          system: 'Detect the language of the text. Respond with the ISO 639-1 language code.',
+          prompt: content.substring(0, 500)
+        },
+        metadata: {
+          guardrailName: config.name || 'language_detection',
+          guardrailType: config.type,
+          allowedLanguages: config.allowedLanguages
+        }
+      });
+
       const result = await generateText({
         model: config.model,
         system: 'Detect the language of the text. Respond with the ISO 639-1 language code.',
@@ -547,6 +656,21 @@ export function languageGuardrail<TContext = any>(config: {
       });
 
       const detection = result.toolCalls?.[0]?.input as any;
+
+      // End generation with usage tracking
+      if (generation) {
+        generation.end({
+          output: {
+            detection,
+            passed: detection && config.allowedLanguages.includes(detection.language)
+          },
+          usage: {
+            input: result.usage?.inputTokens || 0,
+            output: result.usage?.outputTokens || 0,
+            total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0)
+          }
+        });
+      }
 
       if (!detection || !config.allowedLanguages.includes(detection.language)) {
         return {
@@ -599,6 +723,23 @@ export function sentimentGuardrail<TContext = any>(config: {
     name: config.name || 'sentiment_check',
     type: config.type,
     validate: async (content: string) => {
+      // Get parent span for nesting
+      const parentSpan = getCurrentSpan();
+      
+      // Create GENERATION trace for this LLM-based guardrail
+      const generation = parentSpan?.generation({
+        name: `Guardrail: ${config.name || 'sentiment_check'}`,
+        model: extractModelName(config.model),
+        input: {
+          system: 'Analyze the sentiment of the text as positive, negative, or neutral.',
+          prompt: content.substring(0, 500)
+        },
+        metadata: {
+          guardrailName: config.name || 'sentiment_check',
+          guardrailType: config.type
+        }
+      });
+
       const result = await generateText({
         model: config.model,
         system: 'Analyze the sentiment of the text as positive, negative, or neutral.',
@@ -617,6 +758,24 @@ export function sentimentGuardrail<TContext = any>(config: {
       });
 
       const sentiment = result.toolCalls?.[0]?.input as any;
+
+      // End generation with usage tracking
+      if (generation) {
+        const passed = !(config.blockedSentiments?.includes(sentiment?.sentiment) || 
+          (config.allowedSentiments && !config.allowedSentiments.includes(sentiment?.sentiment)));
+        
+        generation.end({
+          output: {
+            sentiment,
+            passed
+          },
+          usage: {
+            input: result.usage?.inputTokens || 0,
+            output: result.usage?.outputTokens || 0,
+            total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0)
+          }
+        });
+      }
 
       if (config.blockedSentiments?.includes(sentiment?.sentiment)) {
         return {
@@ -675,6 +834,24 @@ export function toxicityGuardrail<TContext = any>(config: {
     name: config.name || 'toxicity_check',
     type: config.type,
     validate: async (content: string) => {
+      // Get parent span for nesting
+      const parentSpan = getCurrentSpan();
+      
+      // Create GENERATION trace for this LLM-based guardrail
+      const generation = parentSpan?.generation({
+        name: `Guardrail: ${config.name || 'toxicity_check'}`,
+        model: extractModelName(config.model),
+        input: {
+          system: 'Rate the toxicity of the text on a scale from 0 (not toxic) to 10 (extremely toxic).',
+          prompt: content.substring(0, 500)
+        },
+        metadata: {
+          guardrailName: config.name || 'toxicity_check',
+          guardrailType: config.type,
+          threshold: config.threshold || 5
+        }
+      });
+
       const result = await generateText({
         model: config.model,
         system: 'Rate the toxicity of the text on a scale from 0 (not toxic) to 10 (extremely toxic).',
@@ -694,6 +871,21 @@ export function toxicityGuardrail<TContext = any>(config: {
 
       const rating = result.toolCalls?.[0]?.input as any;
       const threshold = config.threshold || 5;
+
+      // End generation with usage tracking
+      if (generation) {
+        generation.end({
+          output: {
+            rating,
+            passed: !rating || rating.toxicityScore <= threshold
+          },
+          usage: {
+            input: result.usage?.inputTokens || 0,
+            output: result.usage?.outputTokens || 0,
+            total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0)
+          }
+        });
+      }
 
       if (rating && rating.toxicityScore > threshold) {
         return {

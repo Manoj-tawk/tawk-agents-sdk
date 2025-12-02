@@ -1,9 +1,31 @@
 /**
- * Lifecycle Hooks and Event Emitters
- * 
- * Provides event emitters for agent and run lifecycle events.
+ * Lifecycle Hooks and Event System
  * 
  * @module lifecycle
+ * @description
+ * Event-driven lifecycle management for agents and runs.
+ * 
+ * **Event Types**:
+ * - **Agent Events**: agent_start, agent_end, agent_error
+ * - **Run Events**: run_start, run_end, step_start, step_end, run_error
+ * 
+ * **Features**:
+ * - Type-safe event emitters
+ * - Async event handler support
+ * - Error propagation
+ * - Composable hooks
+ * - Zero runtime overhead when unused
+ * 
+ * **Use Cases**:
+ * - Custom logging and monitoring
+ * - Performance tracking
+ * - Custom metrics collection
+ * - Integration with external systems
+ * - Debug instrumentation
+ * 
+ * @author Tawk.to
+ * @license MIT
+ * @version 2.0.0
  */
 
 import { EventEmitter } from 'events';
