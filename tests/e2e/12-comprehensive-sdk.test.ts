@@ -285,7 +285,7 @@ async function testMultiAgent() {
         instructions: 'Route to specialist for any question.',
         model: openai('gpt-4o-mini'),
         modelSettings: { temperature: 0 },
-        handoffs: [specialistAgent],
+        subagents: [specialistAgent],
       });
 
       const result = await run(triageAgent, 'Help me');

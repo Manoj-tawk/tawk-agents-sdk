@@ -261,7 +261,7 @@ Be friendly, professional, and helpful. Always prioritize customer satisfaction.
       },
     }),
   },
-  handoffs: [humanEscalationAgent],
+  subagents: [humanEscalationAgent],
 });
 
 // ============================================

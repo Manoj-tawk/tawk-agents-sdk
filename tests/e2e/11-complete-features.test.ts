@@ -669,7 +669,7 @@ async function test6_MultiAgentWithApprovals(): Promise<TestResult> {
           }),
         }),
       },
-      handoffs: [financialAgent],
+      subagents: [financialAgent],
     });
 
     // Triage agent
@@ -680,7 +680,7 @@ Route financial requests to Financial agent.
 Handle operational tasks yourself.`,
       model: openai('gpt-4o-mini'),
       modelSettings: { temperature: 0 },
-      handoffs: [financialAgent, operationsAgent],
+      subagents: [financialAgent, operationsAgent],
     });
 
     console.log('   ✓ Multi-agent system created');

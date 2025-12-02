@@ -91,7 +91,7 @@ When you receive a task:
 - If it involves writing/content, use transfer_to_writerexpert
 
 Always delegate to the appropriate specialist.`,
-      handoffs: [mathAgent, writerAgent],
+      subagents: [mathAgent, writerAgent],
     });
 
     console.log('✅ Agents created with handoff configuration\n');

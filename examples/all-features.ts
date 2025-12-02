@@ -219,7 +219,7 @@ export async function example3_ContextInjection() {
 // ============================================
 
 /**
- * Example 4: Multi-Agent Handoffs
+ * Example 4: Multi-Agent Transfers
  * 
  * Shows how to create a multi-agent system where one agent can
  * delegate tasks to specialized agents.
@@ -228,12 +228,12 @@ export async function example3_ContextInjection() {
  * ```typescript
  * const specialist = new Agent({
  *   name: 'specialist',
- *   handoffDescription: 'Expert in specific domain'
+ *   transferDescription: 'Expert in specific domain'
  * });
  * 
  * const coordinator = new Agent({
  *   name: 'coordinator',
- *   handoffs: [specialist]
+ *   subagents: [specialist]
  * });
  * ```
  */

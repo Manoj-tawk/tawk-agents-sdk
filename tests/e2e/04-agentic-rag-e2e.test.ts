@@ -279,7 +279,7 @@ Be fast and decisive. Route immediately without hesitation.`,
       },
     }),
   },
-  handoffs: [], // Will be set after other agents are created
+  subagents: [], // Will be set after other agents are created
   useTOON: true,
 });
 
@@ -358,7 +358,7 @@ CRITICAL: Complete the entire workflow in minimal turns. Be fast and efficient.`
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no handoffs
   useTOON: true,
 });
 
@@ -424,7 +424,7 @@ CRITICAL: Execute tools and generate direct response. No handoffs needed.`,
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no handoffs
   useTOON: true,
 });
 
@@ -490,7 +490,7 @@ CRITICAL: Generate direct escalation response. No handoffs needed.`,
     lengthGuardrail({ type: 'output', maxLength: 1500, unit: 'characters' }),
     piiDetectionGuardrail({ type: 'output' }),
   ],
-  handoffs: [], // Direct response - no handoffs
+  subagents: [], // Direct response - no handoffs
   useTOON: true,
 });
 

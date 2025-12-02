@@ -177,7 +177,7 @@ async function test3_MultiAgentToolTrace() {
     instructions: 'Route research questions to Researcher.',
     model: openai('gpt-4o-mini'),
     modelSettings: { temperature: 0 },
-    handoffs: [researchAgent],
+    subagents: [researchAgent],
   });
 
   console.log('Running: "Search for AI agents"\n');

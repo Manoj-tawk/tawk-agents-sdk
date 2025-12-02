@@ -106,7 +106,7 @@ async function testAgentHandoffs() {
     - Hand off to ReportAgent for report generation
     
     Process: First get data, then analyze it, then generate a report.`,
-    handoffs: [dataAgent, analysisAgent, reportAgent],
+    subagents: [dataAgent, analysisAgent, reportAgent],
   });
 
   console.log('📝 Starting multi-agent execution...\n');
@@ -170,7 +170,7 @@ async function testAgentCoordination() {
     model: openai('gpt-4o-mini'),
     instructions: `You coordinate multiple specialist agents.
     You can hand off to ResearchAgent or AnalysisAgent as needed.`,
-    handoffs: [researchAgent, analysisAgent],
+    subagents: [researchAgent, analysisAgent],
   });
 
   console.log('📝 Starting parallel coordination...\n');
@@ -216,7 +216,7 @@ async function testNestedAgents() {
     tools: {
       analyzeData,
     },
-    handoffs: [agentC],
+    subagents: [agentC],
   });
 
   const agentA = new Agent({
@@ -226,7 +226,7 @@ async function testNestedAgents() {
     tools: {
       fetchData,
     },
-    handoffs: [agentB],
+    subagents: [agentB],
   });
 
   console.log('📝 Starting nested execution...\n');

@@ -180,7 +180,7 @@ const tool = tool({
 **Multi-agent coordination:**
 ```typescript
 const coordinator = new Agent({
-  handoffs: [specialist1, specialist2]
+  subagents: [specialist1, specialist2]
 });
 ```
 
