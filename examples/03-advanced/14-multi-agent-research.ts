@@ -360,7 +360,7 @@ WORKFLOW (MUST COMPLETE ALL STEPS):
 2. After creating the plan, execute all steps in parallel using execute_research_steps
    - Pass the steps array from the plan
 3. After all steps complete, synthesize findings using synthesize_findings
-4. After synthesis, hand off to CitationAgent using handoff_to_citationagent
+4. After synthesis, hand off to CitationAgent using transfer_to_citationagent
    - Pass the synthesized report JSON in the "context" parameter
 
 CRITICAL RULES:
@@ -562,8 +562,8 @@ CRITICAL RULES:
         return {
           synthesized: true,
           synthesizedReport: synthesizedReport,
-          message: 'Findings synthesized successfully. Now hand off to CitationAgent using handoff_to_citationagent. Pass the synthesizedReport in the context parameter.',
-          nextStep: 'Call handoff_to_citationagent with reason="Add citations" and context="[JSON string of synthesizedReport]"',
+          message: 'Findings synthesized successfully. Now hand off to CitationAgent using transfer_to_citationagent. Pass the synthesizedReport in the context parameter.',
+          nextStep: 'Call transfer_to_citationagent with reason="Add citations" and context="[JSON string of synthesizedReport]"',
         };
       },
     }),
@@ -578,7 +578,7 @@ CRITICAL RULES:
       step.toolCalls.forEach(tc => {
         if (tc.toolName === 'synthesize_findings') {
           console.log(`\n   ✅ SYNTHESIS TOOL CALLED`);
-        } else if (tc.toolName === 'handoff_to_citationagent') {
+        } else if (tc.toolName === 'transfer_to_citationagent') {
           console.log(`\n   🔄 HANDING OFF TO CITATION AGENT...`);
           console.log(`      Reason: ${tc.args?.reason || 'N/A'}`);
           if (tc.args?.context) {

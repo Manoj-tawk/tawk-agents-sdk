@@ -24,7 +24,7 @@ const dataCollectorAgent = new Agent({
 When given a topic:
 1. Use the gatherData tool to collect information
 2. Organize findings clearly
-3. Use handoff_to_analyst to transfer the data to the Analyst
+3. Use transfer_to_analyst to transfer the data to the Analyst
 
 Be thorough and systematic.`,
   
@@ -60,7 +60,7 @@ const analystAgent = new Agent({
 When you receive data:
 1. Use the analyzeData tool to process it
 2. Extract key insights and patterns
-3. Use handoff_to_writer to send analysis to the Writer
+3. Use transfer_to_writer to send analysis to the Writer
 
 Be insightful and thorough.`,
   
@@ -95,7 +95,7 @@ const writerAgent = new Agent({
 When you receive analysis:
 1. Use the createReport tool to draft content
 2. Structure it professionally
-3. Use handoff_to_reviewer to send for review
+3. Use transfer_to_reviewer to send for review
 
 Write clearly and engagingly.`,
   
@@ -148,7 +148,7 @@ const reviewerAgent = new Agent({
 
 When you receive a report:
 1. Use the reviewReport tool to evaluate quality
-2. If quality score < 80: use handoff_to_writer to send back for revision with feedback
+2. If quality score < 80: use transfer_to_writer to send back for revision with feedback
 3. If quality score >= 80: approve and return the final report
 
 Be constructive and quality-focused.`,
@@ -183,7 +183,7 @@ const coordinatorAgent = new Agent({
   instructions: `You are the workflow coordinator.
 
 When you receive a request:
-1. Use handoff_to_datacollector to start the data collection process
+1. Use transfer_to_datacollector to start the data collection process
 2. The workflow will automatically flow: DataCollector → Analyst → Writer → Reviewer
 3. When you receive the approved report back, format it and present to the user
 

@@ -87,8 +87,8 @@ async function test02() {
 - WriterExpert: Expert in writing and content creation
 
 When you receive a task:
-- If it involves math/calculations, use handoff_to_mathexpert
-- If it involves writing/content, use handoff_to_writerexpert
+- If it involves math/calculations, use transfer_to_mathexpert
+- If it involves writing/content, use transfer_to_writerexpert
 
 Always delegate to the appropriate specialist.`,
       handoffs: [mathAgent, writerAgent],
