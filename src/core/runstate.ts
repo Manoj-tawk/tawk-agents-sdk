@@ -29,10 +29,6 @@
  * @version 2.0.0
  */
 
-<<<<<<< HEAD
-import type { ModelMessage } from 'ai';
-=======
->>>>>>> refactor/agent-separation-of-concerns
 import type { Agent } from './agent';
 import type { ModelMessage } from 'ai';
 import { Usage } from './usage';
@@ -131,17 +127,6 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public currentTurn: number;
   public currentStep?: NextStep;
 
-<<<<<<< HEAD
-  /**
-   * Original input to the run
-   */
-  public originalInput: string | ModelMessage[];
-=======
-  // Step and metric tracking
-  public steps: StepResult[] = [];
-  public agentMetrics: Map<string, AgentMetric> = new Map();
-  public toolUseTracker: AgentToolUseTracker = new AgentToolUseTracker();
->>>>>>> refactor/agent-separation-of-concerns
 
   // Token usage tracking
   public usage: Usage = new Usage();
@@ -150,15 +135,6 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public handoffChain: string[] = [];
   private handoffChainSet: Set<string> = new Set();
 
-<<<<<<< HEAD
-  /**
-   * Current messages
-   */
-  public messages: ModelMessage[];
-=======
-  // Interruption state for HITL
-  public pendingInterruptions: any[] = [];
->>>>>>> refactor/agent-separation-of-concerns
 
   // Tracing
   public trace?: any;
@@ -174,11 +150,6 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public agent: TAgent; // Alias for currentAgent
 
   constructor(
-<<<<<<< HEAD
-    initialAgent: Agent<any, any>,
-=======
-    agent: TAgent,
->>>>>>> refactor/agent-separation-of-concerns
     input: string | ModelMessage[],
     context: TContext,
     maxTurns: number = 50
@@ -202,53 +173,6 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   /**
    * Record a step in the execution
    */
-<<<<<<< HEAD
-  addItem(item: RunItem): void {
-    this.items.push(item);
-  }
-
-  /**
-   * Add a model response
-   */
-  addModelResponse(response: ModelResponse): void {
-    this.modelResponses.push(response);
-  }
-
-  /**
-   * Add a message
-   */
-  addMessage(message: ModelMessage): void {
-    this.messages.push(message);
-  }
-
-  /**
-   * Update usage
-   */
-  updateUsage(newUsage: Usage): void {
-    this.usage.add(newUsage);
-  }
-
-  /**
-   * Switch to a new agent (handoff)
-   */
-  handoffToAgent(newAgent: Agent<any, any>): void {
-    this.currentAgent = newAgent;
-    if (!this.handoffChain.includes(newAgent.name)) {
-      this.handoffChain.push(newAgent.name);
-=======
-  recordStep(step: StepResult): void {
-    this.steps.push(step);
-    this.stepNumber++;
-    
-    // Update legacy items array
-    for (const toolCall of step.toolCalls) {
-      this.items.push({
-        type: 'tool_call',
-        toolName: toolCall.toolName,
-        args: toolCall.args,
-        result: toolCall.result,
-      });
->>>>>>> refactor/agent-separation-of-concerns
     }
     
     if (step.text) {
