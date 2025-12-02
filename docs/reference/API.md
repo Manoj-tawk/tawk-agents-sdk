@@ -47,8 +47,8 @@ interface AgentConfig<TContext = any, TOutput = string> {
 
   // Optional
   tools?: Record<string, CoreTool>;
-  handoffs?: Agent<TContext, any>[];
-  handoffDescription?: string;
+  subagents?: Agent<TContext, any>[];
+  transferDescription?: string;
   guardrails?: Guardrail<TContext>[];
   mcpServers?: MCPServerConfig[];
   maxSteps?: number;
@@ -92,8 +92,8 @@ async cleanup(): Promise<void>
 
 ```typescript
 readonly name: string
-readonly handoffDescription?: string
-handoffs: Agent<TContext, any>[] // Getter/setter
+readonly transferDescription?: string
+subagents: Agent<TContext, any>[] // Getter/setter
 ```
 
 ---
@@ -135,7 +135,7 @@ interface RunResult<TOutput = string> {
     completionTokens: number;
     finishReason: string;
     totalToolCalls: number;
-    handoffChain?: string[];
+    transferChain?: string[];
     agentMetrics?: AgentMetric[];
   };
   state?: RunState<any, any>;
@@ -173,7 +173,7 @@ type StreamEvent =
   | { type: 'text-delta'; textDelta: string }
   | { type: 'tool-call'; toolName: string; args: any; toolCallId: string }
   | { type: 'tool-result'; toolName: string; result: any; toolCallId: string }
-  | { type: 'handoff'; from: string; to: string; reason?: string }
+  | { type: 'transfer'; from: string; to: string; reason?: string }
   | { type: 'finish'; finalOutput: string }
   | { type: 'error'; error: string };
 ```
@@ -344,13 +344,101 @@ function lengthGuardrail<TContext>(config: {
 
 #### Other Guardrails
 
-- `topicRelevanceGuardrail` - Topic relevance checking
-- `formatValidationGuardrail` - Format validation (JSON/XML/YAML/Markdown)
-- `rateLimitGuardrail` - Rate limiting
-- `languageGuardrail` - Language detection
-- `sentimentGuardrail` - Sentiment analysis
-- `toxicityGuardrail` - Toxicity detection
-- `customGuardrail` - Custom validation logic
+#### topicRelevanceGuardrail
+
+Ensure content is relevant to specific topics.
+
+```typescript
+function topicRelevanceGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  allowedTopics: string[];
+  threshold?: number; // 0-10
+}): Guardrail<TContext>
+```
+
+#### formatValidationGuardrail
+
+Validate content format (JSON, XML, YAML, Markdown).
+
+```typescript
+function formatValidationGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  format: 'json' | 'xml' | 'yaml' | 'markdown';
+  schema?: z.ZodSchema; // Optional Zod schema for JSON
+}): Guardrail<TContext>
+```
+
+#### rateLimitGuardrail
+
+Enforce rate limits based on context key.
+
+```typescript
+function rateLimitGuardrail<TContext>(config: {
+  name?: string;
+  storage: Map<string, { count: number; resetAt: number }>;
+  maxRequests: number;
+  windowMs: number;
+  keyExtractor: (context: RunContextWrapper<TContext>) => string;
+}): Guardrail<TContext>
+```
+
+#### languageGuardrail
+
+Enforce allowed languages.
+
+```typescript
+function languageGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  allowedLanguages: string[]; // ISO 639-1 codes
+}): Guardrail<TContext>
+```
+
+#### sentimentGuardrail
+
+Control response sentiment.
+
+```typescript
+function sentimentGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  blockedSentiments?: ('positive' | 'negative' | 'neutral')[];
+  allowedSentiments?: ('positive' | 'negative' | 'neutral')[];
+}): Guardrail<TContext>
+```
+
+#### toxicityGuardrail
+
+Detect and block toxic content.
+
+```typescript
+function toxicityGuardrail<TContext>(config: {
+  name?: string;
+  type: 'input' | 'output';
+  model: LanguageModel;
+  threshold?: number; // 0-10 (default: 5)
+}): Guardrail<TContext>
+```
+
+#### customGuardrail
+
+Create custom validation logic.
+
+```typescript
+function customGuardrail<TContext>(config: {
+  name: string;
+  type: 'input' | 'output';
+  validate: (
+    content: string, 
+    context: RunContextWrapper<TContext>
+  ) => Promise<GuardrailResult> | GuardrailResult;
+}): Guardrail<TContext>
+```
 
 See full documentation in [Guardrails Guide](../guides/FEATURES.md#guardrails).
 
@@ -392,6 +480,50 @@ function toolWithApproval(
     };
   }
 ): CoreTool
+```
+
+### RAG Tools
+
+#### createPineconeSearchTool
+
+Create a tool for searching Pinecone vector database.
+
+```typescript
+function createPineconeSearchTool(config: PineconeSearchConfig): CoreTool
+```
+
+**PineconeSearchConfig**:
+
+```typescript
+interface PineconeSearchConfig {
+  indexUrl: string;
+  apiKey: string;
+  embeddingModel: EmbeddingModel<string>;
+  namespace?: string; // default: 'default'
+  apiVersion?: string; // default: '2025-10'
+  embeddingProviderOptions?: Record<string, any>;
+  metadataFilter?: Record<string, any>;
+  useTOON?: boolean; // default: true
+  toonThreshold?: {
+    minDocuments?: number;
+    minSizeChars?: number;
+  };
+  enableCache?: boolean; // default: true
+  cacheKeyGenerator?: (query: string) => string;
+  logger?: (message: string, ...args: any[]) => void;
+}
+```
+
+#### createPineconeSearchToolWithCache
+
+Create a search tool and get cache management controls.
+
+```typescript
+function createPineconeSearchToolWithCache(config: PineconeSearchConfig): {
+  tool: CoreTool;
+  clearCache: () => void;
+  getCacheSize: () => number;
+}
 ```
 
 ---
@@ -579,7 +711,7 @@ interface AgentMetric {
   agentName: string;
   steps: number;
   toolCalls: number;
-  handoffs: number;
+  transfers: number;
   tokens: {
     prompt: number;
     completion: number;
@@ -600,7 +732,7 @@ type RunItemStreamEventName =
   | 'message'
   | 'tool_call'
   | 'tool_result'
-  | 'handoff'
+  | 'transfer'
   | 'guardrail'
   | 'step_complete';
 

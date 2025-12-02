@@ -18,7 +18,7 @@ Complete guide to event-driven workflows using lifecycle hooks.
 
 ## Overview
 
-**Lifecycle Hooks** provide an event-driven architecture for monitoring and reacting to agent execution. You can subscribe to events like agent starts, tool calls, handoffs, and completions.
+**Lifecycle Hooks** provide an event-driven architecture for monitoring and reacting to agent execution. You can subscribe to events like agent starts, tool calls, transfers, and completions.
 
 ### When to Use
 
@@ -53,8 +53,8 @@ agent.on('agent_start', (context, agent) => {
   console.log('Context:', context.context);
 });
 
-agent.on('agent_handoff', (context, nextAgent) => {
-  console.log(`Handing off to ${nextAgent.name}`);
+agent.on('agent_transfer', (context, nextAgent) => {
+  console.log(`Transferring to ${nextAgent.name}`);
 });
 
 agent.on('agent_tool_start', (context, tool) => {
@@ -77,7 +77,7 @@ const result = await run(agent, 'Hello!');
 
 1. **`agent_start`** - Emitted when agent starts execution
 2. **`agent_end`** - Emitted when agent finishes
-3. **`agent_handoff`** - Emitted when agent hands off to another agent
+3. **`agent_transfer`** - Emitted when agent transfers to another agent
 4. **`agent_tool_start`** - Emitted when agent starts executing a tool
 5. **`agent_tool_end`** - Emitted when agent finishes executing a tool
 
@@ -95,7 +95,7 @@ import { Agent, run } from 'tawk-agents-sdk';
 const agent = new Agent({
   name: 'support-agent',
   instructions: 'You help users.',
-  handoffs: [otherAgent]
+  subagents: [otherAgent]
 });
 
 // Create a custom runner with hooks
@@ -108,8 +108,8 @@ class CustomRunner extends RunHooks {
       console.log(`[RUN] Agent ${agent.name} started`);
     });
     
-    this.on('agent_handoff', (context, fromAgent, toAgent) => {
-      console.log(`[RUN] Handoff: ${fromAgent.name} → ${toAgent.name}`);
+    this.on('agent_transfer', (context, fromAgent, toAgent) => {
+      console.log(`[RUN] Transfer: ${fromAgent.name} → ${toAgent.name}`);
     });
     
     this.on('agent_tool_start', (context, agent, tool) => {
@@ -126,7 +126,7 @@ class CustomRunner extends RunHooks {
 
 1. **`agent_start`** - Emitted when any agent starts in the run
 2. **`agent_end`** - Emitted when any agent ends in the run
-3. **`agent_handoff`** - Emitted when a handoff occurs
+3. **`agent_transfer`** - Emitted when a transfer occurs
 4. **`agent_tool_start`** - Emitted when any tool starts
 5. **`agent_tool_end`** - Emitted when any tool ends
 
@@ -140,7 +140,7 @@ class CustomRunner extends RunHooks {
 interface AgentHookEvents<TContext, TOutput> {
   agent_start: [context: RunContextWrapper<TContext>, agent: Agent<TContext, TOutput>];
   agent_end: [context: RunContextWrapper<TContext>, output: TOutput];
-  agent_handoff: [context: RunContextWrapper<TContext>, nextAgent: Agent<any, any>];
+  agent_transfer: [context: RunContextWrapper<TContext>, nextAgent: Agent<any, any>];
   agent_tool_start: [context: RunContextWrapper<TContext>, tool: { name: string; args: any }];
   agent_tool_end: [context: RunContextWrapper<TContext>, tool: { name: string; args: any }, result: any];
 }
@@ -152,7 +152,7 @@ interface AgentHookEvents<TContext, TOutput> {
 interface RunHookEvents<TContext, TOutput> {
   agent_start: [context: RunContextWrapper<TContext>, agent: Agent<TContext, TOutput>];
   agent_end: [context: RunContextWrapper<TContext>, agent: Agent<TContext, TOutput>, output: TOutput];
-  agent_handoff: [context: RunContextWrapper<TContext>, fromAgent: Agent<any, any>, toAgent: Agent<any, any>];
+  agent_transfer: [context: RunContextWrapper<TContext>, fromAgent: Agent<any, any>, toAgent: Agent<any, any>];
   agent_tool_start: [context: RunContextWrapper<TContext>, agent: Agent<TContext, TOutput>, tool: { name: string; args: any }];
   agent_tool_end: [context: RunContextWrapper<TContext>, agent: Agent<TContext, TOutput>, tool: { name: string; args: any }, result: any];
 }
@@ -233,7 +233,7 @@ agent.on('agent_end', (context, output) => {
 await run(agent, 'Hello!');
 ```
 
-### Example 3: Monitoring Handoffs
+### Example 3: Monitoring Transfers
 
 ```typescript
 import { Agent, run } from 'tawk-agents-sdk';
@@ -241,15 +241,15 @@ import { Agent, run } from 'tawk-agents-sdk';
 const triageAgent = new Agent({
   name: 'triage',
   instructions: 'Route queries.',
-  handoffs: [knowledgeAgent, actionAgent]
+  subagents: [knowledgeAgent, actionAgent]
 });
 
-// Monitor handoffs
-triageAgent.on('agent_handoff', (context, nextAgent) => {
+// Monitor transfers
+triageAgent.on('agent_transfer', (context, nextAgent) => {
   console.log(`Triage routing to: ${nextAgent.name}`);
   
   // Log to monitoring system
-  monitoring.logHandoff({
+  monitoring.logTransfer({
     from: 'triage',
     to: nextAgent.name,
     timestamp: Date.now(),
@@ -394,7 +394,7 @@ class AgentHooks<TContext, TOutput> extends EventEmitter {
   // Register handlers
   onStart(handler: (context, agent) => void): this;
   onEnd(handler: (context, output) => void): this;
-  onHandoff(handler: (context, nextAgent) => void): this;
+  onTransfer(handler: (context, nextAgent) => void): this;
   onToolStart(handler: (context, tool) => void): this;
   onToolEnd(handler: (context, tool, result) => void): this;
   
@@ -413,7 +413,7 @@ class RunHooks<TContext, TOutput> extends EventEmitter {
   // Register handlers
   onAgentStart(handler: (context, agent) => void): this;
   onAgentEnd(handler: (context, agent, output) => void): this;
-  onAgentHandoff(handler: (context, fromAgent, toAgent) => void): this;
+  onAgentTransfer(handler: (context, fromAgent, toAgent) => void): this;
   onToolStart(handler: (context, agent, tool) => void): this;
   onToolEnd(handler: (context, agent, tool, result) => void): this;
   

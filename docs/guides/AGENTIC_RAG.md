@@ -2,17 +2,17 @@
 
 ## Overview
 
-This guide demonstrates how to build a production-ready **Agentic RAG (Retrieval-Augmented Generation)** system using Tawk Agents SDK with pure agent orchestration. All routing, coordination, and workflow management happens through SDK handoffs - no hardcoded logic.
+This guide demonstrates how to build a production-ready **Agentic RAG (Retrieval-Augmented Generation)** system using Tawk Agents SDK with pure agent orchestration. All routing, coordination, and workflow management happens through SDK transfers - no hardcoded logic.
 
 ## Architecture
 
-### Pure Agent Handoffs Pattern
+### Pure Agent Transfers Pattern
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Query Router Agent                        │
 │  - Analyzes query intent                                    │
-│  - Routes via SDK handoffs                                  │
+│  - Routes via SDK transfers                                  │
 │  - Uses logRouting tool for visibility                      │
 └──────────────────────┬──────────────────────────────────────┘
                        │
@@ -42,7 +42,7 @@ This guide demonstrates how to build a production-ready **Agentic RAG (Retrieval
               └──────────────────┘
 ```
 
-**Key Principle**: All orchestration happens through SDK handoffs. The router agent decides which retrieval agents to use, and each agent hands off to the next in the chain automatically.
+**Key Principle**: All orchestration happens through SDK transfers. The router agent decides which retrieval agents to use, and each agent transfers to the next in the chain automatically.
 
 ## Implementation
 
@@ -100,12 +100,12 @@ import { z } from 'zod';
 
 const routerAgent = new Agent({
   name: 'QueryRouter',
-  instructions: `You are a query router that classifies queries and routes them to appropriate specialist agents using handoffs.
+  instructions: `You are a query router that classifies queries and routes them to appropriate specialist agents using transfers.
 
 Your job:
 1. Analyze the incoming query
 2. Use logRouting tool to record your routing decision (for visibility)
-3. Hand off to the appropriate specialist agent(s) using SDK handoffs
+3. Transfer to the appropriate specialist agent(s) using SDK transfers
 
 Classification rules:
 - Technical queries → Hand off to Technical Retrieval Agent
@@ -113,7 +113,7 @@ Classification rules:
 - Domain-specific queries → Hand off to Domain Retrieval Agent
 - Multi-domain queries → Hand off to multiple agents
 
-IMPORTANT: Always use handoffs to route queries. Do not try to answer queries yourself.`,
+IMPORTANT: Always use transfers to route queries. Do not try to answer queries yourself.`,
   tools: {
     logRouting: tool({
       description: 'Log routing decision for visibility and debugging',
@@ -128,7 +128,7 @@ IMPORTANT: Always use handoffs to route queries. Do not try to answer queries yo
       },
     }),
   },
-  handoffs: [technicalRetrievalAgent, generalRetrievalAgent, domainRetrievalAgent],
+  subagents: [technicalRetrievalAgent, generalRetrievalAgent, domainRetrievalAgent],
 });
 ```
 
@@ -144,10 +144,10 @@ const technicalRetrievalAgent = new Agent({
 
 When given a query:
 1. Use searchKnowledgeBase tool to find relevant technical documents
-2. After retrieving documents, hand off to Synthesis Agent
+2. After retrieving documents, transfer to Synthesis Agent
 3. Include document IDs in your response
 
-Always hand off to Synthesis Agent after retrieval.`,
+Always transfer to Synthesis Agent after retrieval.`,
   tools: {
     searchKnowledgeBase: tool({
       description: 'Search technical knowledge base using semantic similarity',
@@ -180,7 +180,7 @@ Always hand off to Synthesis Agent after retrieval.`,
       },
     }),
   },
-  handoffDescription: 'Handles technical queries about code, frameworks, and APIs',
+  transferDescription: 'Handles technical queries about code, frameworks, and APIs',
 });
 ```
 
@@ -195,7 +195,7 @@ Your job:
 1. Receive contexts from retrieval agents
 2. Re-rank documents by relevance
 3. Remove duplicates and consolidate
-4. Hand off to Response Agent after synthesis`,
+4. Transfer to Response Agent after synthesis`,
   tools: {
     rerankDocuments: tool({
       description: 'Re-rank documents by relevance to the query',
@@ -254,19 +254,19 @@ IMPORTANT:
 });
 ```
 
-### 4. Configure Handoff Chain
+### 4. Configure Transfer Chain
 
 ```typescript
-// Set up the handoff chain: Retrieval → Synthesis → Response
-technicalRetrievalAgent.handoffs = [synthesisAgent];
-generalRetrievalAgent.handoffs = [synthesisAgent];
-domainRetrievalAgent.handoffs = [synthesisAgent];
-synthesisAgent.handoffs = [responseAgent];
+// Set up the transfer chain: Retrieval → Synthesis → Response
+technicalRetrievalAgent.subagents = [synthesisAgent];
+generalRetrievalAgent.subagents = [synthesisAgent];
+domainRetrievalAgent.subagents = [synthesisAgent];
+synthesisAgent.subagents = [responseAgent];
 ```
 
 ### 5. Orchestration Function
 
-**The beauty of pure agent orchestration**: Just run the router agent, and the SDK handles all handoffs automatically!
+**The beauty of pure agent orchestration**: Just run the router agent, and the SDK handles all transfers automatically!
 
 ```typescript
 import { run } from 'tawk-agents-sdk';
@@ -275,12 +275,12 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
   const startTime = Date.now();
 
   // Pure agent orchestration: Router → Retrieval → Synthesis → Response
-  // All routing and coordination happens through SDK handoffs - no hardcoded logic
+  // All routing and coordination happens through SDK transfers - no hardcoded logic
   const result = await run(routerAgent, query, { maxTurns: 15 });
 
   // Extract information from result
-  const handoffChain = result.metadata.handoffChain || [];
-  const agentsUsed = [...new Set(handoffChain)];
+  const transferChain = result.metadata.transferChain || [];
+  const agentsUsed = [...new Set(transferChain)];
   
   // Extract document IDs from tool calls
   const documentIds: string[] = [];
@@ -301,7 +301,7 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
   return {
     answer: result.finalOutput,
     citations: [...new Set(documentIds.filter(Boolean))],
-    handoffChain,
+    transferChain,
     totalTokens: result.metadata.totalTokens || 0,
     latency: Date.now() - startTime,
     agentsUsed,
@@ -314,7 +314,7 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
 ### 1. **Pure Agent Orchestration**
 - No hardcoded routing logic
 - Agents make their own decisions
-- SDK handles all handoffs automatically
+- SDK handles all transfers automatically
 
 ### 2. **Flexible & Extensible**
 - Easy to add new retrieval agents
@@ -322,7 +322,7 @@ async function agenticRAG(query: string): Promise<AgenticRAGResult> {
 - No code changes needed for workflow changes
 
 ### 3. **Observable**
-- Handoff chain tracked in metadata
+- Transfer chain tracked in metadata
 - Tool calls logged automatically
 - Easy to debug and monitor
 
@@ -354,7 +354,7 @@ const result = await agenticRAG('What is TypeScript?');
 
 console.log('Answer:', result.answer);
 console.log('Citations:', result.citations);
-console.log('Handoff Chain:', result.handoffChain.join(' → '));
+console.log('Transfer Chain:', result.transferChain.join(' → '));
 console.log('Agents Used:', result.agentsUsed.join(', '));
 console.log('Latency:', result.latency, 'ms');
 ```
@@ -382,7 +382,7 @@ const result = await agenticRAG('What features does the Tawk Agents SDK support?
 ## Best Practices
 
 1. **Use Tools for Visibility**: Add logging tools (like `logRouting`) to track agent decisions
-2. **Clear Instructions**: Write explicit instructions for when to hand off
+2. **Clear Instructions**: Write explicit instructions for when to transfer
 3. **Guardrails**: Apply guardrails to final output (length, PII, etc.)
 4. **Document IDs**: Always track document IDs for citations
 5. **Error Handling**: Handle missing embeddings, empty results, etc.
@@ -391,7 +391,7 @@ const result = await agenticRAG('What features does the Tawk Agents SDK support?
 ## Advanced Patterns
 
 ### Parallel Retrieval
-The SDK automatically handles parallel handoffs when multiple agents are available. The router agent can hand off to multiple retrieval agents simultaneously.
+The SDK automatically handles parallel transfers when multiple agents are available. The router agent can transfer to multiple retrieval agents simultaneously.
 
 ### Conditional Synthesis
 The synthesis agent can decide whether to combine contexts or pass through single results based on the number of sources.

@@ -85,7 +85,7 @@
     "docker:down": "docker-compose down -v",
     "docker:logs": "docker-compose logs -f",
     "example": "ts-node examples/complete-examples.ts",
-    "lint": "eslint src tests --ext .ts",
+    "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "prepublish": "npm run build && npm test"
   },

@@ -72,7 +72,7 @@ When `useTOON: true` is set:
 - ✅ **Nested structures** - Deeply nested objects/arrays
 - ❌ **Strings** - Already efficient, not encoded
 - ❌ **Primitives** - Numbers, booleans, null (not encoded)
-- ❌ **Handoff markers** - Special `__handoff` objects preserved
+- ❌ **Transfer markers** - Special `__transfer` objects preserved
 
 ### Encoding Process
 

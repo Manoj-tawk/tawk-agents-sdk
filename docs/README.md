@@ -254,7 +254,7 @@ tawk-agents-sdk/
 
 | Feature | Description | Guide |
 |---------|-------------|-------|
-| **Transfers** | Context-isolated agent handoffs | [Advanced](./guides/ADVANCED_FEATURES.md) |
+| **Transfers** | Context-isolated agent transfers | [Advanced](./guides/ADVANCED_FEATURES.md) |
 | **HITL** | Human-in-the-loop approvals | [HITL Guide](./guides/HUMAN_IN_THE_LOOP.md) |
 | **Streaming** | Real-time response streaming | [API Reference](./reference/API.md) |
 | **RAG** | Agentic RAG with Pinecone | [RAG Guide](./guides/AGENTIC_RAG.md) |

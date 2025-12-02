@@ -80,7 +80,7 @@ const agent = new Agent({
 - **18-33% token reduction** in most scenarios
 - **10-20% faster latency** in most scenarios
 - **Zero code changes** - automatic encoding/decoding
-- **Handoff-safe** - handoff markers preserved
+- **Transfer-safe** - transfer markers preserved
 
 **Manual TOON encoding** (for custom use cases):
 
@@ -305,7 +305,7 @@ const result = await run(agent, 'Hello', { session });
 **What gets converted:**
 - ✅ Session history (`CoreMessage[]` → `ModelMessage[]`)
 - ✅ Tool results (already `ModelMessage[]` compatible)
-- ✅ Handoff messages (preserved as `ModelMessage[]`)
+- ✅ Transfer messages (preserved as `ModelMessage[]`)
 - ✅ User input (already `ModelMessage[]`)
 
 **No action required** - conversion happens automatically in `prepareMessages()`.

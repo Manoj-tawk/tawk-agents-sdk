@@ -144,7 +144,7 @@ graph TB
 | **Tool Execution** | Parallel by default |
 | **Flexibility** | Dynamic adaptation |
 | **State** | Complex RunState with interruption |
-| **Handoffs** | Autonomous delegation |
+| **Transfers** | Autonomous delegation |
 
 ---
 
@@ -241,7 +241,7 @@ gantt
 
 ## 4. Multi-Agent Systems
 
-### Agent Handoffs
+### Agent Transfers
 
 **Architecture**:
 
@@ -284,7 +284,7 @@ graph TB
     style Research fill:#27ae60
 ```
 
-### Handoff Flow
+### Transfer Flow
 
 ```mermaid
 sequenceDiagram
@@ -296,14 +296,14 @@ sequenceDiagram
     User->>Coordinator: "Write article about AI"
     
     Note over Coordinator: Decides: Need research first
-    Coordinator->>Researcher: Handoff with context
+    Coordinator->>Researcher: Transfer with context
     
     Note over Researcher: Gathers information
     Researcher->>Researcher: Uses search tools
     Researcher-->>Coordinator: Research complete
     
     Note over Coordinator: Decides: Now write
-    Coordinator->>Writer: Handoff with research
+    Coordinator->>Writer: Transfer with research
     
     Note over Writer: Writes article
     Writer->>Writer: Uses formatting tools
@@ -320,7 +320,7 @@ const researcher = new Agent({
   name: 'Researcher',
   model: openai('gpt-4o'),
   instructions: 'You research topics thoroughly.',
-  handoffDescription: 'Use for research tasks',
+  transferDescription: 'Use for research tasks',
   tools: { search, fetchData }
 });
 
@@ -328,7 +328,7 @@ const writer = new Agent({
   name: 'Writer',
   model: openai('gpt-4o'),
   instructions: 'You write clear, engaging content.',
-  handoffDescription: 'Use for writing tasks',
+  transferDescription: 'Use for writing tasks',
   tools: { format, spellCheck }
 });
 
@@ -337,10 +337,10 @@ const coordinator = new Agent({
   name: 'Coordinator',
   model: openai('gpt-4o'),
   instructions: 'Route tasks to specialists.',
-  handoffs: [researcher, writer]  // Available specialists
+  subagents: [researcher, writer]  // Available specialists
 });
 
-// Agent autonomously decides handoff chain
+// Agent autonomously decides transfer chain
 const result = await run(coordinator, 'Write an article about quantum computing');
 // Flow: Coordinator → Researcher → Writer → Final output
 ```
@@ -365,7 +365,7 @@ graph TB
     subgraph "State Transitions"
         Running[Running]
         ToolCall[Tool Execution]
-        Handoff[Agent Handoff]
+        Transfer[Agent Transfer]
         Complete[Complete]
         Interrupted[Interrupted]
     end
@@ -377,8 +377,8 @@ graph TB
     
     Running --> ToolCall
     ToolCall --> Running
-    Running --> Handoff
-    Handoff --> Running
+    Running --> Transfer
+    Transfer --> Running
     Running --> Complete
     Running --> Interrupted
     
@@ -421,8 +421,8 @@ stateDiagram-v2
     Running --> ToolExecution: Tools needed
     ToolExecution --> Running: Results ready
     
-    Running --> Handoff: Handoff needed
-    Handoff --> Running: Continue with new agent
+    Running --> Transfer: Transfer needed
+    Transfer --> Running: Continue with new agent
     
     Running --> GuardrailCheck: Validate output
     GuardrailCheck --> Running: Pass
@@ -457,7 +457,7 @@ graph TB
     CallModel --> Decision{Agent Decision}
     
     Decision -->|Tool Calls| ParallelTools[Execute Tools<br/>in Parallel]
-    Decision -->|Handoff| SwitchAgent[Switch to<br/>New Agent]
+    Decision -->|Transfer| SwitchAgent[Switch to<br/>New Agent]
     Decision -->|Final Answer| OutputGuard
     
     ParallelTools --> UpdateState[Update State]
@@ -536,8 +536,8 @@ class MonitoredAgent extends AgentHooks {
     console.log(`✅ Result: ${toolName}`);
   }
 
-  onHandoff(fromAgent: string, toAgent: string) {
-    console.log(`🔄 Handoff: ${fromAgent} → ${toAgent}`);
+  onTransfer(fromAgent: string, toAgent: string) {
+    console.log(`🔄 Transfer: ${fromAgent} → ${toAgent}`);
   }
 
   onComplete(context: any, result: any) {
@@ -574,7 +574,7 @@ Object.setPrototypeOf(agent, MonitoredAgent.prototype);
 - Perfect for human-in-the-loop patterns
 
 ### 4. Multi-Agent is Native
-- Agents can handoff to specialists
+- Agents can transfer to specialists
 - Automatic context passing
 - Seamless coordination
 

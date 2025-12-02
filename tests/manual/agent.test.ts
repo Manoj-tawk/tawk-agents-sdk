@@ -124,26 +124,28 @@ describe('Basic Agent Tests', () => {
         }),
       });
 
-      mockGenerateText.mockResolvedValue({
-        text: 'The weather in San Francisco is 72°F and Sunny.',
-        toolCalls: [
-          {
-            toolCallId: 'call_123',
-            toolName: 'weatherTool',
-            args: { city: 'San Francisco' },
-          },
-        ],
-        toolResults: [
-          {
-            toolCallId: 'call_123',
-            toolName: 'weatherTool',
-            result: { city: 'San Francisco', temperature: 72, conditions: 'Sunny' },
-          },
-        ],
-        usage: { inputTokens: 20, outputTokens: 15, totalTokens: 35 },
-        finishReason: 'stop',
-        steps: [],
-      } as any);
+      // First call: agent requests tool call
+      mockGenerateText
+        .mockResolvedValueOnce({
+          text: '',
+          toolCalls: [
+            {
+              toolCallId: 'call_123',
+              toolName: 'weatherTool',
+              args: { city: 'San Francisco' },
+            },
+          ],
+          usage: { inputTokens: 20, outputTokens: 5, totalTokens: 25 },
+          finishReason: 'tool_calls',
+          steps: [],
+        } as any)
+        // Second call: agent responds with final answer after tool execution
+        .mockResolvedValueOnce({
+          text: 'The weather in San Francisco is 72°F and Sunny.',
+          usage: { inputTokens: 30, outputTokens: 15, totalTokens: 45 },
+          finishReason: 'stop',
+          steps: [],
+        } as any);
 
       const agent = new Agent({
         name: 'Weather Agent',
@@ -155,7 +157,7 @@ describe('Basic Agent Tests', () => {
 
       expect(result.finalOutput).toContain('72');
       expect(result.finalOutput).toContain('Sunny');
-      expect(mockGenerateText).toHaveBeenCalled();
+      expect(mockGenerateText).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -170,26 +172,28 @@ describe('Basic Agent Tests', () => {
         },
       });
 
-      mockGenerateText.mockResolvedValue({
-        text: 'Context used',
-        toolCalls: [
-          {
-            toolCallId: 'call_456',
-            toolName: 'contextTool',
-            args: { query: 'test' },
-          },
-        ],
-        toolResults: [
-          {
-            toolCallId: 'call_456',
-            toolName: 'contextTool',
-            result: { query: 'test', userId: 'user-123' },
-          },
-        ],
-        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-        finishReason: 'stop',
-        steps: [],
-      } as any);
+      // First call: agent requests tool call
+      mockGenerateText
+        .mockResolvedValueOnce({
+          text: '',
+          toolCalls: [
+            {
+              toolCallId: 'call_456',
+              toolName: 'contextTool',
+              args: { query: 'test' },
+            },
+          ],
+          usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+          finishReason: 'tool_calls',
+          steps: [],
+        } as any)
+        // Second call: agent responds with final answer
+        .mockResolvedValueOnce({
+          text: 'Context used',
+          usage: { inputTokens: 15, outputTokens: 5, totalTokens: 20 },
+          finishReason: 'stop',
+          steps: [],
+        } as any);
 
       const agent = new Agent({
         name: 'Context Agent',
@@ -252,19 +256,28 @@ describe('Basic Agent Tests', () => {
         },
       });
 
-      mockGenerateText.mockResolvedValue({
-        text: 'Tool failed',
-        toolCalls: [
-          {
-            toolCallId: 'call_789',
-            toolName: 'failingTool',
-            args: { input: 'test' },
-          },
-        ],
-        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-        finishReason: 'stop',
-        steps: [],
-      } as any);
+      // First call: agent requests tool call
+      mockGenerateText
+        .mockResolvedValueOnce({
+          text: '',
+          toolCalls: [
+            {
+              toolCallId: 'call_789',
+              toolName: 'failingTool',
+              args: { input: 'test' },
+            },
+          ],
+          usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+          finishReason: 'tool_calls',
+          steps: [],
+        } as any)
+        // Second call: agent responds after tool error
+        .mockResolvedValueOnce({
+          text: 'I encountered an error with the tool.',
+          usage: { inputTokens: 15, outputTokens: 10, totalTokens: 25 },
+          finishReason: 'stop',
+          steps: [],
+        } as any);
 
       const agent = new Agent({
         name: 'Failing Agent',
@@ -275,6 +288,7 @@ describe('Basic Agent Tests', () => {
       // Should handle tool error gracefully
       const result = await run(agent, 'Test failing tool');
       expect(result).toBeDefined();
+      expect(result.finalOutput).toBeDefined();
     });
   });
 });

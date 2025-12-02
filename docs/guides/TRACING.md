@@ -45,11 +45,11 @@ console.log('Trace URL:', result.metadata.traceUrl);
 When you call `run(agent, input)`, the SDK automatically:
 
 1. ✅ **Creates a trace** - One trace per `run()` call
-2. ✅ **Creates agent spans** - One span per agent (handles handoffs automatically)
+2. ✅ **Creates agent spans** - One span per agent (handles transfers automatically)
 3. ✅ **Creates generation spans** - One span per LLM call
 4. ✅ **Tracks tool calls** - All tool executions are logged
 5. ✅ **Tracks token usage** - Input/output tokens for each generation
-6. ✅ **Tracks handoffs** - When agents delegate to other agents
+6. ✅ **Tracks transfers** - When agents delegate to other agents
 
 **You don't need to do anything!** Just set your Langfuse credentials:
 

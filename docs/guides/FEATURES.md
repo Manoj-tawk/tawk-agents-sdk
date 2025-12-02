@@ -8,7 +8,7 @@ Key features and capabilities of Tawk Agents SDK.
 
 - **Agent Creation** - Define agents with name, instructions, and model
 - **Multi-Agent Support** - Coordinate multiple specialized agents
-- **Agent Handoffs** - Seamless transfer between agents
+- **Agent Transfers** - Seamless transfer between agents
 - **Dynamic Instructions** - Function-based instructions with context
 - **Model Configuration** - Temperature, max tokens, top-p settings
 
@@ -105,6 +105,25 @@ const agent = new Agent({
 });
 ```
 
+### RAG Tools
+
+Search Pinecone vector database:
+
+```typescript
+import { createPineconeSearchTool } from 'tawk-agents-sdk';
+import { openai } from '@ai-sdk/openai';
+
+const agent = new Agent({
+  tools: {
+    search: createPineconeSearchTool({
+      indexUrl: process.env.PINECONE_INDEX_URL!,
+      apiKey: process.env.PINECONE_API_KEY!,
+      embeddingModel: openai.embedding('text-embedding-3-small')
+    })
+  }
+});
+```
+
 ## Safety & Validation
 
 ### Guardrails
@@ -154,6 +173,19 @@ const agent = new Agent({
           message: 'Service only available 9 AM - 5 PM'
         };
       }
+    }),
+    // Topic Relevance
+    topicRelevanceGuardrail({
+      type: 'output',
+      model: openai('gpt-4o-mini'),
+      allowedTopics: ['technical support', 'programming'],
+      threshold: 7
+    }),
+    // Toxicity Check
+    toxicityGuardrail({
+      type: 'input',
+      model: openai('gpt-4o-mini'),
+      threshold: 5
     })
   ]
 });
@@ -241,7 +273,7 @@ console.log(`Winner: ${result.winningAgent.name}`);
 console.log(result.finalOutput);
 ```
 
-### Agent Handoffs
+### Agent Transfers
 
 Coordinate specialized agents:
 
@@ -250,7 +282,7 @@ const coordinator = new Agent({
   name: 'coordinator',
   model: openai('gpt-4o'),
   instructions: 'You coordinate between agents.',
-  handoffs: [researchAgent, writerAgent, editorAgent]
+  subagents: [researchAgent, writerAgent, editorAgent]
 });
 
 // Automatically routes to the right agent
@@ -307,7 +339,7 @@ const decoded = decodeTOON(toon);
 - **18-33% token reduction** in most scenarios
 - **10-20% faster latency** in most scenarios
 - **Automatic encoding/decoding** (no code changes needed)
-- **Handoff-safe** - handoff markers preserved
+- **Transfer-safe** - transfer markers preserved
 
 ### MCP Integration
 

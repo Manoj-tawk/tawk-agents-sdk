@@ -146,7 +146,7 @@ class MonitoringAgent extends AgentHooks {
 
 ## Advanced Tracing
 
-Beyond Langfuse auto-tracing, create custom traces.
+Beyond- **Transfer-safe** - transfer markers preserved custom traces.
 
 ### Custom Trace Context
 

@@ -90,7 +90,7 @@ graph TB
 ```
 src/
 ├── core/                       # Core execution engine
-│   ├── agent.ts               # Agent class & run functions
+│   ├── agent/                 # Modular agent (types, class, run, tools)
 │   ├── runner.ts              # AgenticRunner (main executor)
 │   ├── execution.ts           # Single-step execution
 │   ├── transfers.ts           # Multi-agent transfer system
@@ -731,7 +731,7 @@ flowchart TD
 
 ## 🔍 Component Details
 
-### 1. Agent Class (`core/agent.ts`)
+### 1. Agent Class (`core/agent/agent-class.ts`)
 
 **Purpose**: Main interface for creating and running agents
 
@@ -798,7 +798,7 @@ flowchart TD
 - `steps` - Execution steps
 - `usage` - Token usage
 - `currentAgent` - Active agent
-- `handoffChain` - Agent path
+- `transferChain` - Agent path
 - `agentMetrics` - Per-agent stats
 
 ### 6. Guardrails (`guardrails/index.ts`)
