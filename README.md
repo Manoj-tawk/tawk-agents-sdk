@@ -615,87 +615,6 @@ export type { Expand, DeepPartial, Prettify, UnwrapPromise }
 
 ---
 
-## 🚀 What's New in v1.0.0
-
-### Architecture Improvements
-✅ **Modular Agent System** - `core/agent/` split into focused modules (types, class, run, tools)  
-✅ **Zero Circular Dependencies** - Clean dependency graph  
-✅ **Enhanced Tracing** - LLM guardrails tracked as GENERATION with token usage  
-✅ **Production Patterns** - SOLID principles, clean code throughout
-
-### Documentation
-✅ **Flow Diagrams** - 7 comprehensive Mermaid sequence diagrams  
-✅ **Source Architecture** - Complete codebase guide  
-✅ **100% Coverage** - All 76 exports documented  
-✅ **Visual Guides** - 25+ Mermaid diagrams
-
-### Quality
-✅ **Zero Console Logs** - Clean production code  
-✅ **Professional JSDoc** - Complete inline documentation  
-✅ **Lint Clean** - Zero errors, strict mode  
-✅ **Test Coverage** - Comprehensive test suite
-
----
-
-## 📖 Learning Paths
-
-### New to the Framework (2 hours)
-
-```mermaid
-flowchart LR
-    A[Getting Started<br/>15 min] --> B[Flow Diagrams<br/>30 min]
-    B --> C[Features<br/>30 min]
-    C --> D[Build App<br/>45 min]
-    
-    style A fill:#e3f2fd
-    style D fill:#c8e6c9
-```
-
-1. [Getting Started](./docs/getting-started/GETTING_STARTED.md)
-2. [Flow Diagrams](./docs/reference/FLOW_DIAGRAMS.md)
-3. [Features Guide](./docs/guides/FEATURES.md)
-4. Begin development
-
-### Experienced Developer (1.5 hours)
-
-```mermaid
-flowchart LR
-    A[Flow Diagrams<br/>30 min] --> B[Architecture<br/>30 min]
-    B --> C[Advanced<br/>30 min]
-    C --> D[Production]
-    
-    style A fill:#e3f2fd
-    style D fill:#c8e6c9
-```
-
-1. [Flow Diagrams](./docs/reference/FLOW_DIAGRAMS.md)
-2. [Complete Architecture](./docs/reference/COMPLETE_ARCHITECTURE.md)
-3. [Advanced Features](./docs/guides/ADVANCED_FEATURES.md)
-4. Production deployment
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-**Before submitting:**
-- [ ] Tests pass (`npm test`)
-- [ ] Lint clean (`npm run lint`)
-- [ ] Documentation updated
-- [ ] Changelog updated
-
----
-
-## 📝 Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for version history and migration guides.
-
-**Recent versions:**
-- **v1.0.0** (Current) - Production-ready AI agent framework with true agentic architecture
-- **v1.0.0** - Initial production release
-
----
 
 ## 📄 License
 
@@ -721,13 +640,6 @@ Built with industry-leading open source technologies:
 - 📧 **Email**: support@tawk.to
 - 💡 **Examples**: [19 Working Examples](./examples)
 
----
-
-## 🌟 Star Us!
-
-If you find this SDK helpful, please give us a star on GitHub! ⭐
-
----
 
 **Made with ❤️ by [Tawk.to](https://www.tawk.to)**
 
