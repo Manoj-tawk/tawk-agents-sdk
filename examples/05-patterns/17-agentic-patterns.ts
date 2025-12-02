@@ -76,41 +76,41 @@ async function example1_ParallelTools() {
 }
 
 // ====================
-// EXAMPLE 2: Autonomous Handoffs
+// EXAMPLE 2: Autonomous Transfers
 // ====================
 
 async function example2_AutonomousHandoffs() {
-  console.log('\n===== EXAMPLE 2: Autonomous Agent Handoffs =====\n');
+  console.log('\n===== EXAMPLE 2: Autonomous Agent Transfers =====\n');
 
   const researchAgent = new Agent({
     name: 'Researcher',
-    instructions: 'You research topics and gather information. When done, you should handoff to the Analyst.',
-    handoffDescription: 'Handles research and information gathering',
+    instructions: 'You research topics and gather information. When done, transfer to the Analyst.',
+    transferDescription: 'Handles research and information gathering',
   });
 
   const analysisAgent = new Agent({
     name: 'Analyst',
-    instructions: 'You analyze information and provide insights. When done, you should handoff to the Reporter.',
-    handoffDescription: 'Handles analysis and insights',
+    instructions: 'You analyze information and provide insights. When done, transfer to the Reporter.',
+    transferDescription: 'Handles analysis and insights',
   });
 
   const reportAgent = new Agent({
     name: 'Reporter',
     instructions: 'You create final reports from analysis. This is the final step.',
-    handoffDescription: 'Creates final reports',
+    transferDescription: 'Creates final reports',
   });
 
-  // Configure handoffs
+  // Configure transfers
   researchAgent.subagents = [analysisAgent];
   analysisAgent.subagents = [reportAgent];
 
   const result = await run(researchAgent, 'Research and analyze AI safety');
 
   console.log('Final Output:', result.finalOutput);
-  console.log('\nHandoff Chain:', result.metadata.handoffChain);
+  console.log('\nTransfer Chain:', result.metadata.handoffChain);
   console.log('Agents Involved:', result.metadata.handoffChain?.length);
   
-  // Agent autonomously decided when to handoff (not SDK)
+  // Agent autonomously decided when to transfer (not SDK)
 }
 
 // ====================

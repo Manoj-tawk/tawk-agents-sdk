@@ -275,7 +275,7 @@ async function example5_MultiAgentToolTracing() {
     instructions: 'Route math questions to the MathSpecialist.',
     model: openai('gpt-4o-mini'),
     modelSettings: { temperature: 0 },
-    handoffs: [mathAgent],
+    subagents: [mathAgent],
   });
 
   console.log('Query: "Calculate 123 * 456"\n');

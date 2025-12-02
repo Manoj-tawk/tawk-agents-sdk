@@ -55,11 +55,13 @@ async function main() {
   const coordinator = new Agent({
     name: 'Coordinator',
     model: openai('gpt-4o-mini'),
-    instructions: `You are a coordinator. When users ask about:
-- Math/calculations: handoff to MathAgent
-- Weather: handoff to WeatherAgent
-- General questions: answer directly`,
-    handoffs: [mathAgent, weatherAgent],
+    instructions: `You are a coordinator that can transfer to specialist agents. When users ask about:
+- Math/calculations: transfer to MathAgent
+- Weather: transfer to WeatherAgent
+- General questions: answer directly
+
+To transfer, use the appropriate transfer_to_* tool.`,
+    subagents: [mathAgent, weatherAgent],
   });
 
   // Test multi-agent coordination

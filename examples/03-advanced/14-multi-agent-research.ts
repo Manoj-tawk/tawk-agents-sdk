@@ -297,7 +297,7 @@ Return ONLY the JSON object, nothing else.`,
 // We'll create the final report from synthesized data instead
 const citationAgent = new Agent<ResearchContext>({
   name: 'CitationAgent',
-  handoffDescription: 'Hand off to CitationAgent when research is complete and you need to add proper citations to the final report. Include the synthesized report in the handoff context.',
+  handoffDescription: 'Transfer to CitationAgent when research is complete and you need to add proper citations to the final report. Include the synthesized report in the transfer context.',
   model: openai('gpt-4o-mini'),
   instructions: `You are a citation agent that processes research documents and adds proper citations.
 
@@ -569,8 +569,8 @@ CRITICAL RULES:
     }),
   },
   
-  // Handoff to CitationAgent
-  handoffs: [citationAgent],
+  // Transfer to CitationAgent
+  subagents: [citationAgent],
   
   // Add logging for each step
   onStepFinish: (step) => {

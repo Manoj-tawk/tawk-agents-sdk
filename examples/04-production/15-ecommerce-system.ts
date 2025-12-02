@@ -240,18 +240,18 @@ async function handoffsExample() {
     }
   });
 
-  // Create main agent with handoffs
+  // Create main agent with transfers
   const mainAgent = new Agent({
     name: 'Main Agent',
     instructions: `
       You are the main customer service agent.
-      When users ask about products, hand off to Product Agent.
-      When users ask about billing, hand off to Billing Agent.
+      When users ask about products, transfer to Product Agent.
+      When users ask about billing, transfer to Billing Agent.
     `,
-    handoffs: [productAgent, billingAgent]
+    subagents: [productAgent, billingAgent]
   });
 
-  // Run - will automatically hand off
+  // Run - will automatically transfer
   const result = await run(mainAgent, 'Show me laptops');
   console.log(result.finalOutput);
 }
@@ -660,17 +660,17 @@ async function completeEcommerceExample() {
     ]
   });
 
-  // Create main agent with handoffs
+  // Create main agent with transfers
   const mainAgent = new Agent<EcommerceContext>({
     name: 'Customer Service',
     instructions: `
       You are a customer service agent for an e-commerce store.
       Help customers find products, manage their cart, and checkout.
-      - For product searches, hand off to Product Agent
-      - For cart operations, hand off to Cart Agent
-      - For checkout, hand off to Checkout Agent
+      - For product searches, transfer to Product Agent
+      - For cart operations, transfer to Cart Agent
+      - For checkout, transfer to Checkout Agent
     `,
-    handoffs: [productAgent, cartAgent, checkoutAgent]
+    subagents: [productAgent, cartAgent, checkoutAgent]
   });
 
   // Create context
