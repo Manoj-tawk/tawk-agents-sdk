@@ -127,6 +127,13 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public currentTurn: number;
   public currentStep?: NextStep;
 
+  // Step and metric tracking
+  public steps: StepResult[] = [];
+  public agentMetrics: Map<string, AgentMetric> = new Map();
+  public toolUseTracker: AgentToolUseTracker = new AgentToolUseTracker();
+
+  // Original input to the run
+  public originalInput: string | ModelMessage[];
 
   // Token usage tracking
   public usage: Usage = new Usage();
@@ -135,6 +142,11 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public handoffChain: string[] = [];
   private handoffChainSet: Set<string> = new Set();
 
+  // Current messages
+  public messages: ModelMessage[];
+
+  // Interruption state for HITL
+  public pendingInterruptions: any[] = [];
 
   // Tracing
   public trace?: any;
@@ -150,6 +162,7 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public agent: TAgent; // Alias for currentAgent
 
   constructor(
+    agent: TAgent,
     input: string | ModelMessage[],
     context: TContext,
     maxTurns: number = 50
@@ -173,6 +186,18 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   /**
    * Record a step in the execution
    */
+  recordStep(step: StepResult): void {
+    this.steps.push(step);
+    this.stepNumber++;
+    
+    // Update legacy items array
+    for (const toolCall of step.toolCalls) {
+      this.items.push({
+        type: 'tool_call',
+        toolName: toolCall.toolName,
+        args: toolCall.args,
+        result: toolCall.result,
+      });
     }
     
     if (step.text) {
