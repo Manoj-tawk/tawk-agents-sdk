@@ -1,6 +1,6 @@
 # 🏗️ Complete SDK Architecture & Flow
 
-**Comprehensive end-to-end architecture aligned with source code v2.0.0**
+**Comprehensive end-to-end architecture aligned with source code v1.0.0**
 
 ---
 

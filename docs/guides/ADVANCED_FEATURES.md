@@ -21,7 +21,7 @@ Build and manipulate conversations programmatically.
 ### Creating Messages
 
 ```typescript
-import { user, assistant, system, toolMessage } from 'tawk-agents-sdk';
+import { user, assistant, system, toolMessage } from '../../src';
 
 const messages = [
   system('You are a helpful assistant'),
@@ -37,7 +37,7 @@ const result = await run(agent, messages);
 ### Extracting Content
 
 ```typescript
-import { getLastTextContent, filterMessagesByRole, extractAllText } from 'tawk-agents-sdk';
+import { getLastTextContent, filterMessagesByRole, extractAllText } from '../../src';
 
 // Get last message content
 const lastText = getLastTextContent(messages);
@@ -73,7 +73,7 @@ class AgentHooks {
 ### Example Usage
 
 ```typescript
-import { Agent, run, AgentHooks } from 'tawk-agents-sdk';
+import { Agent, run, AgentHooks } from '../../src';
 
 class LoggingAgent extends AgentHooks {
   onStart(context: any) {
@@ -151,7 +151,7 @@ Beyond- **Transfer-safe** - transfer markers preserved custom traces.
 ### Custom Trace Context
 
 ```typescript
-import { withTrace, withFunctionSpan, getCurrentTrace } from 'tawk-agents-sdk';
+import { withTrace, withFunctionSpan, getCurrentTrace } from '../../src';
 
 await withTrace(
   {
@@ -193,7 +193,7 @@ await withTrace(
 ### Getting Current Trace
 
 ```typescript
-import { getCurrentTrace, createContextualSpan } from 'tawk-agents-sdk';
+import { getCurrentTrace, createContextualSpan } from '../../src';
 
 // Inside a tool or hook
 const trace = getCurrentTrace();
@@ -224,7 +224,7 @@ Error-safe execution with automatic error handling.
 ### Basic Safe Execute
 
 ```typescript
-import { safeExecute } from 'tawk-agents-sdk';
+import { safeExecute } from '../../src';
 
 const result = await safeExecute(async () => {
   // Potentially failing operation
@@ -243,7 +243,7 @@ if (result.success) {
 ### With Timeout
 
 ```typescript
-import { safeExecuteWithTimeout } from 'tawk-agents-sdk';
+import { safeExecuteWithTimeout } from '../../src';
 
 const result = await safeExecuteWithTimeout(
   async () => {
@@ -299,7 +299,7 @@ Execute long-running tasks asynchronously.
 ### Basic Usage
 
 ```typescript
-import { backgroundResult, isBackgroundResult } from 'tawk-agents-sdk';
+import { backgroundResult, isBackgroundResult } from '../../src';
 
 const longRunningTool = tool({
   description: 'Start a long-running task',
@@ -370,7 +370,7 @@ Advanced state management for interruption and resumption.
 ### Saving and Resuming State
 
 ```typescript
-import { run, RunState } from 'tawk-agents-sdk';
+import { run, RunState } from '../../src';
 
 // Initial run
 const result1 = await run(agent, 'Start complex task');
@@ -390,7 +390,7 @@ console.log('Resumed and completed:', result2.finalOutput);
 ### Checking for Interruptions
 
 ```typescript
-import { needsApproval, resume } from 'tawk-agents-sdk';
+import { needsApproval, resume } from '../../src';
 
 const result = await run(agent, 'Perform action');
 
@@ -443,7 +443,7 @@ Advanced type helpers for better TypeScript development.
 ### Type Expansion
 
 ```typescript
-import type { Expand, Prettify } from 'tawk-agents-sdk';
+import type { Expand, Prettify } from '../../src';
 
 // Expand complex intersection types
 type ComplexType = Type1 & Type2 & Type3;
@@ -456,7 +456,7 @@ type Config = Prettify<AgentConfig & CustomConfig>;
 ### Partial Types
 
 ```typescript
-import type { DeepPartial } from 'tawk-agents-sdk';
+import type { DeepPartial } from '../../src';
 
 // Make all properties optional recursively
 type PartialAgentConfig = DeepPartial<AgentConfig>;
@@ -470,7 +470,7 @@ const partialConfig: PartialAgentConfig = {
 ### Required/Optional Keys
 
 ```typescript
-import type { RequireKeys, OptionalKeys } from 'tawk-agents-sdk';
+import type { RequireKeys, OptionalKeys } from '../../src';
 
 // Require specific keys
 type RequiredConfig = RequireKeys<AgentConfig, 'name' | 'model'>;
@@ -482,7 +482,7 @@ type OnlyOptional = OptionalKeys<AgentConfig>;
 ### Key Filtering
 
 ```typescript
-import type { KeysOfType } from 'tawk-agents-sdk';
+import type { KeysOfType } from '../../src';
 
 // Get keys of specific type
 type StringKeys = KeysOfType<AgentConfig, string>;
@@ -492,7 +492,7 @@ type FunctionKeys = KeysOfType<AgentConfig, Function>;
 ### Promise Unwrapping
 
 ```typescript
-import type { UnwrapPromise } from 'tawk-agents-sdk';
+import type { UnwrapPromise } from '../../src';
 
 async function fetchData(): Promise<{ id: number; name: string }> {
   return { id: 1, name: 'test' };
@@ -506,7 +506,7 @@ type Data = UnwrapPromise<ReturnType<typeof fetchData>>;
 ### Array Element Type
 
 ```typescript
-import type { ArrayElement } from 'tawk-agents-sdk';
+import type { ArrayElement } from '../../src';
 
 const tools = [tool1, tool2, tool3];
 
@@ -517,7 +517,7 @@ type Tool = ArrayElement<typeof tools>;
 ### Case Conversion
 
 ```typescript
-import type { SnakeToCamelCase } from 'tawk-agents-sdk';
+import type { SnakeToCamelCase } from '../../src';
 
 // Convert snake_case to camelCase at type level
 type SnakeKeys = 'user_id' | 'first_name' | 'last_name';
@@ -544,7 +544,7 @@ import {
   user,
   assistant,
   getLastTextContent,
-} from 'tawk-agents-sdk';
+} from '../../src';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 

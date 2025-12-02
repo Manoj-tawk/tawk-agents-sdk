@@ -9,7 +9,7 @@
 
 **Production-ready AI agent framework with true agentic architecture, comprehensive observability, and enterprise-scale multi-agent coordination.**
 
-> **v2.0.0**: Modular architecture, enhanced tracing, LLM guardrail tracking, and comprehensive test coverage.
+> **v1.0.0**: Production-ready AI agent framework with true agentic architecture.
 
 ---
 
@@ -29,8 +29,12 @@
 
 ## 📦 Installation
 
+Clone the repository and install dependencies:
+
 ```bash
-npm install tawk-agents-sdk
+git clone https://github.com/Manoj-tawk/tawk-agents-sdk.git
+cd tawk-agents-sdk
+npm install
 ```
 
 Install your AI provider:
@@ -53,7 +57,7 @@ npm install @ai-sdk/google
 ### Basic Agent
 
 ```typescript
-import { Agent, run } from 'tawk-agents-sdk';
+import { Agent, run } from './src';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -70,7 +74,7 @@ console.log(result.finalOutput);
 ### Agent with Tools (Parallel Execution)
 
 ```typescript
-import { Agent, run, tool } from 'tawk-agents-sdk';
+import { Agent, run, tool } from './src';
 import { z } from 'zod';
 
 const agent = new Agent({
@@ -105,7 +109,7 @@ const result = await run(agent, 'Weather in Tokyo and current time?');
 ### Multi-Agent System with Transfers
 
 ```typescript
-import { Agent, run } from 'tawk-agents-sdk';
+import { Agent, run } from './src';
 
 // Specialist agent
 const dataAnalyst = new Agent({
@@ -137,7 +141,7 @@ import {
   lengthGuardrail,
   piiDetectionGuardrail,
   contentSafetyGuardrail
-} from 'tawk-agents-sdk';
+} from './src';
 
 const agent = new Agent({
   name: 'SafeAgent',
@@ -175,7 +179,7 @@ const result = await run(agent, 'User query');
 ### With Observability (Langfuse)
 
 ```typescript
-import { initLangfuse, Agent, run } from 'tawk-agents-sdk';
+import { initLangfuse, Agent, run } from './src';
 
 // Initialize Langfuse (reads from env vars)
 initLangfuse();
@@ -200,7 +204,7 @@ const result = await run(agent, 'Hello!');
 ### With Session Memory
 
 ```typescript
-import { Agent, run, MemorySession } from 'tawk-agents-sdk';
+import { Agent, run, MemorySession } from './src';
 
 const agent = new Agent({
   name: 'Assistant',
@@ -258,7 +262,7 @@ graph LR
 ### 1. Session Management (3 Backends)
 
 ```typescript
-import { MemorySession, RedisSession, MongoDBSession } from 'tawk-agents-sdk';
+import { MemorySession, RedisSession, MongoDBSession } from './src';
 
 // Memory (development/testing)
 const session = new MemorySession('user-123', 50);
@@ -298,7 +302,7 @@ import {
   
   // Custom
   customGuardrail
-} from 'tawk-agents-sdk';
+} from './src';
 
 // Mix and match for your needs
 const agent = new Agent({
@@ -312,7 +316,7 @@ const agent = new Agent({
 ### 3. Streaming
 
 ```typescript
-import { Agent, runStream } from 'tawk-agents-sdk';
+import { Agent, runStream } from './src';
 
 const streamResult = await runStream(agent, 'Tell me a story');
 
@@ -340,7 +344,7 @@ for await (const event of streamResult.fullStream) {
 ### 4. Message Helpers
 
 ```typescript
-import { user, assistant, system } from 'tawk-agents-sdk';
+import { user, assistant, system } from './src';
 
 const messages = [
   system('You are a helpful assistant'),
@@ -355,7 +359,7 @@ const result = await run(agent, messages);
 ### 5. Lifecycle Hooks
 
 ```typescript
-import { AgentHooks, RunHooks } from 'tawk-agents-sdk';
+import { AgentHooks, RunHooks } from './src';
 
 // Agent-level hooks
 AgentHooks.on('agent:created', (agent) => {
@@ -611,7 +615,7 @@ export type { Expand, DeepPartial, Prettify, UnwrapPromise }
 
 ---
 
-## 🚀 What's New in v2.0.0
+## 🚀 What's New in v1.0.0
 
 ### Architecture Improvements
 ✅ **Modular Agent System** - `core/agent/` split into focused modules (types, class, run, tools)  
@@ -688,7 +692,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for gu
 See [CHANGELOG.md](./CHANGELOG.md) for version history and migration guides.
 
 **Recent versions:**
-- **v2.0.0** (Current) - Modular architecture, enhanced tracing, comprehensive docs
+- **v1.0.0** (Current) - Production-ready AI agent framework with true agentic architecture
 - **v1.0.0** - Initial production release
 
 ---

@@ -24,7 +24,7 @@ The SDK provides comprehensive error handling with specific error types for diff
 1. **Execution Errors** - Max turns, timeouts
 2. **Validation Errors** - Guardrails, input validation
 3. **Tool Errors** - Tool execution failures
-4. **Transfer Errors** - Agent delegation failures
+4. **Handoff Errors** - Agent delegation failures
 5. **Approval Errors** - Approval workflow failures
 
 ---
@@ -123,18 +123,18 @@ try {
 
 ---
 
-### TransferError
+### HandoffError
 
-Thrown when an agent transfer fails.
+Thrown when an agent handoff fails.
 
 ```typescript
-import { run, TransferError } from 'tawk-agents-sdk';
+import { run, HandoffError } from 'tawk-agents-sdk';
 
 try {
   const result = await run(triageAgent, 'Query...');
 } catch (error) {
-  if (error instanceof TransferError) {
-    console.error('Transfer failed:', error.fromAgent, '→', error.toAgent);
+  if (error instanceof HandoffError) {
+    console.error('Handoff failed:', error.fromAgent, '→', error.toAgent);
     console.error('Reason:', error.message);
     
     // Recovery: Fallback to default agent or escalate
@@ -144,9 +144,9 @@ try {
 ```
 
 **Properties:**
-- `fromAgent` - Agent that attempted transfer
-- `toAgent` - Target agent for transfer
-- `reason` - Reason for transfer failure
+- `fromAgent` - Agent that attempted handoff
+- `toAgent` - Target agent for handoff
+- `reason` - Reason for handoff failure
 
 ---
 
@@ -428,8 +428,8 @@ class ToolExecutionError extends Error {
   originalError: Error;
 }
 
-// Transfer errors
-class TransferError extends Error {
+// Handoff errors
+class HandoffError extends Error {
   fromAgent: Agent;
   toAgent: Agent;
   reason: string;
@@ -449,10 +449,11 @@ class ApprovalRequiredError extends Error {
 - [Core Concepts](./CORE_CONCEPTS.md) - Understanding agents
 - [Features Guide](./FEATURES.md) - All SDK features
 - [API Reference](../reference/API.md) - Complete API documentation
-- [Guardrails Guide](./GUARDRAILS.md) - Guardrail configuration
+- [Flow Diagrams](../reference/FLOW_DIAGRAMS.md#4-guardrails-validation-flow) - Guardrail validation flow
 
 ---
 
 **Status**: ✅ **Documentation Complete**
+
 
 

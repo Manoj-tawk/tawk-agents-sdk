@@ -9,7 +9,7 @@ Welcome to the Tawk Agents SDK documentation! This guide covers everything from 
 ## 🚀 Quick Start
 
 ```typescript
-import { Agent, run } from 'tawk-agents-sdk';
+import { Agent, run } from '../../src';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -268,7 +268,7 @@ tawk-agents-sdk/
 ### Basic Agent
 
 ```typescript
-import { Agent, run } from 'tawk-agents-sdk';
+import { Agent, run } from '../../src';
 import { openai } from '@ai-sdk/openai';
 
 const agent = new Agent({
@@ -283,7 +283,7 @@ const result = await run(agent, 'Hello!');
 ### Agent with Tools
 
 ```typescript
-import { Agent, run, tool } from 'tawk-agents-sdk';
+import { Agent, run, tool } from '../../src';
 import { z } from 'zod';
 
 const calculator = tool({
@@ -326,7 +326,7 @@ const result = await run(coordinator, 'Analyze sales data');
 ### With Guardrails
 
 ```typescript
-import { lengthGuardrail, piiDetectionGuardrail } from 'tawk-agents-sdk';
+import { lengthGuardrail, piiDetectionGuardrail } from '../../src';
 
 const agent = new Agent({
   name: 'Safe',
@@ -341,7 +341,7 @@ const agent = new Agent({
 ### With Tracing
 
 ```typescript
-import { initLangfuse, Agent, run } from 'tawk-agents-sdk';
+import { initLangfuse, Agent, run } from '../../src';
 
 initLangfuse(); // Reads LANGFUSE_* env vars
 
@@ -353,7 +353,7 @@ const result = await run(agent, 'Query');
 ### With Sessions
 
 ```typescript
-import { MemorySession } from 'tawk-agents-sdk';
+import { MemorySession } from '../../src';
 
 const session = new MemorySession('user-123', 50);
 
@@ -476,7 +476,7 @@ export type { Expand, DeepPartial, Prettify, UnwrapPromise }
 
 ## 📝 Recent Updates
 
-### v2.0.0 (December 2024)
+### v1.0.0 (December 2024)
 
 ✅ **New Documentation**
 - Added comprehensive [Flow Diagrams](./reference/FLOW_DIAGRAMS.md) with 7 detailed Mermaid sequences

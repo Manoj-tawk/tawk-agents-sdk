@@ -66,7 +66,7 @@ const knowledgeBase: Document[] = [
 ### 2. Vector Store
 
 ```typescript
-import { cosineSimilarity } from 'tawk-agents-sdk';
+import { cosineSimilarity } from '../../src';
 
 class VectorStore {
   private documents: Map<string, Document[]>;
@@ -95,7 +95,7 @@ class VectorStore {
 #### Query Router Agent
 
 ```typescript
-import { Agent, tool } from 'tawk-agents-sdk';
+import { Agent, tool } from '../../src';
 import { z } from 'zod';
 
 const routerAgent = new Agent({
@@ -135,7 +135,7 @@ IMPORTANT: Always use transfers to route queries. Do not try to answer queries y
 #### Retrieval Agents
 
 ```typescript
-import { generateEmbeddingAI } from 'tawk-agents-sdk';
+import { generateEmbeddingAI } from '../../src';
 import { openai } from '@ai-sdk/openai';
 
 const technicalRetrievalAgent = new Agent({
@@ -237,7 +237,7 @@ Your job:
 #### Response Agent
 
 ```typescript
-import { lengthGuardrail, piiDetectionGuardrail } from 'tawk-agents-sdk';
+import { lengthGuardrail, piiDetectionGuardrail } from '../../src';
 
 const responseAgent = new Agent({
   name: 'Response',
@@ -269,7 +269,7 @@ synthesisAgent.subagents = [responseAgent];
 **The beauty of pure agent orchestration**: Just run the router agent, and the SDK handles all transfers automatically!
 
 ```typescript
-import { run } from 'tawk-agents-sdk';
+import { run } from '../../src';
 
 async function agenticRAG(query: string): Promise<AgenticRAGResult> {
   const startTime = Date.now();

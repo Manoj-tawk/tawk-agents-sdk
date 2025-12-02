@@ -22,7 +22,7 @@
  * 
  * @author Tawk.to
  * @license MIT
- * @version 2.0.0
+ * @version 1.0.0
  */
 
 import { generateText, type LanguageModel, type ModelMessage } from 'ai';

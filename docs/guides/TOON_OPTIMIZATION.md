@@ -11,7 +11,7 @@ TOON is a compact data format that provides **18-33% token reduction** compared 
 Enable automatic TOON encoding with a single config option:
 
 ```typescript
-import { Agent, run, tool, setDefaultModel } from 'tawk-agents-sdk';
+import { Agent, run, tool, setDefaultModel } from '../../src';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
@@ -209,7 +209,7 @@ const agent = new Agent({
 For custom use cases, you can manually encode/decode TOON:
 
 ```typescript
-import { encodeTOON, decodeTOON } from 'tawk-agents-sdk';
+import { encodeTOON, decodeTOON } from '../../src';
 
 // Encode data to TOON
 const data = { users: [...], total: 100 };
