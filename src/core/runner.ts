@@ -63,11 +63,27 @@ export interface RunResult<TOutput = string> {
 }
 
 /**
+ * Stream event types
+ */
+export type StreamEvent =
+  | { type: 'text-delta'; textDelta: string; }
+  | { type: 'tool-call-start'; toolName: string; toolCallId: string; }
+  | { type: 'tool-call'; toolName: string; args: any; toolCallId: string; }
+  | { type: 'tool-result'; toolName: string; result: any; toolCallId: string; }
+  | { type: 'agent-start'; agentName: string; }
+  | { type: 'agent-end'; agentName: string; }
+  | { type: 'transfer'; from: string; to: string; reason: string; }
+  | { type: 'guardrail-check'; guardrailName: string; passed: boolean; }
+  | { type: 'step-start'; stepNumber: number; }
+  | { type: 'step-complete'; stepNumber: number; }
+  | { type: 'finish'; finishReason?: string; };
+
+/**
  * Stream result for streaming execution
  */
 export interface StreamResult<TOutput = string> {
   textStream: AsyncIterable<string>;
-  fullStream: AsyncIterable<any>;
+  fullStream: AsyncIterable<StreamEvent>;
   completed: Promise<RunResult<TOutput>>;
 }
 

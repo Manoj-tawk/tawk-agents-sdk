@@ -1,181 +1,45 @@
 /**
- * # Tawk Agents SDK
+ * Tawk Agents SDK - Core
  * 
- * Production-ready AI agent framework with true agentic architecture.
- * 
- * ## Features
- * - 🤖 True agentic architecture with autonomous decision making
- * - 🔧 Parallel tool execution for maximum performance
- * - 👥 Multi-agent orchestration with seamless handoffs
- * - ✅ Dynamic HITL (Human-in-the-Loop) approvals
- * - 🔌 Native MCP (Model Context Protocol) integration
- * - 📊 Full Langfuse observability and tracing
- * - 🛡️ Comprehensive guardrails system
- * - 💬 Multi-backend session management
- * - 🎒 TOON format for 42% token reduction
- * - 🚀 Multi-provider support (OpenAI, Anthropic, Google, Groq, Mistral)
- * 
- * ## Quick Start
- * 
- * ```typescript
- * import { Agent, run, tool } from 'tawk-agents-sdk';
- * import { openai } from '@ai-sdk/openai';
- * import { z } from 'zod';
- * 
- * // Create a tool
- * const calculator = tool({
- *   description: 'Perform calculations',
- *   inputSchema: z.object({
- *     expression: z.string()
- *   }),
- *   execute: async ({ expression }) => {
- *     return { result: eval(expression) };
- *   }
- * });
- * 
- * // Create an agent
- * const agent = new Agent({
- *   name: 'MathAgent',
- *   model: openai('gpt-4o'),
- *   instructions: 'You are a math tutor.',
- *   tools: { calculate: calculator }
- * });
- * 
- * // Run the agent
- * const result = await run(agent, 'What is 15 * 23?');
- * console.log(result.finalOutput);
- * ```
- * 
- * ## Documentation
- * - Getting Started: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/docs/getting-started}
- * - API Reference: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/docs/reference/API.md}
- * - Examples: {@link https://github.com/Manoj-tawk/tawk-agents-sdk/examples}
+ * Production-ready AI agent framework built on Vercel AI SDK.
+ * Flexible, multi-provider support with comprehensive features.
  * 
  * @packageDocumentation
  * @module tawk-agents-sdk
  * @author Tawk.to
  * @license MIT
  * @version 1.0.0
- * @see {@link https://github.com/Manoj-tawk/tawk-agents-sdk}
  */
 
 // ============================================
 // CORE EXPORTS
 // ============================================
 
-/**
- * Core agent functionality for creating and running AI agents.
- * 
- * @example Basic Agent
- * ```typescript
- * import { Agent, run } from 'tawk-agents-sdk';
- * import { openai } from '@ai-sdk/openai';
- * 
- * const agent = new Agent({
- *   name: 'assistant',
- *   model: openai('gpt-4o'),
- *   instructions: 'You are a helpful assistant.'
- * });
- * 
- * const result = await run(agent, 'Hello!');
- * console.log(result.finalOutput);
- * ```
- */
 export {
-  /**
-   * Agent class for creating AI agents.
-   * @see {@link Agent}
-   */
+  // Agent class
   Agent,
   
-  /**
-   * Execute an agent and return the final result.
-   * @see {@link run}
-   */
+  // Run functions
   run,
-  
-  /**
-   * Execute an agent with streaming output.
-   * @see {@link runStream}
-   */
   runStream,
   
-  /**
-   * Create a tool that agents can use.
-   * @see {@link tool}
-   */
+  // Tool function
   tool,
   
-  /**
-   * Set the default AI model for agents.
-   * @see {@link setDefaultModel}
-   */
+  // Utilities
   setDefaultModel,
+  
+  // Types
+  type AgentConfig,
+  type CoreTool,
+  type RunContextWrapper,
+  type RunOptions,
+  type RunResult,
+  type StreamResult,
 } from './core/agent';
 
-/**
- * Dynamic Human-in-the-Loop (HITL) approval system.
- * 
- * Allows agents to request human approval before executing sensitive operations.
- * Supports dynamic approval policies based on context.
- * 
- * @example Dynamic Approvals
- * ```typescript
- * import { toolWithApproval, ApprovalPolicies } from 'tawk-agents-sdk';
- * 
- * const safeTool = toolWithApproval(myTool, {
- *   needsApproval: async (context, args) => {
- *     return !context.isAdmin && args.action === 'delete';
- *   },
- *   approvalMetadata: {
- *     severity: 'high',
- *     category: 'data_modification'
- *   }
- * });
- * ```
- */
-export {
-  /**
-   * Approval manager for handling human approval workflows.
-   * @see {@link ApprovalManager}
-   */
-  ApprovalManager as DynamicApprovalManager,
-  
-  /**
-   * Pre-defined approval policies.
-   * @see {@link ApprovalPolicies}
-   */
-  ApprovalPolicies,
-  
-  /**
-   * Wrap a tool with approval requirements.
-   * @see {@link toolWithApproval}
-   */
-  toolWithApproval,
-  
-  /**
-   * Format approval request for display.
-   * @see {@link formatApprovalRequest}
-   */
-  formatApprovalRequest,
-} from './core/approvals';
-export type {
-  ApprovalRequest,
-  ApprovalDecision,
-  ApprovalFunction,
-} from './core/approvals';
-
-// Enhanced MCP (Native agent-level integration)
-export {
-  EnhancedMCPServer,
-  EnhancedMCPServerManager,
-} from './mcp/enhanced';
-export type {
-  MCPServerConfig,
-  MCPTool,
-  MCPResource,
-  MCPPrompt,
-} from './mcp/enhanced';
+// Runner with enhanced streaming
+export { AgenticRunner, type StreamEvent } from './core/runner';
 
 // Race agents pattern for parallel execution
 export { raceAgents } from './core/race-agents';
@@ -184,17 +48,30 @@ export type { RaceAgentsOptions } from './core/race-agents';
 // Usage tracking
 export { Usage } from './core/usage';
 
-// Tracing utilities (for custom tracing)
-export { withFunctionSpan, withHandoffSpan, withGuardrailSpan } from './tracing/tracing-utils';
+// Transfers (formerly handoffs) system
+export { 
+  createTransferTools, 
+  detectTransfer, 
+  createTransferContext,
+} from './core/transfers';
+export type { TransferResult } from './core/transfers';
 
-// Tracing context (advanced tracing control)
-export { withTrace, getCurrentTrace, getCurrentSpan, setCurrentSpan, createContextualSpan, createContextualGeneration } from './tracing/context';
+// Tracing context
+export {
+  withTrace,
+  getCurrentTrace,
+  getCurrentSpan,
+  setCurrentSpan,
+  createContextualSpan,
+  createContextualGeneration,
+  runWithTraceContext,
+} from './tracing/context';
 
 // ============================================
 // EVENTS & LIFECYCLE
 // ============================================
 
-// Events (for streaming event types)
+// Events
 export {
   RunRawModelStreamEvent,
   RunItemStreamEvent,
@@ -202,18 +79,18 @@ export {
 } from './lifecycle/events';
 export type { RunItemStreamEventName, RunStreamEvent } from './lifecycle/events';
 
-// Lifecycle hooks (for custom event handling)
+// Lifecycle hooks
 export { AgentHooks, RunHooks } from './lifecycle';
 export type { AgentHookEvents, RunHookEvents } from './lifecycle';
 
-// Utilities for error-safe execution
+// Utilities
 export { safeExecute, safeExecuteWithTimeout } from './helpers/safe-execute';
 export type { SafeExecuteResult } from './helpers/safe-execute';
 
-// Message helpers for building conversations
+// Message helpers
 export { user, assistant, system, toolMessage, getLastTextContent, filterMessagesByRole, extractAllText } from './helpers/message';
 
-// TOON format helpers (42% token reduction)
+// TOON format helpers (for efficient LLM token usage)
 export { 
   encodeTOON, 
   decodeTOON, 
@@ -224,7 +101,7 @@ export {
   calculateTokenSavings
 } from './helpers/toon';
 
-// TypeScript utility types (for advanced type manipulation)
+// Type utilities
 export type {
   Expand,
   DeepPartial,
@@ -238,7 +115,7 @@ export type {
   ArrayElement,
 } from './types/helpers';
 
-// Run state management (for interruption/resumption patterns)
+// Run state management
 export { RunState } from './core/runstate';
 export type {
   RunItem,
@@ -246,23 +123,8 @@ export type {
   RunMessageItem,
   RunToolCallItem,
   RunToolResultItem,
-  RunHandoffCallItem,
-  RunHandoffOutputItem,
-  RunGuardrailItem,
   ModelResponse,
 } from './core/runstate';
-
-// Types from agent
-export type {
-  AgentConfig,
-  AgentMetric,
-  RunOptions,
-  RunResult,
-  StreamResult,
-  Session,
-  StepResult,
-  RunContextWrapper,
-} from './core/agent';
 
 // ============================================
 // SESSION MANAGEMENT
@@ -335,11 +197,9 @@ export {
 } from './approvals';
 
 // ============================================
-// TRACING (Advanced - use Langfuse for most cases)
+// TRACING
 // ============================================
 
-// Note: Most users should use the Langfuse integration below.
-// These exports are for advanced custom tracing implementations.
 export {
   TraceManager,
   getGlobalTraceManager,
@@ -372,7 +232,7 @@ export {
 } from './lifecycle/langfuse';
 
 // ============================================
-// ERROR TYPES & ASYNC PATTERNS
+// ERROR TYPES
 // ============================================
 
 export {
@@ -381,7 +241,6 @@ export {
   ToolExecutionError,
   HandoffError,
   ApprovalRequiredError,
-  // Background result pattern for async execution
   backgroundResult,
   isBackgroundResult,
 } from './types/types';
