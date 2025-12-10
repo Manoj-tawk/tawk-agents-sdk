@@ -3,7 +3,7 @@ node_modules/
 package-lock.json
 openai-agents-js/
 # Build outputs
-dist/
+# dist/ - Including in git for npm git installs
 *.tsbuildinfo
 
 # Environment variables
