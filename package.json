@@ -1,5 +1,5 @@
 {
-  "name": "tawk-agents-sdk",
+  "name": "@tawk.to/tawk-agents-sdk",
   "version": "1.0.0",
   "description": "Production-ready AI agent framework with true agentic architecture, multi-agent orchestration, dynamic HITL approvals, native MCP integration, and full observability.",
   "author": "Tawk.to <support@tawk.to>",
@@ -13,6 +13,9 @@
     "url": "https://github.com/Manoj-tawk/tawk-agents-sdk/issues"
   },
   "private": false,
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

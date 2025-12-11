@@ -348,8 +348,27 @@ export async function executeSingleStep<TContext = any>(
   const preStepMessages = [...state.messages];
   const newMessages = [...processed.newMessages];
 
-  // NOTE: Tool results are already included in processed.newMessages from the AI SDK response
-  // We don't need to add them again manually
+  // Add tool results as proper ToolModelMessage objects
+  // The AI SDK's response.response.messages contains the assistant's tool call request,
+  // but NOT the actual tool results from our custom execution.
+  // We must add tool results so the next generateText call knows what happened.
+  if (toolResults.length > 0) {
+    const toolResultParts = toolResults.map((r) => ({
+      type: 'tool-result' as const,
+      toolCallId: processed.toolCalls.find((tc) => tc.toolName === r.toolName)?.toolCallId || `call_${r.toolName}_${Date.now()}`,
+      toolName: r.toolName,
+      // Output must be in LanguageModelV2ToolResultOutput format
+      output: r.error
+        ? { type: 'error-text' as const, value: r.error.message }
+        : { type: 'json' as const, value: r.result ?? null }
+    }));
+
+    // Add as a single tool message with all results
+    newMessages.push({
+      role: 'tool' as const,
+      content: toolResultParts
+    } as ModelMessage);
+  }
 
   // Combine messages
   const combinedMessages = [...state.messages, ...newMessages];
