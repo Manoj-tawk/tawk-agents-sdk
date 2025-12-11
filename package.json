@@ -12,7 +12,6 @@
   "bugs": {
     "url": "https://github.com/Manoj-tawk/tawk-agents-sdk/issues"
   },
-  "private": false,
   "publishConfig": {
     "access": "restricted"
   },
