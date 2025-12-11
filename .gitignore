@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 openai-agents-js/
 # Build outputs
 # dist/ - Including in git for npm git installs
