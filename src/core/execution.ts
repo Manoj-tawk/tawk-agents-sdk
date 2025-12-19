@@ -23,27 +23,52 @@
  */
 
 import type { Agent, CoreTool, RunContextWrapper } from './agent';
-import type { ModelMessage } from 'ai';
+import type { 
+  ModelMessage, 
+  GenerateTextResult, 
+  ToolSet, 
+  FinishReason,
+  TypedToolCall
+} from 'ai';
 import type { RunState, NextStep, StepResult } from './runstate';
 import { SingleStepResult } from './runstate';
 import { createContextualSpan } from '../tracing/context';
+
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
+
+/**
+ * Tool call extracted from model response
+ */
+export interface ExtractedToolCall {
+  toolName: string;
+  args: Record<string, unknown>;
+  toolCallId: string;
+}
+
+/**
+ * Handoff/transfer request extracted from model response
+ */
+export interface HandoffRequest {
+  agentName: string;
+  reason: string;
+  context?: string;
+}
 
 /**
  * Processed model response with categorized actions
  */
 export interface ProcessedResponse {
-  text?: string;
-  finishReason?: string;
-  toolCalls: Array<{
-    toolName: string;
-    args: any;
-    toolCallId?: string;
-  }>;
-  handoffRequests: Array<{
-    agentName: string;
-    reason: string;
-    context?: string;
-  }>;
+  /** Generated text from the model */
+  text: string;
+  /** Reason the model stopped generating */
+  finishReason: FinishReason;
+  /** Regular tool calls (non-transfer) */
+  toolCalls: ExtractedToolCall[];
+  /** Agent transfer/handoff requests */
+  handoffRequests: HandoffRequest[];
+  /** Messages to add to conversation history */
   newMessages: ModelMessage[];
 }
 
@@ -119,26 +144,39 @@ export async function executeToolsInParallel<TContext = any>(
       };
     }
 
+    // Prepare args for tracing metadata
+    let argsKeys: string[];
+    if (toolCall.args) {
+      argsKeys = Object.keys(toolCall.args);
+    } else {
+      argsKeys = [];
+    }
+
     // Execute tool with tracing
     const span = createContextualSpan(`Tool: ${toolCall.toolName}`, {
-      input: toolCall.args || {},  // Ensure we have an object, not undefined
+      input: toolCall.args || {},
       metadata: {
         toolName: toolCall.toolName,
         agentName: contextWrapper.agent.name,
         argsReceived: !!toolCall.args,
-        argsKeys: toolCall.args ? Object.keys(toolCall.args) : []
+        argsKeys,
       },
     });
 
     try {
-      // Log for debugging
-      // Extract arguments for tool execution
-      const result = await tool.execute(toolCall.args || {}, contextWrapper as any);
+      // Execute the tool
+      const args = toolCall.args || {};
+      const result = await tool.execute(args, contextWrapper as any);
 
+      // End span with result
       if (span) {
-        span.end({
-          output: typeof result === 'string' ? result : JSON.stringify(result),
-        });
+        let outputString: string;
+        if (typeof result === 'string') {
+          outputString = result;
+        } else {
+          outputString = JSON.stringify(result);
+        }
+        span.end({ output: outputString });
       }
 
       return {
@@ -148,18 +186,33 @@ export async function executeToolsInParallel<TContext = any>(
         duration: Date.now() - startTime,
       };
     } catch (error) {
+      // End span with error
       if (span) {
+        let errorMessage: string;
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = String(error);
+        }
         span.end({
-          output: error instanceof Error ? error.message : String(error),
+          output: errorMessage,
           level: 'ERROR',
         });
+      }
+
+      // Normalize error to Error instance
+      let normalizedError: Error;
+      if (error instanceof Error) {
+        normalizedError = error;
+      } else {
+        normalizedError = new Error(String(error));
       }
 
       return {
         toolName: toolCall.toolName,
         args: toolCall.args,
         result: null,
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: normalizedError,
         duration: Date.now() - startTime,
       };
     }
@@ -169,57 +222,88 @@ export async function executeToolsInParallel<TContext = any>(
   return await Promise.all(executionPromises);
 }
 
+// Transfer tool name prefixes
+const TRANSFER_PREFIXES = ['transfer_to_', 'handoff_to_'] as const;
+
+/**
+ * Check if a tool name is a transfer/handoff tool
+ */
+function isTransferTool(toolName: string): boolean {
+  return TRANSFER_PREFIXES.some(prefix => toolName.startsWith(prefix));
+}
+
+/**
+ * Extract target agent name from transfer tool name
+ */
+function extractTargetAgentName(toolName: string): string {
+  for (const prefix of TRANSFER_PREFIXES) {
+    if (toolName.startsWith(prefix)) {
+      return toolName.slice(prefix.length).replace(/_/g, ' ');
+    }
+  }
+  return toolName;
+}
+
 /**
  * Process model response and categorize actions
  * 
  * Separates tool calls, handoff requests, and regular messages
- * for autonomous decision making
+ * for autonomous decision making.
+ * 
+ * @param response - The result from generateText
+ * @returns Processed response with categorized tool calls and messages
  */
-export function processModelResponse(
-  response: any,
-  _currentAgent: Agent<any, any>
+export function processModelResponse<T extends ToolSet = ToolSet>(
+  response: GenerateTextResult<T, unknown>
 ): ProcessedResponse {
-  const toolCalls: ProcessedResponse['toolCalls'] = [];
-  const handoffRequests: ProcessedResponse['handoffRequests'] = [];
-  const newMessages: ModelMessage[] = [];
+  const toolCalls: ExtractedToolCall[] = [];
+  const handoffRequests: HandoffRequest[] = [];
 
-  // Extract tool calls from response
-  if (response.toolCalls && Array.isArray(response.toolCalls)) {
-    for (const tc of response.toolCalls) {
-      const toolName = (tc as any).toolName;
-      
-      // Extract args - AI SDK might use 'args' or 'input'
-      const toolArgs = (tc as any).args || (tc as any).input || {};
-      
-      // Check if this is a transfer/handoff tool (support both naming conventions)
-      if (toolName.startsWith('transfer_to_') || toolName.startsWith('handoff_to_')) {
-        const targetAgentName = toolName
-          .replace('transfer_to_', '')
-          .replace('handoff_to_', '')
-          .replace(/_/g, ' ');
-        handoffRequests.push({
-          agentName: targetAgentName,
-          reason: toolArgs?.reason || 'Transfer requested',
-          context: toolArgs?.context,
-        });
+  const responseToolCalls = response.toolCalls;
+  for (let i = 0; i < responseToolCalls.length; i++) {
+    const tc = responseToolCalls[i] as TypedToolCall<T>;
+    const toolName = tc.toolName;
+    const toolCallId = tc.toolCallId;
+
+    const rawInput = (tc as { input?: unknown }).input;
+    let toolArgs: Record<string, unknown>;
+    if (rawInput !== undefined && rawInput !== null) {
+      toolArgs = rawInput as Record<string, unknown>;
+    } else {
+      toolArgs = {};
+    }
+
+    // Categorize as either a transfer request or a regular tool call
+    if (isTransferTool(toolName)) {
+      let reason: string;
+      if (typeof toolArgs.reason === 'string' && toolArgs.reason) {
+        reason = toolArgs.reason;
       } else {
-        toolCalls.push({
-          toolName,
-          args: toolArgs,
-          toolCallId: (tc as any).toolCallId,
-        });
+        reason = 'Transfer requested';
       }
+
+      handoffRequests.push({
+        agentName: extractTargetAgentName(toolName),
+        reason,
+        context: toolArgs.context as string | undefined,
+      });
+    } else {
+      toolCalls.push({
+        toolName,
+        args: toolArgs,
+        toolCallId,
+      });
     }
   }
 
-  // Add response messages to history
-  if (response.response?.messages) {
-    newMessages.push(...response.response.messages);
+  // Build new messages array
+  let newMessages: ModelMessage[];
+  if (response.response?.messages && response.response.messages.length > 0) {
+    newMessages = [...response.response.messages] as ModelMessage[];
   } else if (response.text) {
-    newMessages.push({
-      role: 'assistant',
-      content: response.text,
-    });
+    newMessages = [{ role: 'assistant' as const, content: response.text }];
+  } else {
+    newMessages = [];
   }
 
   return {
@@ -325,17 +409,18 @@ export async function determineNextStep<TContext = any>(
  * 
  * @param agent - Current agent
  * @param state - Run state
- * @param options - Execution options
+ * @param contextWrapper - Execution context wrapper
+ * @param modelResponse - Response from generateText
  * @returns Single step result with next step decision
  */
 export async function executeSingleStep<TContext = any>(
   agent: Agent<TContext, any>,
   state: RunState<TContext, Agent<TContext, any>>,
   contextWrapper: RunContextWrapper<TContext>,
-  modelResponse: any
+  modelResponse: GenerateTextResult<ToolSet, unknown>
 ): Promise<SingleStepResult> {
   // 1. Process model response
-  const processed = processModelResponse(modelResponse, agent);
+  const processed = processModelResponse(modelResponse);
 
   // 2. Execute tools in parallel (CRITICAL)
   const toolResults = await executeToolsInParallel(
@@ -353,15 +438,34 @@ export async function executeSingleStep<TContext = any>(
   // but NOT the actual tool results from our custom execution.
   // We must add tool results so the next generateText call knows what happened.
   if (toolResults.length > 0) {
-    const toolResultParts = toolResults.map((r) => ({
-      type: 'tool-result' as const,
-      toolCallId: processed.toolCalls.find((tc) => tc.toolName === r.toolName)?.toolCallId || `call_${r.toolName}_${Date.now()}`,
-      toolName: r.toolName,
-      // Output must be in LanguageModelV2ToolResultOutput format
-      output: r.error
-        ? { type: 'error-text' as const, value: r.error.message }
-        : { type: 'json' as const, value: r.result ?? null }
-    }));
+    // Create a Map for O(1) lookup of toolCallIds by toolName
+    const toolCallIdMap = new Map<string, string>();
+    for (const tc of processed.toolCalls) {
+      toolCallIdMap.set(tc.toolName, tc.toolCallId);
+    }
+
+    const toolResultParts = [];
+    for (const r of toolResults) {
+      let toolCallId = toolCallIdMap.get(r.toolName);
+      if (!toolCallId) {
+        toolCallId = `call_${r.toolName}_${Date.now()}`;
+      }
+
+      let output: { type: 'error-text'; value: string } | { type: 'json'; value: unknown };
+      if (r.error) {
+        output = { type: 'error-text' as const, value: r.error.message };
+      } else {
+        const resultValue = r.result !== undefined ? r.result : null;
+        output = { type: 'json' as const, value: resultValue };
+      }
+
+      toolResultParts.push({
+        type: 'tool-result' as const,
+        toolCallId,
+        toolName: r.toolName,
+        output,
+      });
+    }
 
     // Add as a single tool message with all results
     newMessages.push({

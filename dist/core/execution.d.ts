@@ -22,25 +22,38 @@
  * @version 1.0.0
  */
 import type { Agent, CoreTool, RunContextWrapper } from './agent';
-import type { ModelMessage } from 'ai';
+import type { ModelMessage, GenerateTextResult, ToolSet, FinishReason } from 'ai';
 import type { RunState, NextStep } from './runstate';
 import { SingleStepResult } from './runstate';
+/**
+ * Tool call extracted from model response
+ */
+export interface ExtractedToolCall {
+    toolName: string;
+    args: Record<string, unknown>;
+    toolCallId: string;
+}
+/**
+ * Handoff/transfer request extracted from model response
+ */
+export interface HandoffRequest {
+    agentName: string;
+    reason: string;
+    context?: string;
+}
 /**
  * Processed model response with categorized actions
  */
 export interface ProcessedResponse {
-    text?: string;
-    finishReason?: string;
-    toolCalls: Array<{
-        toolName: string;
-        args: any;
-        toolCallId?: string;
-    }>;
-    handoffRequests: Array<{
-        agentName: string;
-        reason: string;
-        context?: string;
-    }>;
+    /** Generated text from the model */
+    text: string;
+    /** Reason the model stopped generating */
+    finishReason: FinishReason;
+    /** Regular tool calls (non-transfer) */
+    toolCalls: ExtractedToolCall[];
+    /** Agent transfer/handoff requests */
+    handoffRequests: HandoffRequest[];
+    /** Messages to add to conversation history */
     newMessages: ModelMessage[];
 }
 /**
@@ -77,9 +90,12 @@ export declare function executeToolsInParallel<TContext = any>(tools: Record<str
  * Process model response and categorize actions
  *
  * Separates tool calls, handoff requests, and regular messages
- * for autonomous decision making
+ * for autonomous decision making.
+ *
+ * @param response - The result from generateText
+ * @returns Processed response with categorized tool calls and messages
  */
-export declare function processModelResponse(response: any, _currentAgent: Agent<any, any>): ProcessedResponse;
+export declare function processModelResponse<T extends ToolSet = ToolSet>(response: GenerateTextResult<T, unknown>): ProcessedResponse;
 /**
  * Determine next step based on agent's decision (NOT SDK decision)
  *
@@ -101,8 +117,9 @@ export declare function determineNextStep<TContext = any>(agent: Agent<TContext,
  *
  * @param agent - Current agent
  * @param state - Run state
- * @param options - Execution options
+ * @param contextWrapper - Execution context wrapper
+ * @param modelResponse - Response from generateText
  * @returns Single step result with next step decision
  */
-export declare function executeSingleStep<TContext = any>(agent: Agent<TContext, any>, state: RunState<TContext, Agent<TContext, any>>, contextWrapper: RunContextWrapper<TContext>, modelResponse: any): Promise<SingleStepResult>;
+export declare function executeSingleStep<TContext = any>(agent: Agent<TContext, any>, state: RunState<TContext, Agent<TContext, any>>, contextWrapper: RunContextWrapper<TContext>, modelResponse: GenerateTextResult<ToolSet, unknown>): Promise<SingleStepResult>;
 //# sourceMappingURL=execution.d.ts.map
