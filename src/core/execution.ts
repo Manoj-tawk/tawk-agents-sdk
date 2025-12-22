@@ -259,7 +259,7 @@ export function processModelResponse<T extends ToolSet = ToolSet>(
   const toolCalls: ExtractedToolCall[] = [];
   const handoffRequests: HandoffRequest[] = [];
 
-  const responseToolCalls = response.toolCalls;
+  const responseToolCalls = response.toolCalls ?? [];
   for (let i = 0; i < responseToolCalls.length; i++) {
     const tc = responseToolCalls[i] as TypedToolCall<T>;
     const toolName = tc.toolName;
