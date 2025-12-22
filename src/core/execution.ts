@@ -303,30 +303,34 @@ export function processModelResponse<T extends ToolSet = ToolSet>(
   if (response.response?.messages && response.response.messages.length > 0) {
     for (const msg of response.response.messages) {
       const message = msg as ModelMessage;
+      
+      // FIRST: Skip tool messages - we'll add our own with proper format
+      // This avoids duplicate tool messages
+      if (message.role === 'tool') {
+        continue;
+      }
+      
+      // Transform assistant messages with tool-call parts
       if (message.role === 'assistant' && Array.isArray(message.content)) {
-        // Transform tool-call parts: 'input' -> 'args'
+        // Transform tool-call parts: remove extra props, change 'input' -> 'args'
         const transformedContent = message.content.map((part: any) => {
-          if (part.type === 'tool-call' && 'input' in part) {
-            // Explicitly construct new object with args instead of input
+          if (part.type === 'tool-call') {
+            // Explicitly construct with ONLY valid ToolCallPart properties
             return {
-              type: part.type,
+              type: 'tool-call' as const,
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              args: part.input,
+              args: part.input ?? part.args ?? {},
             };
           }
           return part;
         });
-        // Explicitly construct new message with transformed content
+        // Explicitly construct new message with ONLY role and content
         const transformedMessage: ModelMessage = {
-          role: message.role,
+          role: 'assistant' as const,
           content: transformedContent,
         };
         newMessages.push(transformedMessage);
-      } else if (message.role === 'tool') {
-        // Skip tool messages from response - we'll add our own with proper format
-        // This avoids duplicate tool messages
-        continue;
       } else {
         newMessages.push(message);
       }
