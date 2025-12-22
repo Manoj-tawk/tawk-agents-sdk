@@ -31,7 +31,28 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SingleStepResult = exports.RunState = exports.AgentToolUseTracker = void 0;
+const ai_1 = require("ai");
 const usage_1 = require("./usage");
+/**
+ * Convert input messages to ModelMessage format.
+ * Handles both UIMessage[] and ModelMessage[] inputs.
+ *
+ * @param messages - Input messages (UIMessage[] or ModelMessage[])
+ * @returns ModelMessage[]
+ */
+function toModelMessages(messages) {
+    // Check if this looks like UIMessage[] (has 'id' property typical of UIMessage)
+    const isUIMessages = messages.length > 0 &&
+        typeof messages[0] === 'object' &&
+        messages[0] !== null &&
+        'id' in messages[0];
+    if (isUIMessages) {
+        // Convert UIMessage[] to ModelMessage[]
+        return (0, ai_1.convertToModelMessages)(messages);
+    }
+    // Already ModelMessage[] format - return as-is
+    return messages;
+}
 /**
  * Tracks tool usage per agent for reset logic
  */
@@ -90,8 +111,9 @@ class RunState {
         this.currentAgent = agent;
         this.agent = agent; // Set alias
         this.originalInput = input;
+        // Convert input to ModelMessage format - handles both UIMessage[] and ModelMessage[]
         this.messages = Array.isArray(input)
-            ? [...input]
+            ? toModelMessages(input)
             : [{ role: 'user', content: input }];
         this.context = context;
         this.maxTurns = maxTurns;

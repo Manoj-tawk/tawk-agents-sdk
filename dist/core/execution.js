@@ -185,7 +185,7 @@ function extractTargetAgentName(toolName) {
 function processModelResponse(response) {
     const toolCalls = [];
     const handoffRequests = [];
-    const responseToolCalls = response.toolCalls;
+    const responseToolCalls = response.toolCalls ?? [];
     for (let i = 0; i < responseToolCalls.length; i++) {
         const tc = responseToolCalls[i];
         const toolName = tc.toolName;
@@ -232,12 +232,22 @@ function processModelResponse(response) {
                 // Transform tool-call parts: 'input' -> 'args'
                 const transformedContent = message.content.map((part) => {
                     if (part.type === 'tool-call' && 'input' in part) {
-                        const { input, ...rest } = part;
-                        return { ...rest, args: input };
+                        // Explicitly construct new object with args instead of input
+                        return {
+                            type: part.type,
+                            toolCallId: part.toolCallId,
+                            toolName: part.toolName,
+                            args: part.input,
+                        };
                     }
                     return part;
                 });
-                newMessages.push({ ...message, content: transformedContent });
+                // Explicitly construct new message with transformed content
+                const transformedMessage = {
+                    role: message.role,
+                    content: transformedContent,
+                };
+                newMessages.push(transformedMessage);
             }
             else if (message.role === 'tool') {
                 // Skip tool messages from response - we'll add our own with proper format

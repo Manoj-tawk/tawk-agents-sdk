@@ -30,8 +30,31 @@
  */
 
 import type { Agent } from './agent';
-import type { ModelMessage } from 'ai';
+import { convertToModelMessages, type ModelMessage, type UIMessage } from 'ai';
 import { Usage } from './usage';
+
+/**
+ * Convert input messages to ModelMessage format.
+ * Handles both UIMessage[] and ModelMessage[] inputs.
+ * 
+ * @param messages - Input messages (UIMessage[] or ModelMessage[])
+ * @returns ModelMessage[]
+ */
+function toModelMessages(messages: unknown[]): ModelMessage[] {
+  // Check if this looks like UIMessage[] (has 'id' property typical of UIMessage)
+  const isUIMessages = messages.length > 0 && 
+    typeof messages[0] === 'object' && 
+    messages[0] !== null &&
+    'id' in messages[0];
+  
+  if (isUIMessages) {
+    // Convert UIMessage[] to ModelMessage[]
+    return convertToModelMessages(messages as UIMessage[]);
+  }
+  
+  // Already ModelMessage[] format - return as-is
+  return messages as ModelMessage[];
+}
 
 /**
  * Discriminated union for next step transitions
@@ -164,8 +187,9 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
     this.currentAgent = agent;
     this.agent = agent; // Set alias
     this.originalInput = input;
+    // Convert input to ModelMessage format - handles both UIMessage[] and ModelMessage[]
     this.messages = Array.isArray(input) 
-      ? [...input] 
+      ? toModelMessages(input) 
       : [{ role: 'user' as const, content: input }];
     this.context = context;
     this.maxTurns = maxTurns;

@@ -307,12 +307,22 @@ export function processModelResponse<T extends ToolSet = ToolSet>(
         // Transform tool-call parts: 'input' -> 'args'
         const transformedContent = message.content.map((part: any) => {
           if (part.type === 'tool-call' && 'input' in part) {
-            const { input, ...rest } = part;
-            return { ...rest, args: input };
+            // Explicitly construct new object with args instead of input
+            return {
+              type: part.type,
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args: part.input,
+            };
           }
           return part;
         });
-        newMessages.push({ ...message, content: transformedContent } as ModelMessage);
+        // Explicitly construct new message with transformed content
+        const transformedMessage: ModelMessage = {
+          role: message.role,
+          content: transformedContent,
+        };
+        newMessages.push(transformedMessage);
       } else if (message.role === 'tool') {
         // Skip tool messages from response - we'll add our own with proper format
         // This avoids duplicate tool messages
