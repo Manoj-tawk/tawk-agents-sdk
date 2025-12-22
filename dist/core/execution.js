@@ -235,15 +235,20 @@ function processModelResponse(response) {
             }
             // Transform assistant messages with tool-call parts
             if (message.role === 'assistant' && Array.isArray(message.content)) {
-                // Transform tool-call parts: remove extra props, change 'input' -> 'args'
+                // Transform tool-call parts to ensure proper format for AI SDK
+                // IMPORTANT: AI SDK internally uses 'input' property, NOT 'args'
+                // See: toolCallPartSchema in ai/dist/index.js uses 'input: z.unknown()'
                 const transformedContent = message.content.map((part) => {
                     if (part.type === 'tool-call') {
-                        // Explicitly construct with ONLY valid ToolCallPart properties
+                        // Get the tool arguments from either 'input' or 'args', defaulting to empty object
+                        const toolInput = part.input ?? part.args ?? {};
+                        // Construct with properties matching AI SDK's toolCallPartSchema
+                        // Only include: type, toolCallId, toolName, input, providerOptions, providerExecuted
                         return {
                             type: 'tool-call',
                             toolCallId: part.toolCallId,
                             toolName: part.toolName,
-                            args: part.input ?? part.args ?? {},
+                            input: toolInput, // AI SDK uses 'input', not 'args'
                         };
                     }
                     return part;
