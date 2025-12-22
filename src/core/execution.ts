@@ -484,20 +484,23 @@ export async function executeSingleStep<TContext = any>(
         toolCallId = `call_${r.toolName}_${Date.now()}`;
       }
 
-      let output: { type: 'error-text'; value: string } | { type: 'json'; value: unknown };
+      // AI SDK ToolResultPart format uses 'output' for the result value
+      let resultValue: unknown;
+      let isError = false;
       if (r.error) {
-        output = { type: 'error-text' as const, value: r.error.message };
+        resultValue = r.error.message || 'Tool execution failed';
+        isError = true;
       } else {
-        const resultValue = r.result !== undefined ? r.result : null;
-        output = { type: 'json' as const, value: resultValue };
+        resultValue = r.result !== undefined ? r.result : null;
       }
 
-      toolResultParts.push({
-        type: 'tool-result' as const,
-        toolCallId,
-        toolName: r.toolName,
-        output,
-      });
+    toolResultParts.push({
+      type: 'tool-result' as const,
+      toolCallId,
+      toolName: r.toolName,
+      output: resultValue,
+      isError,
+    });
     }
 
     // Add as a single tool message with all results

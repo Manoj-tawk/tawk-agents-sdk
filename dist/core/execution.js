@@ -374,19 +374,22 @@ async function executeSingleStep(agent, state, contextWrapper, modelResponse) {
             if (!toolCallId) {
                 toolCallId = `call_${r.toolName}_${Date.now()}`;
             }
-            let output;
+            // AI SDK ToolResultPart format uses 'output' for the result value
+            let resultValue;
+            let isError = false;
             if (r.error) {
-                output = { type: 'error-text', value: r.error.message };
+                resultValue = r.error.message || 'Tool execution failed';
+                isError = true;
             }
             else {
-                const resultValue = r.result !== undefined ? r.result : null;
-                output = { type: 'json', value: resultValue };
+                resultValue = r.result !== undefined ? r.result : null;
             }
             toolResultParts.push({
                 type: 'tool-result',
                 toolCallId,
                 toolName: r.toolName,
-                output,
+                output: resultValue,
+                isError,
             });
         }
         // Add as a single tool message with all results
