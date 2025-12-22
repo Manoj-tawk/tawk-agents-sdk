@@ -185,13 +185,11 @@ function extractTargetAgentName(toolName) {
 function processModelResponse(response) {
     const toolCalls = [];
     const handoffRequests = [];
-    // Process tool calls in a single pass
     const responseToolCalls = response.toolCalls;
     for (let i = 0; i < responseToolCalls.length; i++) {
         const tc = responseToolCalls[i];
         const toolName = tc.toolName;
         const toolCallId = tc.toolCallId;
-        // AI SDK v5+ uses 'input' for tool arguments
         const rawInput = tc.input;
         let toolArgs;
         if (rawInput !== undefined && rawInput !== null) {
@@ -202,7 +200,6 @@ function processModelResponse(response) {
         }
         // Categorize as either a transfer request or a regular tool call
         if (isTransferTool(toolName)) {
-            // Extract reason with fallback
             let reason;
             if (typeof toolArgs.reason === 'string' && toolArgs.reason) {
                 reason = toolArgs.reason;
@@ -225,16 +222,35 @@ function processModelResponse(response) {
         }
     }
     // Build new messages array
-    // Prefer response.messages if available, otherwise create from text
-    let newMessages;
+    // IMPORTANT: Transform messages to ensure proper ModelMessage format
+    // The AI SDK response uses 'input' for tool calls, but generateText expects 'args'
+    const newMessages = [];
     if (response.response?.messages && response.response.messages.length > 0) {
-        newMessages = [...response.response.messages];
+        for (const msg of response.response.messages) {
+            const message = msg;
+            if (message.role === 'assistant' && Array.isArray(message.content)) {
+                // Transform tool-call parts: 'input' -> 'args'
+                const transformedContent = message.content.map((part) => {
+                    if (part.type === 'tool-call' && 'input' in part) {
+                        const { input, ...rest } = part;
+                        return { ...rest, args: input };
+                    }
+                    return part;
+                });
+                newMessages.push({ ...message, content: transformedContent });
+            }
+            else if (message.role === 'tool') {
+                // Skip tool messages from response - we'll add our own with proper format
+                // This avoids duplicate tool messages
+                continue;
+            }
+            else {
+                newMessages.push(message);
+            }
+        }
     }
     else if (response.text) {
-        newMessages = [{ role: 'assistant', content: response.text }];
-    }
-    else {
-        newMessages = [];
+        newMessages.push({ role: 'assistant', content: response.text });
     }
     return {
         text: response.text,
@@ -341,15 +357,12 @@ async function executeSingleStep(agent, state, contextWrapper, modelResponse) {
         for (const tc of processed.toolCalls) {
             toolCallIdMap.set(tc.toolName, tc.toolCallId);
         }
-        // Build tool result parts
         const toolResultParts = [];
         for (const r of toolResults) {
-            // Get toolCallId from map, or generate a fallback
             let toolCallId = toolCallIdMap.get(r.toolName);
             if (!toolCallId) {
                 toolCallId = `call_${r.toolName}_${Date.now()}`;
             }
-            // Build output in LanguageModelV2ToolResultOutput format
             let output;
             if (r.error) {
                 output = { type: 'error-text', value: r.error.message };

@@ -297,13 +297,32 @@ export function processModelResponse<T extends ToolSet = ToolSet>(
   }
 
   // Build new messages array
-  let newMessages: ModelMessage[];
+  // IMPORTANT: Transform messages to ensure proper ModelMessage format
+  // The AI SDK response uses 'input' for tool calls, but generateText expects 'args'
+  const newMessages: ModelMessage[] = [];
   if (response.response?.messages && response.response.messages.length > 0) {
-    newMessages = [...response.response.messages] as ModelMessage[];
+    for (const msg of response.response.messages) {
+      const message = msg as ModelMessage;
+      if (message.role === 'assistant' && Array.isArray(message.content)) {
+        // Transform tool-call parts: 'input' -> 'args'
+        const transformedContent = message.content.map((part: any) => {
+          if (part.type === 'tool-call' && 'input' in part) {
+            const { input, ...rest } = part;
+            return { ...rest, args: input };
+          }
+          return part;
+        });
+        newMessages.push({ ...message, content: transformedContent } as ModelMessage);
+      } else if (message.role === 'tool') {
+        // Skip tool messages from response - we'll add our own with proper format
+        // This avoids duplicate tool messages
+        continue;
+      } else {
+        newMessages.push(message);
+      }
+    }
   } else if (response.text) {
-    newMessages = [{ role: 'assistant' as const, content: response.text }];
-  } else {
-    newMessages = [];
+    newMessages.push({ role: 'assistant' as const, content: response.text });
   }
 
   return {
