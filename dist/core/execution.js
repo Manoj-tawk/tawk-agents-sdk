@@ -368,14 +368,12 @@ async function executeSingleStep(agent, state, contextWrapper, modelResponse) {
     // but NOT the actual tool results from our custom execution.
     // We must add tool results so the next generateText call knows what happened.
     if (toolResults.length > 0) {
-        // Create a Map for O(1) lookup of toolCallIds by toolName
-        const toolCallIdMap = new Map();
-        for (const tc of processed.toolCalls) {
-            toolCallIdMap.set(tc.toolName, tc.toolCallId);
-        }
+        // Match tool results by INDEX position to handle multiple calls with the same tool name
         const toolResultParts = [];
-        for (const r of toolResults) {
-            let toolCallId = toolCallIdMap.get(r.toolName);
+        for (let i = 0; i < toolResults.length; i++) {
+            const r = toolResults[i];
+            // Get the toolCallId from the original toolCalls array at the same index
+            let toolCallId = processed.toolCalls[i]?.toolCallId;
             if (!toolCallId) {
                 toolCallId = `call_${r.toolName}_${Date.now()}`;
             }
