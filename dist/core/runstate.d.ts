@@ -29,7 +29,7 @@
  * @version 1.0.0
  */
 import type { Agent } from './agent';
-import type { ModelMessage } from 'ai';
+import { type ModelMessage } from 'ai';
 import { Usage } from './usage';
 /**
  * Discriminated union for next step transitions

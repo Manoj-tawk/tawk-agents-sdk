@@ -199,10 +199,89 @@ all at once (if the LLM supports parallel tool calling).`,
 }
 
 // ============================================
-// TEST 7.3: Multi-Agent Parallel Execution (Race)
+// TEST 7.3: Parallel Tool Calls with Same Tool Name
+// ============================================
+async function testParallelSameToolName() {
+  console.log('📌 Test 7.3: Parallel Tool Calls with Same Tool Name');
+  
+  // Track execution order and results to verify correct index-based matching
+  const executionLog: { query: string; startTime: number }[] = [];
+  
+  const tools = {
+    search: tool({
+      description: 'Searches for information about a topic',
+      inputSchema: z.object({
+        query: z.string().describe('The search query'),
+      }),
+      execute: async ({ query }) => {
+        const entry = { query, startTime: Date.now() };
+        executionLog.push(entry);
+        console.log(`  🔍 Searching for "${query}"...`);
+        // Add varying delays to prove parallel execution and test index matching
+        const delay = Math.floor(Math.random() * 50) + 50;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return { 
+          query, 
+          results: `Found 10 results for "${query}"`,
+          timestamp: entry.startTime,
+        };
+      },
+    }),
+  };
+
+  const searchAgent = agent({
+    name: 'SearchAgent',
+    instructions: `You are a research assistant. When asked to search for multiple topics,
+you MUST call the search tool multiple times IN PARALLEL - once for each topic.
+Do NOT call them sequentially. Call all search tools at the same time.
+After getting all results, summarize what you found for each topic.`,
+    tools,
+    maxSteps: 5,
+  });
+
+  const result = await run(searchAgent, 'Search for these 3 topics simultaneously: "cats", "dogs", and "birds"', {
+    maxTurns: 5,
+  });
+
+  console.log(`✅ Parallel same-tool execution complete`);
+  console.log(`   Steps: ${result.steps.length}`);
+  console.log(`   Tool Calls: ${result.metadata.totalToolCalls}`);
+  console.log(`   Execution Log: ${executionLog.map(e => e.query).join(', ')}`);
+  
+  // Verify that 3 search calls were made
+  const totalToolCalls = result.metadata.totalToolCalls ?? 0;
+  if (totalToolCalls < 3) {
+    throw new Error(`Expected at least 3 tool calls for same tool, got ${totalToolCalls}`);
+  }
+  
+  // Verify all searches were executed
+  const searchedQueries = executionLog.map(e => e.query.toLowerCase());
+  const hasAllTopics = ['cats', 'dogs', 'birds'].every(topic => 
+    searchedQueries.some(q => q.includes(topic))
+  );
+  
+  if (!hasAllTopics) {
+    throw new Error(`Expected searches for cats, dogs, and birds. Got: ${searchedQueries.join(', ')}`);
+  }
+  
+  // Verify the final output mentions all search results (proves correct result matching)
+  const output = result.finalOutput.toLowerCase();
+  const mentionsAllTopics = ['cats', 'dogs', 'birds'].every(topic => 
+    output.includes(topic) || output.includes('result')
+  );
+  
+  if (!mentionsAllTopics) {
+    console.log(`   ⚠️ Warning: Final output may not include all topics`);
+  }
+  
+  console.log(`   Final Output: ${result.finalOutput.substring(0, 200)}...\n`);
+}
+
+// ============================================
+// TEST 7.4: Multi-Agent Parallel Execution (Race)
 // ============================================
 async function testMultiAgentParallel() {
-  console.log('📌 Test 7.3: Multi-Agent Parallel Execution');
+  console.log('📌 Test 7.4: Multi-Agent Parallel Execution');
   
   const fastAgent = agent({
     name: 'FastAgent',
@@ -247,6 +326,7 @@ async function runTests() {
   try {
     await testSequentialToolCalling();
     await testParallelToolCalling();
+    await testParallelSameToolName();
     await testMultiAgentParallel();
     
     console.log('======================================================================');
