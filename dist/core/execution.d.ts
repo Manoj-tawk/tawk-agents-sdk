@@ -61,6 +61,7 @@ export interface ProcessedResponse {
  */
 export interface ToolExecutionResult {
     toolName: string;
+    toolCallId?: string;
     args: any;
     result: any;
     error?: Error;

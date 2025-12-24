@@ -77,6 +77,7 @@ export interface ProcessedResponse {
  */
 export interface ToolExecutionResult {
   toolName: string;
+  toolCallId?: string;
   args: any;
   result: any;
   error?: Error;
@@ -115,6 +116,7 @@ export async function executeToolsInParallel<TContext = any>(
     if (!tool) {
       return {
         toolName: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
         args: toolCall.args,
         result: null,
         error: new Error(`Tool ${toolCall.toolName} not found`),
@@ -136,6 +138,7 @@ export async function executeToolsInParallel<TContext = any>(
     if (needsApproval) {
       return {
         toolName: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
         args: toolCall.args,
         result: null,
         duration: Date.now() - startTime,
@@ -181,6 +184,7 @@ export async function executeToolsInParallel<TContext = any>(
 
       return {
         toolName: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
         args: toolCall.args,
         result,
         duration: Date.now() - startTime,
@@ -210,6 +214,7 @@ export async function executeToolsInParallel<TContext = any>(
 
       return {
         toolName: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
         args: toolCall.args,
         result: null,
         error: normalizedError,
@@ -476,15 +481,10 @@ export async function executeSingleStep<TContext = any>(
   // but NOT the actual tool results from our custom execution.
   // We must add tool results so the next generateText call knows what happened.
   if (toolResults.length > 0) {
-    // Match tool results by INDEX position to handle multiple calls with the same tool name
     const toolResultParts = [];
-    for (let i = 0; i < toolResults.length; i++) {
-      const r = toolResults[i];
-      // Get the toolCallId from the original toolCalls array at the same index
-      let toolCallId = processed.toolCalls[i]?.toolCallId;
-      if (!toolCallId) {
-        toolCallId = `call_${r.toolName}_${Date.now()}`;
-      }
+    for (const r of toolResults) {
+      // Use the toolCallId directly from the result (passed through from execution)
+      const toolCallId = r.toolCallId || `call_${r.toolName}_${Date.now()}`;
 
       let output: { type: 'error-text'; value: string } | { type: 'json'; value: unknown };
       if (r.error) {
