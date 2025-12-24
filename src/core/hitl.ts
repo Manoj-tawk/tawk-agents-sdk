@@ -10,6 +10,7 @@
 import { Agent, type RunOptions } from './agent';
 import type { RunResult } from './runner';
 import type { RunState } from './runstate';
+import { NextStepType } from './runstate';
 import { AgenticRunner } from './runner';
 import type { ModelMessage } from 'ai';
 
@@ -136,7 +137,7 @@ export async function resumeAfterApproval<TContext = any, TOutput = string>(
 
   // Resume execution from the state
   // The agent will re-evaluate and continue
-  state.currentStep = { type: 'next_step_run_again' };
+  state.currentStep = { type: NextStepType.RUN_AGAIN };
 
   const runner = new AgenticRunner<TContext, TOutput>(options);
   return await runner.execute(state.currentAgent, state.messages, options);

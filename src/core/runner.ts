@@ -27,7 +27,7 @@
 
 import { generateText, type LanguageModel, type ModelMessage } from 'ai';
 import type { Agent, RunContextWrapper } from './agent';
-import { RunState } from './runstate';
+import { RunState, NextStepType } from './runstate';
 import { executeSingleStep } from './execution';
 import {
   createTrace,
@@ -322,7 +322,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         // Handle next step based on AGENT's decision
         const nextStep = stepResult.nextStep;
 
-        if (nextStep.type === 'next_step_final_output') {
+        if (nextStep.type === NextStepType.FINAL_OUTPUT) {
           // Agent decided to finish - check guardrails first
           const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
           
@@ -427,7 +427,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
               duration: state.getDuration(),
             },
           };
-        } else if (nextStep.type === 'next_step_handoff') {
+        } else if (nextStep.type === NextStepType.HANDOFF) {
           // Agent decided to transfer to another agent
           if (state.currentAgentSpan) {
             const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
@@ -486,7 +486,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
           // Continue loop with new agent (now with isolated context)
           continue;
-        } else if (nextStep.type === 'next_step_interruption') {
+        } else if (nextStep.type === NextStepType.INTERRUPTION) {
           // Agent needs human approval
           state.pendingInterruptions = nextStep.interruptions;
 
@@ -507,7 +507,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
               duration: state.getDuration(),
             },
           };
-        } else if (nextStep.type === 'next_step_run_again') {
+        } else if (nextStep.type === NextStepType.RUN_AGAIN) {
           // Agent decided to continue
           continue;
         }

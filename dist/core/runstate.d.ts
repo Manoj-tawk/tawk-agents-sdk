@@ -31,22 +31,29 @@
 import type { Agent } from './agent';
 import { type ModelMessage } from 'ai';
 import { Usage } from './usage';
+/** Constants for next step type values */
+export declare const NextStepType: {
+    readonly RUN_AGAIN: "next_step_run_again";
+    readonly HANDOFF: "next_step_handoff";
+    readonly FINAL_OUTPUT: "next_step_final_output";
+    readonly INTERRUPTION: "next_step_interruption";
+};
 /**
  * Discriminated union for next step transitions
  * Enables type-safe state machine for agent execution
  */
 export type NextStep = {
-    type: 'next_step_run_again';
+    type: typeof NextStepType.RUN_AGAIN;
 } | {
-    type: 'next_step_handoff';
+    type: typeof NextStepType.HANDOFF;
     newAgent: Agent<any, any>;
     reason?: string;
     context?: string;
 } | {
-    type: 'next_step_final_output';
+    type: typeof NextStepType.FINAL_OUTPUT;
     output: string;
 } | {
-    type: 'next_step_interruption';
+    type: typeof NextStepType.INTERRUPTION;
     interruptions: any[];
 };
 /**

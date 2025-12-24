@@ -14,6 +14,7 @@ exports.resumeAfterApproval = resumeAfterApproval;
 exports.createAgentWithApprovals = createAgentWithApprovals;
 exports.runWithApprovalCallback = runWithApprovalCallback;
 const agent_1 = require("./agent");
+const runstate_1 = require("./runstate");
 const runner_1 = require("./runner");
 /**
  * Check if a run result requires human approval
@@ -91,7 +92,7 @@ async function resumeAfterApproval(state, approvals, options = {}) {
     }
     // Resume execution from the state
     // The agent will re-evaluate and continue
-    state.currentStep = { type: 'next_step_run_again' };
+    state.currentStep = { type: runstate_1.NextStepType.RUN_AGAIN };
     const runner = new runner_1.AgenticRunner(options);
     return await runner.execute(state.currentAgent, state.messages, options);
 }

@@ -30,7 +30,7 @@
  * @version 1.0.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SingleStepResult = exports.RunState = exports.AgentToolUseTracker = void 0;
+exports.SingleStepResult = exports.RunState = exports.AgentToolUseTracker = exports.NextStepType = void 0;
 const ai_1 = require("ai");
 const usage_1 = require("./usage");
 /**
@@ -53,6 +53,13 @@ function toModelMessages(messages) {
     // Already ModelMessage[] format - return as-is
     return messages;
 }
+/** Constants for next step type values */
+exports.NextStepType = {
+    RUN_AGAIN: 'next_step_run_again',
+    HANDOFF: 'next_step_handoff',
+    FINAL_OUTPUT: 'next_step_final_output',
+    INTERRUPTION: 'next_step_interruption',
+};
 /**
  * Tracks tool usage per agent for reset logic
  */

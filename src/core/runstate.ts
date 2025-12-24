@@ -56,15 +56,23 @@ function toModelMessages(messages: unknown[]): ModelMessage[] {
   return messages as ModelMessage[];
 }
 
+/** Constants for next step type values */
+export const NextStepType = {
+  RUN_AGAIN: 'next_step_run_again',
+  HANDOFF: 'next_step_handoff',
+  FINAL_OUTPUT: 'next_step_final_output',
+  INTERRUPTION: 'next_step_interruption',
+} as const;
+
 /**
  * Discriminated union for next step transitions
  * Enables type-safe state machine for agent execution
  */
 export type NextStep =
-  | { type: 'next_step_run_again' }
-  | { type: 'next_step_handoff'; newAgent: Agent<any, any>; reason?: string; context?: string }
-  | { type: 'next_step_final_output'; output: string }
-  | { type: 'next_step_interruption'; interruptions: any[] };
+  | { type: typeof NextStepType.RUN_AGAIN }
+  | { type: typeof NextStepType.HANDOFF; newAgent: Agent<any, any>; reason?: string; context?: string }
+  | { type: typeof NextStepType.FINAL_OUTPUT; output: string }
+  | { type: typeof NextStepType.INTERRUPTION; interruptions: any[] };
 
 /**
  * Individual step result with tool outcomes

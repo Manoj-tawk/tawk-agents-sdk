@@ -213,7 +213,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 state.messages = stepResult.messages;
                 // Handle next step based on AGENT's decision
                 const nextStep = stepResult.nextStep;
-                if (nextStep.type === 'next_step_final_output') {
+                if (nextStep.type === runstate_1.NextStepType.FINAL_OUTPUT) {
                     // Agent decided to finish - check guardrails first
                     const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
                     if (!guardrailResult.passed) {
@@ -309,7 +309,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         },
                     };
                 }
-                else if (nextStep.type === 'next_step_handoff') {
+                else if (nextStep.type === runstate_1.NextStepType.HANDOFF) {
                     // Agent decided to transfer to another agent
                     if (state.currentAgentSpan) {
                         const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
@@ -361,7 +361,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     // Continue loop with new agent (now with isolated context)
                     continue;
                 }
-                else if (nextStep.type === 'next_step_interruption') {
+                else if (nextStep.type === runstate_1.NextStepType.INTERRUPTION) {
                     // Agent needs human approval
                     state.pendingInterruptions = nextStep.interruptions;
                     // Return with interruption state
@@ -382,7 +382,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         },
                     };
                 }
-                else if (nextStep.type === 'next_step_run_again') {
+                else if (nextStep.type === runstate_1.NextStepType.RUN_AGAIN) {
                     // Agent decided to continue
                     continue;
                 }
