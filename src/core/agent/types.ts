@@ -117,6 +117,7 @@ export interface AgentConfig<TContext = any, TOutput = string> {
     temperature?: number;
     topP?: number;
     maxTokens?: number;
+    responseTokens?: number;
     presencePenalty?: number;
     frequencyPenalty?: number;
   };

@@ -99,6 +99,8 @@ export interface AgentConfig<TContext = any, TOutput = string> {
         temperature?: number;
         topP?: number;
         maxTokens?: number;
+        /** Maximum tokens for the response output. Limits how long the generated text can be. */
+        responseTokens?: number;
         presencePenalty?: number;
         frequencyPenalty?: number;
     };
