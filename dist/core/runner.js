@@ -161,8 +161,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     modelParameters: {
                         temperature: state.currentAgent._modelSettings?.temperature,
                         topP: state.currentAgent._modelSettings?.topP,
-                        maxTokens: state.currentAgent._modelSettings?.maxTokens,
-                        responseTokens: state.currentAgent._modelSettings?.responseTokens,
+                        maxTokens: state.currentAgent._modelSettings?.responseTokens,
                     },
                     input: {
                         system: systemMessage.substring(0, 200),
@@ -177,11 +176,6 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     }
                 });
                 // Call model
-                const responseTokens = state.currentAgent._modelSettings?.responseTokens;
-                let maxTokens = state.currentAgent._modelSettings?.maxTokens;
-                if (typeof responseTokens === 'number' && responseTokens > 0) {
-                    maxTokens = responseTokens;
-                }
                 const modelResponse = await (0, ai_1.generateText)({
                     model: model,
                     system: systemMessage,
@@ -189,7 +183,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     tools: tools,
                     temperature: state.currentAgent._modelSettings?.temperature,
                     topP: state.currentAgent._modelSettings?.topP,
-                    maxTokens,
+                    maxTokens: state.currentAgent._modelSettings?.responseTokens,
                     presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
                     frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
                 });

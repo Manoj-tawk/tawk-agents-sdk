@@ -259,8 +259,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           modelParameters: {
             temperature: state.currentAgent._modelSettings?.temperature,
             topP: state.currentAgent._modelSettings?.topP,
-            maxTokens: state.currentAgent._modelSettings?.maxTokens,
-            responseTokens: state.currentAgent._modelSettings?.responseTokens,
+            maxTokens: state.currentAgent._modelSettings?.responseTokens,
           },
           input: {
             system: systemMessage.substring(0, 200),
@@ -276,12 +275,6 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         });
 
         // Call model
-        const responseTokens = state.currentAgent._modelSettings?.responseTokens;
-        let maxTokens = state.currentAgent._modelSettings?.maxTokens;
-        if (typeof responseTokens === 'number' && responseTokens > 0) {
-          maxTokens = responseTokens;
-        }
-
         const modelResponse = await generateText({
           model: model as LanguageModel,
           system: systemMessage,
@@ -289,7 +282,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           tools: tools as any,
           temperature: state.currentAgent._modelSettings?.temperature,
           topP: state.currentAgent._modelSettings?.topP,
-          maxTokens,
+          maxTokens: state.currentAgent._modelSettings?.responseTokens,
           presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
           frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
         } as any);

@@ -61,7 +61,7 @@ export type CoreTool = {
  * @property {Object} [modelSettings] - Model generation parameters
  * @property {number} [modelSettings.temperature] - Sampling temperature (0-2)
  * @property {number} [modelSettings.topP] - Nucleus sampling parameter
- * @property {number} [modelSettings.maxTokens] - Maximum tokens to generate
+ * @property {number} [modelSettings.responseTokens] - Maximum tokens to generate in response
  * @property {number} [modelSettings.presencePenalty] - Presence penalty (-2 to 2)
  * @property {number} [modelSettings.frequencyPenalty] - Frequency penalty (-2 to 2)
  * @property {Function} [onStepFinish] - Callback invoked after each step completes
@@ -98,8 +98,6 @@ export interface AgentConfig<TContext = any, TOutput = string> {
     modelSettings?: {
         temperature?: number;
         topP?: number;
-        maxTokens?: number;
-        /** Maximum tokens for the response output. Limits how long the generated text can be. */
         responseTokens?: number;
         presencePenalty?: number;
         frequencyPenalty?: number;

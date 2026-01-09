@@ -249,7 +249,6 @@ export declare class Agent<TContext = any, TOutput = string> extends AgentHooks<
     get _modelSettings(): {
         temperature?: number;
         topP?: number;
-        maxTokens?: number;
         responseTokens?: number;
         presencePenalty?: number;
         frequencyPenalty?: number;

@@ -54,7 +54,7 @@ interface AgentConfig<TContext = any, TOutput = string> {
   maxSteps?: number;
   modelSettings?: {
     temperature?: number;
-    maxTokens?: number;
+    responseTokens?: number;
     topP?: number;
     presencePenalty?: number;
     frequencyPenalty?: number;

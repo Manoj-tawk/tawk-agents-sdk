@@ -262,7 +262,7 @@ export interface EnhancedAgentConfig<TContext = any, TOutput = string> {
 export interface ModelSettings {
   temperature?: number;
   topP?: number;
-  maxTokens?: number;
+  responseTokens?: number;
   presencePenalty?: number;
   frequencyPenalty?: number;
 }
