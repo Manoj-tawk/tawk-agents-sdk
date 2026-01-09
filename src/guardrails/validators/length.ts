@@ -32,23 +32,25 @@ export interface LengthConfig {
 export function lengthGuardrail<TContext = any>(
   config: LengthConfig
 ): Guardrail<TContext> {
+  const unit = config.unit || 'characters';
+  
   return {
     name: config.name || 'length_check',
     type: config.type,
     validate: async (content: string) => {
-      const length = calculateLength(content, config.unit || 'characters');
+      const length = calculateLength(content, unit);
 
       if (config.minLength && length < config.minLength) {
         return {
           passed: false,
-          message: `Content too short: ${length} ${config.unit} (min: ${config.minLength})`
+          message: `Content too short: ${length} ${unit} (min: ${config.minLength})`
         };
       }
 
       if (config.maxLength && length > config.maxLength) {
         return {
           passed: false,
-          message: `Content too long: ${length} ${config.unit} (max: ${config.maxLength})`
+          message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`
         };
       }
 

@@ -682,18 +682,13 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         }
         
         if (!result.passed) {
-          // Generate ACTIONABLE feedback based on guardrail type
           let actionableFeedback = result.message || 'Validation failed';
           
-          // Make feedback specific and actionable
           if (guardrail.name === 'length_check' || result.message?.includes('too long')) {
-            // Extract max length from message if possible
-            const maxMatch = result.message?.match(/max[:\s]+(\d+)/i);
-            const maxLength = maxMatch ? parseInt(maxMatch[1]) : 1500;
-            const currentLength = output.length;
-            const reduction = Math.round(((currentLength - maxLength) / currentLength) * 100);
+            const { currentLength, maxLength, unit } = this.extractLengthInfo(result.message, output);
+            const reduction = Math.round(((output.length - maxLength) / output.length) * 100);
             
-            actionableFeedback = `Your response is too long (${currentLength} characters, max: ${maxLength}). Please CONDENSE your existing response to be ${reduction}% shorter. Keep all key points but make it more concise. DO NOT fetch more data - just summarize what you already have.`;
+            actionableFeedback = `Your response is too long (${currentLength} ${unit}, max: ${maxLength} ${unit}). Please shorten by ${reduction}%. Keep key points but be more concise.`;
           } else if (guardrail.name === 'pii_check' || result.message?.includes('PII')) {
             actionableFeedback = `Your response contains personally identifiable information (PII). Please rewrite your response without including any personal data, email addresses, phone numbers, or sensitive information.`;
           } else if (result.message?.includes('profanity') || result.message?.includes('inappropriate')) {
@@ -747,6 +742,39 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
     }
     
     return { passed: true };
+  }
+
+  /**
+   * Extract length info from guardrail message for feedback
+   */
+  private extractLengthInfo(message: string | undefined, output: string): { currentLength: number; maxLength: number; unit: string } {
+    const maxMatch = message?.match(/max[:\s]+(\d+)/i);
+    const unitMatch = message?.match(/\d+\s+(tokens?|words?|characters?)/i);
+    
+    const maxRaw = maxMatch ? parseInt(maxMatch[1]) : 1500;
+    const unit = unitMatch ? unitMatch[1].toLowerCase() : 'characters';
+    
+    if (unit.startsWith('token')) {
+      return {
+        currentLength: output.length,
+        maxLength: maxRaw * 4,
+        unit: 'characters'
+      };
+    }
+    
+    if (unit.startsWith('word')) {
+      return {
+        currentLength: output.split(/\s+/).length,
+        maxLength: maxRaw,
+        unit: 'words'
+      };
+    }
+    
+    return {
+      currentLength: output.length,
+      maxLength: maxRaw,
+      unit: 'characters'
+    };
   }
 
   /**
