@@ -19,7 +19,7 @@
  * @version 1.0.0
  */
 
-import type { ModelMessage, LanguageModel } from 'ai';
+import type { ModelMessage, LanguageModel, Schema, JSONSchema7 } from 'ai';
 import type { z } from 'zod';
 import type { Usage } from '../usage';
 
@@ -28,16 +28,27 @@ import type { Usage } from '../usage';
 // ============================================
 
 /**
+ * Flexible input schema type that accepts:
+ * - Zod schemas (z.ZodType)
+ * - JSON Schema (JSONSchema7)
+ * - AI SDK Schema objects (created via jsonSchema())
+ */
+export type FlexibleInputSchema = 
+  | z.ZodType
+  | JSONSchema7
+  | Schema;
+
+/**
  * Tool definition compatible with AI SDK v5.
  * 
  * @property {string} [description] - Human-readable description of what the tool does
- * @property {z.ZodSchema} [inputSchema] - Zod schema for validating tool inputs
+ * @property {FlexibleInputSchema} [inputSchema] - Schema for validating tool inputs (Zod, JSON Schema, or AI SDK Schema)
  * @property {Function} execute - Function that executes the tool logic
  * @property {boolean | Function} [enabled] - Whether the tool is enabled (can be dynamic)
  */
 export type CoreTool = {
   description?: string;
-  inputSchema?: z.ZodSchema<any>;
+  inputSchema?: FlexibleInputSchema;
   execute: (args: any, context?: any) => Promise<any> | any;
   enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
 };

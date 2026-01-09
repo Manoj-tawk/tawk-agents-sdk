@@ -1,0 +1,5 @@
+# Keep existing ignores
+/dist
+
+# Also ignore node_modules regardless of extension
+node_modules

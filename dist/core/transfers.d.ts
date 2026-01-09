@@ -22,14 +22,7 @@
  * @license MIT
  * @version 1.0.0
  */
-import { Agent } from './agent';
-import { z } from 'zod';
-type CoreTool = {
-    description?: string;
-    inputSchema?: z.ZodSchema<any>;
-    execute: (args: any, context?: any) => Promise<any> | any;
-    enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
-};
+import { Agent, CoreTool } from './agent';
 /**
  * Transfer result structure
  */
@@ -74,5 +67,4 @@ export declare function extractUserQuery(input: string | any[]): string;
  * @returns Formatted transfer context
  */
 export declare function createTransferContext(fromAgent: string, toAgent: string, reason?: string): string;
-export {};
 //# sourceMappingURL=transfers.d.ts.map
