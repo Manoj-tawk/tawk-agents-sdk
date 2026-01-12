@@ -233,12 +233,13 @@ function piiDetectionGuardrail(config) {
  * ```
  */
 function lengthGuardrail(config) {
+    const unit = config.unit || 'characters';
     return {
         name: config.name || 'length_check',
         type: config.type,
         validate: async (content) => {
             let length;
-            switch (config.unit || 'characters') {
+            switch (unit) {
                 case 'characters':
                     length = content.length;
                     break;
@@ -253,13 +254,13 @@ function lengthGuardrail(config) {
             if (config.minLength && length < config.minLength) {
                 return {
                     passed: false,
-                    message: `Content too short: ${length} ${config.unit} (min: ${config.minLength})`
+                    message: `Content too short: ${length} ${unit} (min: ${config.minLength})`
                 };
             }
             if (config.maxLength && length > config.maxLength) {
                 return {
                     passed: false,
-                    message: `Content too long: ${length} ${config.unit} (max: ${config.maxLength})`
+                    message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`
                 };
             }
             return { passed: true };

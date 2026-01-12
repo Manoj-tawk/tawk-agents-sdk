@@ -282,7 +282,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           tools: tools as any,
           temperature: state.currentAgent._modelSettings?.temperature,
           topP: state.currentAgent._modelSettings?.topP,
-          maxTokens: state.currentAgent._modelSettings?.maxTokens,
+          maxOutputTokens: state.currentAgent._modelSettings?.maxTokens,
           presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
           frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
         } as any);
