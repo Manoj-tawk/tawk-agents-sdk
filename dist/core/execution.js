@@ -365,18 +365,47 @@ async function executeSingleStep(agent, state, contextWrapper, modelResponse) {
     for (const message of processed.newMessages) {
         newMessages.push(message);
     }
+    const tokenBudget = state._tokenBudget;
     if (toolResults.length > 0) {
         const toolResultParts = [];
         for (const toolResult of toolResults) {
-            const output = toolResult.error
-                ? { type: 'error-text', value: toolResult.error.message }
-                : { type: 'json', value: toolResult.result ?? null };
-            toolResultParts.push({
-                type: 'tool-result',
-                toolCallId: toolResult.toolCallId,
-                toolName: toolResult.toolName,
-                output,
-            });
+            let output;
+            if (toolResult.error) {
+                output = { type: 'error-text', value: toolResult.error.message };
+            }
+            else {
+                output = { type: 'json', value: toolResult.result ?? null };
+            }
+            if (tokenBudget?.isEnabled()) {
+                const resultContent = JSON.stringify(output);
+                const estimatedTokens = await tokenBudget.estimateTokens(resultContent);
+                if (!tokenBudget.hasReachedLimit && tokenBudget.canAddMessage(estimatedTokens)) {
+                    toolResultParts.push({
+                        type: 'tool-result',
+                        toolCallId: toolResult.toolCallId,
+                        toolName: toolResult.toolName,
+                        output,
+                    });
+                    tokenBudget.addTokens(estimatedTokens);
+                }
+                else {
+                    tokenBudget.markLimitReached();
+                    toolResultParts.push({
+                        type: 'tool-result',
+                        toolCallId: toolResult.toolCallId,
+                        toolName: toolResult.toolName,
+                        output: { type: 'error-text', value: 'Tool result unavailable' },
+                    });
+                }
+            }
+            else {
+                toolResultParts.push({
+                    type: 'tool-result',
+                    toolCallId: toolResult.toolCallId,
+                    toolName: toolResult.toolName,
+                    output,
+                });
+            }
         }
         const toolMessage = {
             role: 'tool',

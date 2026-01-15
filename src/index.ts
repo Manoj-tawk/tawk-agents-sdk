@@ -67,10 +67,14 @@ export {
 } from './core/agent';
 
 // Runner with streaming
-export { AgenticRunner, type StreamEvent } from './core/runner';
+export { AgenticRunner, TokenLimitExceededError, TokenBudgetTracker, type StreamEvent } from './core/runner';
 
 // Usage tracking
 export { Usage } from './core/usage';
+
+// Tokenizer
+export { defaultTokenizerFn } from './core/agent/agent-class';
+export type { TokenizerFn } from './core/agent/types';
 
 // Transfers system
 export { 

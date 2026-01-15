@@ -26,7 +26,7 @@
  * @version 1.0.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AgenticRunner = void 0;
+exports.AgenticRunner = exports.TokenBudgetTracker = exports.TokenLimitExceededError = void 0;
 exports.run = run;
 const ai_1 = require("ai");
 const runstate_1 = require("./runstate");
@@ -34,6 +34,81 @@ const execution_1 = require("./execution");
 const langfuse_1 = require("../lifecycle/langfuse");
 const context_1 = require("../tracing/context");
 const lifecycle_1 = require("../lifecycle");
+/** Error thrown when agent run exceeds token budget */
+class TokenLimitExceededError extends Error {
+    constructor(options) {
+        const { estimatedTokens, maxTokens, usedTokens } = options;
+        super(`Token limit exceeded: estimated request (${estimatedTokens} tokens) would exceed ` +
+            `budget (${maxTokens} max, ${usedTokens} already used, ${maxTokens - usedTokens} remaining)`);
+        this.name = 'TokenLimitExceededError';
+        this.estimatedTokens = estimatedTokens;
+        this.maxTokens = maxTokens;
+        this.usedTokens = usedTokens;
+    }
+}
+exports.TokenLimitExceededError = TokenLimitExceededError;
+/**
+ * Token budget tracker
+ */
+class TokenBudgetTracker {
+    constructor(options) {
+        this.estimatedContextTokens = 0;
+        this.alreadyUsedTokens = 0;
+        this.hasReachedLimit = false;
+        this.maxTokens = options.maxTokens;
+        this.tokenizerFn = options.tokenizerFn;
+        this.reservedResponseTokens = options.reservedResponseTokens ?? 1500;
+        this.alreadyUsedTokens = options.alreadyUsedTokens ?? 0;
+    }
+    isEnabled() {
+        return this.maxTokens !== undefined;
+    }
+    async estimateTokens(content) {
+        const text = typeof content === 'string' ? content : JSON.stringify(content);
+        return await this.tokenizerFn(text);
+    }
+    setInitialContext(tokens) {
+        this.estimatedContextTokens = tokens;
+    }
+    addTokens(tokens) {
+        this.estimatedContextTokens += tokens;
+    }
+    getTotalTokens() {
+        return this.alreadyUsedTokens + this.estimatedContextTokens;
+    }
+    getRemainingBudget() {
+        if (!this.maxTokens)
+            return Infinity;
+        return this.maxTokens - this.getTotalTokens() - this.reservedResponseTokens;
+    }
+    canAddMessage(messageTokens) {
+        if (!this.maxTokens)
+            return true;
+        if (this.hasReachedLimit)
+            return false;
+        const wouldUse = this.getTotalTokens() + messageTokens;
+        const wouldRemain = this.maxTokens - wouldUse;
+        return wouldRemain >= this.reservedResponseTokens;
+    }
+    isInitialContextExceeded() {
+        if (!this.maxTokens)
+            return false;
+        return this.getTotalTokens() + this.reservedResponseTokens > this.maxTokens;
+    }
+    markLimitReached() {
+        this.hasReachedLimit = true;
+    }
+    getStats() {
+        return {
+            estimated: this.estimatedContextTokens,
+            used: this.alreadyUsedTokens,
+            total: this.getTotalTokens(),
+            max: this.maxTokens,
+            remaining: this.getRemainingBudget(),
+        };
+    }
+}
+exports.TokenBudgetTracker = TokenBudgetTracker;
 /**
  * Runner - Orchestrates agent execution with true agentic patterns
  *
@@ -152,8 +227,34 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const systemMessage = await state.currentAgent.getInstructions(contextWrapper);
                 // Get model
                 const model = state.currentAgent._model;
-                // Prepare tools
-                const tools = state.currentAgent._tools;
+                const toolsDisabledDueToTokenLimit = state._toolsDisabledDueToTokenLimit;
+                const tools = toolsDisabledDueToTokenLimit ? {} : state.currentAgent._tools;
+                const estimatedResponseTokens = state.currentAgent._modelSettings?.responseTokens ?? 1024;
+                const tokenBudget = new TokenBudgetTracker({
+                    maxTokens: state.currentAgent._modelSettings?.maxTokens,
+                    tokenizerFn: state.currentAgent._tokenizerFn,
+                    reservedResponseTokens: estimatedResponseTokens + 500,
+                    alreadyUsedTokens: state.usage.totalTokens,
+                });
+                if (tokenBudget.isEnabled()) {
+                    let estimatedInputTokens = await tokenBudget.estimateTokens(systemMessage);
+                    for (const msg of state.messages) {
+                        estimatedInputTokens += await tokenBudget.estimateTokens(JSON.stringify(msg.content));
+                    }
+                    if (tools && Object.keys(tools).length > 0) {
+                        estimatedInputTokens += await tokenBudget.estimateTokens(tools);
+                    }
+                    tokenBudget.setInitialContext(estimatedInputTokens);
+                    if (tokenBudget.isInitialContextExceeded()) {
+                        const stats = tokenBudget.getStats();
+                        throw new TokenLimitExceededError({
+                            estimatedTokens: stats.total,
+                            maxTokens: stats.max,
+                            usedTokens: stats.used
+                        });
+                    }
+                }
+                state._tokenBudget = tokenBudget;
                 // Create GENERATION (not span) for LLM call - this properly tracks tokens in Langfuse
                 const generation = state.currentAgentSpan?.generation({
                     name: `LLM Generation: ${state.currentAgent.name}`,
@@ -161,7 +262,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     modelParameters: {
                         temperature: state.currentAgent._modelSettings?.temperature,
                         topP: state.currentAgent._modelSettings?.topP,
-                        maxTokens: state.currentAgent._modelSettings?.maxTokens,
+                        maxTokens: state.currentAgent._modelSettings?.responseTokens,
                     },
                     input: {
                         system: systemMessage.substring(0, 200),
@@ -183,7 +284,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     tools: tools,
                     temperature: state.currentAgent._modelSettings?.temperature,
                     topP: state.currentAgent._modelSettings?.topP,
-                    maxOutputTokens: state.currentAgent._modelSettings?.maxTokens,
+                    maxOutputTokens: state.currentAgent._modelSettings?.responseTokens,
                     presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
                     frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
                 });
@@ -211,6 +312,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const stepResult = await (0, execution_1.executeSingleStep)(state.currentAgent, state, contextWrapper, modelResponse);
                 // Update state with new messages
                 state.messages = stepResult.messages;
+                if (tokenBudget.hasReachedLimit) {
+                    state._toolsDisabledDueToTokenLimit = true;
+                }
                 // Handle next step based on AGENT's decision
                 const nextStep = stepResult.nextStep;
                 if (nextStep.type === runstate_1.NextStepType.FINAL_OUTPUT) {
@@ -351,6 +455,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         : [{ role: 'user', content: state.originalInput }];
                     // Reset messages to just the user query
                     state.messages = [...originalUserMessage];
+                    state._toolsDisabledDueToTokenLimit = false;
                     // Add transfer context as system message (optional: remove if too verbose)
                     if (nextStep.reason) {
                         state.messages.push({

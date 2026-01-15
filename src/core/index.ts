@@ -5,6 +5,7 @@
  */
 
 export { Agent, run, runStream, setDefaultModel, tool } from './agent';
+export { defaultTokenizerFn } from './agent/agent-class';
 export type {
   AgentConfig,
   AgentMetric,
@@ -13,7 +14,13 @@ export type {
   StreamResult,
   StepResult,
   RunContextWrapper,
+  TokenizerFn,
 } from './agent';
+
+export {
+  TokenLimitExceededError,
+  TokenBudgetTracker
+} from './runner';
 
 export { raceAgents } from './race-agents';
 export type { RaceAgentsOptions } from './race-agents';

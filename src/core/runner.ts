@@ -43,9 +43,105 @@ import {
 } from '../tracing/context';
 import { RunHooks } from '../lifecycle';
 
+/** Error thrown when agent run exceeds token budget */
+export class TokenLimitExceededError extends Error {
+  public readonly estimatedTokens: number;
+  public readonly maxTokens: number;
+  public readonly usedTokens: number;
+
+  constructor(options: { estimatedTokens: number; maxTokens: number; usedTokens: number }) {
+    const { estimatedTokens, maxTokens, usedTokens } = options;
+    super(
+      `Token limit exceeded: estimated request (${estimatedTokens} tokens) would exceed ` +
+      `budget (${maxTokens} max, ${usedTokens} already used, ${maxTokens - usedTokens} remaining)`
+    );
+    this.name = 'TokenLimitExceededError';
+    this.estimatedTokens = estimatedTokens;
+    this.maxTokens = maxTokens;
+    this.usedTokens = usedTokens;
+  }
+}
+
 /**
- * Options for running an agent
+ * Token budget tracker
  */
+export class TokenBudgetTracker {
+  private maxTokens: number | undefined;
+  private tokenizerFn: (text: string) => number | Promise<number>;
+  private estimatedContextTokens: number = 0;
+  private reservedResponseTokens: number;
+  private alreadyUsedTokens: number = 0;
+  
+  public hasReachedLimit: boolean = false;
+
+  constructor(options: {
+    maxTokens?: number;
+    tokenizerFn: (text: string) => number | Promise<number>;
+    reservedResponseTokens?: number;
+    alreadyUsedTokens?: number;
+  }) {
+    this.maxTokens = options.maxTokens;
+    this.tokenizerFn = options.tokenizerFn;
+    this.reservedResponseTokens = options.reservedResponseTokens ?? 1500;
+    this.alreadyUsedTokens = options.alreadyUsedTokens ?? 0;
+  }
+
+  isEnabled(): boolean {
+    return this.maxTokens !== undefined;
+  }
+
+  async estimateTokens(content: string | object): Promise<number> {
+    const text = typeof content === 'string' ? content : JSON.stringify(content);
+    return await this.tokenizerFn(text);
+  }
+
+  setInitialContext(tokens: number): void {
+    this.estimatedContextTokens = tokens;
+  }
+
+  addTokens(tokens: number): void {
+    this.estimatedContextTokens += tokens;
+  }
+
+  getTotalTokens(): number {
+    return this.alreadyUsedTokens + this.estimatedContextTokens;
+  }
+
+  getRemainingBudget(): number {
+    if (!this.maxTokens) return Infinity;
+    return this.maxTokens - this.getTotalTokens() - this.reservedResponseTokens;
+  }
+
+  canAddMessage(messageTokens: number): boolean {
+    if (!this.maxTokens) return true;
+    if (this.hasReachedLimit) return false;
+    
+    const wouldUse = this.getTotalTokens() + messageTokens;
+    const wouldRemain = this.maxTokens - wouldUse;
+    
+    return wouldRemain >= this.reservedResponseTokens;
+  }
+
+  isInitialContextExceeded(): boolean {
+    if (!this.maxTokens) return false;
+    return this.getTotalTokens() + this.reservedResponseTokens > this.maxTokens;
+  }
+
+  markLimitReached(): void {
+    this.hasReachedLimit = true;
+  }
+
+  getStats(): { estimated: number; used: number; total: number; max: number | undefined; remaining: number } {
+    return {
+      estimated: this.estimatedContextTokens,
+      used: this.alreadyUsedTokens,
+      total: this.getTotalTokens(),
+      max: this.maxTokens,
+      remaining: this.getRemainingBudget(),
+    };
+  }
+}
+
 export interface RunOptions<TContext = any> {
   context?: TContext;
   session?: any; // Session for conversation history
@@ -249,8 +345,40 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         // Get model
         const model = state.currentAgent._model;
 
-        // Prepare tools
-        const tools = state.currentAgent._tools;
+        const toolsDisabledDueToTokenLimit = state._toolsDisabledDueToTokenLimit;
+        const tools = toolsDisabledDueToTokenLimit ? {} : state.currentAgent._tools;
+
+        const estimatedResponseTokens = state.currentAgent._modelSettings?.responseTokens ?? 1024;
+        const tokenBudget = new TokenBudgetTracker({
+          maxTokens: state.currentAgent._modelSettings?.maxTokens,
+          tokenizerFn: state.currentAgent._tokenizerFn,
+          reservedResponseTokens: estimatedResponseTokens + 500,
+          alreadyUsedTokens: state.usage.totalTokens,
+        });
+
+        if (tokenBudget.isEnabled()) {
+          let estimatedInputTokens = await tokenBudget.estimateTokens(systemMessage);
+          for (const msg of state.messages) {
+            estimatedInputTokens += await tokenBudget.estimateTokens(JSON.stringify(msg.content));
+          }
+          
+          if (tools && Object.keys(tools).length > 0) {
+            estimatedInputTokens += await tokenBudget.estimateTokens(tools);
+          }
+          
+          tokenBudget.setInitialContext(estimatedInputTokens);
+          
+          if (tokenBudget.isInitialContextExceeded()) {
+            const stats = tokenBudget.getStats();
+            throw new TokenLimitExceededError({
+              estimatedTokens: stats.total,
+              maxTokens: stats.max!,
+              usedTokens: stats.used
+            });
+          }
+        }
+        
+        state._tokenBudget = tokenBudget;
 
         // Create GENERATION (not span) for LLM call - this properly tracks tokens in Langfuse
         const generation = state.currentAgentSpan?.generation({
@@ -259,7 +387,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           modelParameters: {
             temperature: state.currentAgent._modelSettings?.temperature,
             topP: state.currentAgent._modelSettings?.topP,
-            maxTokens: state.currentAgent._modelSettings?.maxTokens,
+            maxTokens: state.currentAgent._modelSettings?.responseTokens,
           },
           input: {
             system: systemMessage.substring(0, 200),
@@ -282,7 +410,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           tools: tools as any,
           temperature: state.currentAgent._modelSettings?.temperature,
           topP: state.currentAgent._modelSettings?.topP,
-          maxOutputTokens: state.currentAgent._modelSettings?.maxTokens,
+          maxOutputTokens: state.currentAgent._modelSettings?.responseTokens,
           presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
           frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
         } as any);
@@ -318,6 +446,10 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
 
         // Update state with new messages
         state.messages = stepResult.messages;
+
+        if (tokenBudget.hasReachedLimit) {
+          state._toolsDisabledDueToTokenLimit = true;
+        }
 
         // Handle next step based on AGENT's decision
         const nextStep = stepResult.nextStep;
@@ -475,6 +607,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           
           // Reset messages to just the user query
           state.messages = [...originalUserMessage];
+          
+          state._toolsDisabledDueToTokenLimit = false;
           
           // Add transfer context as system message (optional: remove if too verbose)
           if (nextStep.reason) {

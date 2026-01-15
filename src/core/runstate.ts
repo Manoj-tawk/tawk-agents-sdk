@@ -181,6 +181,10 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public stepNumber: number = 0;
   private startTime: number;
 
+  // Token budget tracking
+  public _tokenBudget?: any;
+  public _toolsDisabledDueToTokenLimit: boolean = false;
+
   // Legacy compatibility properties
   public items: any[] = [];
   public modelResponses: any[] = [];

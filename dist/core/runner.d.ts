@@ -28,9 +28,50 @@ import { type ModelMessage } from 'ai';
 import type { Agent } from './agent';
 import { RunState } from './runstate';
 import { RunHooks } from '../lifecycle';
+/** Error thrown when agent run exceeds token budget */
+export declare class TokenLimitExceededError extends Error {
+    readonly estimatedTokens: number;
+    readonly maxTokens: number;
+    readonly usedTokens: number;
+    constructor(options: {
+        estimatedTokens: number;
+        maxTokens: number;
+        usedTokens: number;
+    });
+}
 /**
- * Options for running an agent
+ * Token budget tracker
  */
+export declare class TokenBudgetTracker {
+    private maxTokens;
+    private tokenizerFn;
+    private estimatedContextTokens;
+    private reservedResponseTokens;
+    private alreadyUsedTokens;
+    hasReachedLimit: boolean;
+    constructor(options: {
+        maxTokens?: number;
+        tokenizerFn: (text: string) => number | Promise<number>;
+        reservedResponseTokens?: number;
+        alreadyUsedTokens?: number;
+    });
+    isEnabled(): boolean;
+    estimateTokens(content: string | object): Promise<number>;
+    setInitialContext(tokens: number): void;
+    addTokens(tokens: number): void;
+    getTotalTokens(): number;
+    getRemainingBudget(): number;
+    canAddMessage(messageTokens: number): boolean;
+    isInitialContextExceeded(): boolean;
+    markLimitReached(): void;
+    getStats(): {
+        estimated: number;
+        used: number;
+        total: number;
+        max: number | undefined;
+        remaining: number;
+    };
+}
 export interface RunOptions<TContext = any> {
     context?: TContext;
     session?: any;
