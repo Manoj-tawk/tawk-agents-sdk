@@ -229,6 +229,9 @@ export function piiDetectionGuardrail<TContext = any>(config: {
  * Create a guardrail that validates content length.
  * Supports validation by characters, words, or tokens.
  * 
+ * When unit is 'tokens', the guardrail uses the agent's tokenizerFn
+ * for accurate token counting.
+ * 
  * @template TContext - Type of context object
  * 
  * @param {Object} config - Guardrail configuration
@@ -244,7 +247,7 @@ export function piiDetectionGuardrail<TContext = any>(config: {
  * const guardrail = lengthGuardrail({
  *   type: 'output',
  *   maxLength: 1000,
- *   unit: 'words'
+ *   unit: 'tokens'
  * });
  * ```
  */
@@ -260,7 +263,7 @@ export function lengthGuardrail<TContext = any>(config: {
   return {
     name: config.name || 'length_check',
     type: config.type,
-    validate: async (content: string) => {
+    validate: async (content: string, contextWrapper: RunContextWrapper<TContext>) => {
       let length: number;
 
       switch (unit) {
@@ -271,8 +274,7 @@ export function lengthGuardrail<TContext = any>(config: {
           length = content.split(/\s+/).length;
           break;
         case 'tokens':
-          // Rough estimation: 1 token ≈ 4 characters
-          length = Math.ceil(content.length / 4);
+          length = await contextWrapper.agent._tokenizerFn(content);
           break;
       }
 
