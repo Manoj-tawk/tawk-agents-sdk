@@ -692,6 +692,11 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
     if (!lastUserMessage || typeof lastUserMessage.content !== 'string') return;
 
     const contextWrapper = this.getContextWrapper(agent, state);
+    
+    // Calculate lengths upfront for logging
+    const inputContent = lastUserMessage.content;
+    const characterLength = inputContent.length;
+    const tokenCount = await agent._tokenizerFn(inputContent);
 
     // Create parent span for all input guardrails UNDER the agent span
     const guardrailsSpan = state.currentAgentSpan?.span({
@@ -699,7 +704,9 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
       metadata: {
         type: 'input',
         guardrailCount: guardrails.length,
-        agentName: agent.name
+        agentName: agent.name,
+        characterLength,
+        tokenCount
       }
     });
 
@@ -709,8 +716,9 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         const guardrailSpan = guardrailsSpan?.span({
           name: `Guardrail: ${guardrail.name}`,
           input: { 
-            content: lastUserMessage.content.substring(0, 200),
-            type: 'input'
+            content: inputContent.substring(0, 200),
+            characterLength,
+            tokenCount
           },
           metadata: {
             guardrailName: guardrail.name,
@@ -720,13 +728,14 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         });
         
         try {
-          const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
+          const result = await guardrail.validate(inputContent, contextWrapper);
           
           if (guardrailSpan) {
             guardrailSpan.end({
               output: {
                 passed: result.passed,
-                message: result.message
+                message: result.message,
+                metadata: result.metadata
               },
               level: result.passed ? 'DEFAULT' : 'WARNING'
             });
@@ -773,6 +782,10 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
     if (guardrails.length === 0) return { passed: true };
 
     const contextWrapper = this.getContextWrapper(agent, state);
+    
+    // Calculate lengths upfront for logging
+    const characterLength = output.length;
+    const tokenCount = await agent._tokenizerFn(output);
 
     // Create parent span for all output guardrails UNDER the agent span
     const guardrailsSpan = state.currentAgentSpan?.span({
@@ -781,7 +794,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         type: 'output',
         guardrailCount: guardrails.length,
         agentName: agent.name,
-        outputLength: output.length
+        characterLength,
+        tokenCount
       }
     });
 
@@ -791,8 +805,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         name: `Guardrail: ${guardrail.name}`,
         input: { 
           content: output.substring(0, 200),
-          type: 'output',
-          fullLength: output.length
+          characterLength,
+          tokenCount
         },
         metadata: {
           guardrailName: guardrail.name,
@@ -809,7 +823,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             output: {
               passed: result.passed,
               message: result.message,
-              willRetry: !result.passed
+              willRetry: !result.passed,
+              metadata: result.metadata
             },
             level: result.passed ? 'DEFAULT' : 'WARNING'
           });

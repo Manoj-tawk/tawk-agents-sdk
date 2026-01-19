@@ -241,31 +241,37 @@ function lengthGuardrail(config) {
         name: config.name || 'length_check',
         type: config.type,
         validate: async (content, contextWrapper) => {
+            const characterLength = content.length;
+            const tokenCount = await contextWrapper.agent._tokenizerFn(content);
+            // Calculate length in configured unit
             let length;
             switch (unit) {
                 case 'characters':
-                    length = content.length;
+                    length = characterLength;
                     break;
                 case 'words':
                     length = content.split(/\s+/).length;
                     break;
                 case 'tokens':
-                    length = await contextWrapper.agent._tokenizerFn(content);
+                    length = tokenCount;
                     break;
             }
+            const metadata = { characterLength, tokenCount };
             if (config.minLength && length < config.minLength) {
                 return {
                     passed: false,
-                    message: `Content too short: ${length} ${unit} (min: ${config.minLength})`
+                    message: `Content too short: ${length} ${unit} (min: ${config.minLength})`,
+                    metadata
                 };
             }
             if (config.maxLength && length > config.maxLength) {
                 return {
                     passed: false,
-                    message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`
+                    message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`,
+                    metadata
                 };
             }
-            return { passed: true };
+            return { passed: true, metadata };
         }
     };
 }

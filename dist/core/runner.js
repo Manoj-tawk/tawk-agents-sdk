@@ -529,13 +529,19 @@ class AgenticRunner extends lifecycle_1.RunHooks {
         if (!lastUserMessage || typeof lastUserMessage.content !== 'string')
             return;
         const contextWrapper = this.getContextWrapper(agent, state);
+        // Calculate lengths upfront for logging
+        const inputContent = lastUserMessage.content;
+        const characterLength = inputContent.length;
+        const tokenCount = await agent._tokenizerFn(inputContent);
         // Create parent span for all input guardrails UNDER the agent span
         const guardrailsSpan = state.currentAgentSpan?.span({
             name: 'Input Guardrails',
             metadata: {
                 type: 'input',
                 guardrailCount: guardrails.length,
-                agentName: agent.name
+                agentName: agent.name,
+                characterLength,
+                tokenCount
             }
         });
         try {
@@ -544,8 +550,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const guardrailSpan = guardrailsSpan?.span({
                     name: `Guardrail: ${guardrail.name}`,
                     input: {
-                        content: lastUserMessage.content.substring(0, 200),
-                        type: 'input'
+                        content: inputContent.substring(0, 200),
+                        characterLength,
+                        tokenCount
                     },
                     metadata: {
                         guardrailName: guardrail.name,
@@ -554,12 +561,13 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     }
                 });
                 try {
-                    const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
+                    const result = await guardrail.validate(inputContent, contextWrapper);
                     if (guardrailSpan) {
                         guardrailSpan.end({
                             output: {
                                 passed: result.passed,
-                                message: result.message
+                                message: result.message,
+                                metadata: result.metadata
                             },
                             level: result.passed ? 'DEFAULT' : 'WARNING'
                         });
@@ -603,6 +611,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
         if (guardrails.length === 0)
             return { passed: true };
         const contextWrapper = this.getContextWrapper(agent, state);
+        // Calculate lengths upfront for logging
+        const characterLength = output.length;
+        const tokenCount = await agent._tokenizerFn(output);
         // Create parent span for all output guardrails UNDER the agent span
         const guardrailsSpan = state.currentAgentSpan?.span({
             name: 'Output Guardrails',
@@ -610,7 +621,8 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 type: 'output',
                 guardrailCount: guardrails.length,
                 agentName: agent.name,
-                outputLength: output.length
+                characterLength,
+                tokenCount
             }
         });
         for (const guardrail of guardrails) {
@@ -619,8 +631,8 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 name: `Guardrail: ${guardrail.name}`,
                 input: {
                     content: output.substring(0, 200),
-                    type: 'output',
-                    fullLength: output.length
+                    characterLength,
+                    tokenCount
                 },
                 metadata: {
                     guardrailName: guardrail.name,
@@ -635,7 +647,8 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         output: {
                             passed: result.passed,
                             message: result.message,
-                            willRetry: !result.passed
+                            willRetry: !result.passed,
+                            metadata: result.metadata
                         },
                         level: result.passed ? 'DEFAULT' : 'WARNING'
                     });
