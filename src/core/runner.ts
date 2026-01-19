@@ -460,8 +460,13 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             maxTokens: state.currentAgent._modelSettings?.responseTokens,
           },
           input: {
-            system: systemMessage.substring(0, 200),
-            messages: state.messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content.substring(0, 100) : '...' })),
+            system: systemMessage,
+            messages: state.messages.map(m => {
+              if (typeof m.content === 'string') {
+                return { role: m.role, content: m.content };
+              }
+              return { role: m.role, content: JSON.stringify(m.content) };
+            }),
             tools: Object.keys(tools || {})
           },
           metadata: {
@@ -490,7 +495,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           const usage = modelResponse.usage || {};
           generation.end({
             output: {
-              text: modelResponse.text.substring(0, 200),
+              text: modelResponse.text,
               toolCalls: modelResponse.toolCalls?.length || 0,
               finishReason: modelResponse.finishReason
             },
@@ -587,21 +592,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           if (state.currentAgentSpan) {
             const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
             
-            // Configurable truncation for Langfuse (default: 5000 chars, set to 0 for no truncation)
-            const maxOutputLength = process.env.LANGFUSE_MAX_OUTPUT_LENGTH 
-              ? parseInt(process.env.LANGFUSE_MAX_OUTPUT_LENGTH) 
-              : 5000;
-            
-            const truncatedOutput = maxOutputLength > 0 && finalOutputString.length > maxOutputLength
-              ? finalOutputString.substring(0, maxOutputLength) + '... (truncated)'
-              : finalOutputString;
-            
             state.currentAgentSpan.end({
-              output: truncatedOutput,
-              metadata: {
-                fullLength: finalOutputString.length,
-                truncated: finalOutputString.length > maxOutputLength
-              },
+              output: finalOutputString,
               usage: agentMetrics ? {
                 input: agentMetrics.tokens.input,
                 output: agentMetrics.tokens.output,

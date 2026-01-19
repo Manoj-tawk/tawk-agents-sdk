@@ -88,7 +88,7 @@ export function contentSafetyGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: `You are a content moderation system. Analyze the following text and determine if it contains any of these categories: ${categories.join(', ')}. Respond with a JSON object.`,
-          prompt: content.substring(0, 500) // Truncate for display
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'content_safety',
@@ -347,7 +347,7 @@ export function topicRelevanceGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: `Analyze if the following text is relevant to these topics: ${config.allowedTopics.join(', ')}. Rate relevance from 0-10.`,
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'topic_relevance',
@@ -646,7 +646,7 @@ export function languageGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Detect the language of the text. Respond with the ISO 639-1 language code.',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'language_detection',
@@ -748,7 +748,7 @@ export function sentimentGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Analyze the sentiment of the text as positive, negative, or neutral.',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'sentiment_check',
@@ -859,7 +859,7 @@ export function toxicityGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Rate the toxicity of the text on a scale from 0 (not toxic) to 10 (extremely toxic).',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'toxicity_check',

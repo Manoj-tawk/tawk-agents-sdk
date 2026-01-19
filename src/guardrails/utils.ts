@@ -27,7 +27,7 @@ export function createGuardrailGeneration(config: {
     model: extractModelName(config.model),
     input: {
       system: config.systemPrompt,
-      prompt: config.content.substring(0, 500) // Truncate for display
+      prompt: config.content
     },
     metadata: {
       guardrailName: config.name,
