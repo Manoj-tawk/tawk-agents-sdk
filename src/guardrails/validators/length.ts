@@ -52,7 +52,12 @@ export function lengthGuardrail<TContext = any>(
         length = calculateLength(content, unit);
       }
 
-      const metadata = { characterLength, tokenCount };
+      const metadata = { 
+        characterLength, 
+        tokenCount,
+        unit,
+        maxLength: config.maxLength
+      };
 
       if (config.minLength && length < config.minLength) {
         return {
