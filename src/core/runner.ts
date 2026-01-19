@@ -459,14 +459,23 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
           
           if (!guardrailResult.passed) {
-            // Guardrail failed - add feedback and retry
-            state.messages.push({
-              role: 'system',
-              content: guardrailResult.feedback || 'Please regenerate your response.'
-            });
+            // Check if we're about to exceed token limit with another retry
+            const feedbackTokens = await state.currentAgent._tokenizerFn(guardrailResult.feedback || '');
+            const canRetry = tokenBudget.canAddMessage(feedbackTokens + 100);
             
-            // Continue loop to let agent retry
-            continue;
+            if (!canRetry) {
+              // Token limit would be exceeded - return current output instead of looping
+              // Better to return a long response than to error out
+            } else {
+              // Guardrail failed - add feedback and retry
+              state.messages.push({
+                role: 'system',
+                content: guardrailResult.feedback || 'Please regenerate your response.'
+              });
+              
+              // Continue loop to let agent retry
+              continue;
+            }
           }
 
           // Parse output if schema provided
@@ -716,7 +725,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         const guardrailSpan = guardrailsSpan?.span({
           name: `Guardrail: ${guardrail.name}`,
           input: { 
-            content: inputContent.substring(0, 200),
+            content: inputContent,
             characterLength,
             tokenCount
           },
@@ -804,7 +813,7 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
       const guardrailSpan = guardrailsSpan?.span({
         name: `Guardrail: ${guardrail.name}`,
         input: { 
-          content: output.substring(0, 200),
+          content: output,
           characterLength,
           tokenCount
         },
@@ -841,16 +850,25 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
               maxLength: number;
             };
             
+            let currentLength: number;
+            if (metadata.unit === 'characters') {
+              currentLength = metadata.characterLength;
+            } else {
+              currentLength = metadata.tokenCount;
+            }
+            const overagePercent = Math.round((currentLength / metadata.maxLength - 1) * 100);
+            
             if (metadata.unit === 'tokens') {
-              // Convert tokens to approximate words (tokens ≈ 0.75 words)
               const currentWords = Math.round(metadata.tokenCount * 0.75);
               const maxWords = Math.round(metadata.maxLength * 0.75);
-              actionableFeedback = `Your response is too long (approximately ${currentWords} words). Please shorten to under ${maxWords} words while keeping key points.`;
+              actionableFeedback = `RESPONSE TOO LONG (~${currentWords} words, limit ~${maxWords} words, ${overagePercent}% over). CONDENSE NOW:\n- Remove all filler words and redundant phrases\n- Use shorter sentences\n- Keep only essential information\n- If listing items, use minimal descriptions\n- Do NOT add new information, only remove`;
             } else if (metadata.unit === 'characters') {
-              actionableFeedback = `Your response is too long (${metadata.characterLength} characters). Please shorten to under ${metadata.maxLength} characters while keeping key points.`;
+              const currentChars = metadata.characterLength;
+              const maxChars = metadata.maxLength;
+              actionableFeedback = `RESPONSE TOO LONG (${currentChars} chars, limit ${maxChars}, ${overagePercent}% over). CONDENSE NOW:\n- Remove all filler words\n- Use abbreviations where possible\n- Keep only the most critical info\n- If listing items, show fewer with minimal text\n- Do NOT add new information, only remove`;
             } else {
               const currentWords = output.split(/\s+/).length;
-              actionableFeedback = `Your response is too long (${currentWords} words). Please shorten to under ${metadata.maxLength} words while keeping key points.`;
+              actionableFeedback = `RESPONSE TOO LONG (${currentWords} words, limit ${metadata.maxLength}). CONDENSE: Remove filler, shorten sentences, keep only essentials.`;
             }
           } else if (guardrail.name === 'pii_check' || result.message?.includes('PII')) {
             actionableFeedback = `Your response contains personally identifiable information (PII). Please rewrite your response without including any personal data, email addresses, phone numbers, or sensitive information.`;
