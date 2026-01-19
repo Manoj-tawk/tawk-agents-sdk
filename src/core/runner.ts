@@ -352,8 +352,8 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
         const tokenBudget = new TokenBudgetTracker({
           maxTokens: state.currentAgent._modelSettings?.maxTokens,
           tokenizerFn: state.currentAgent._tokenizerFn,
-          reservedResponseTokens: estimatedResponseTokens + 500,
-          alreadyUsedTokens: state.usage.totalTokens,
+          reservedResponseTokens: estimatedResponseTokens,
+          alreadyUsedTokens: 0, // Don't count previous usage - only current context matters
         });
 
         if (tokenBudget.isEnabled()) {
@@ -369,6 +369,76 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           tokenBudget.setInitialContext(estimatedInputTokens);
           
           if (tokenBudget.isInitialContextExceeded()) {
+            // Token limit exceeded - try to return last assistant output instead of erroring
+            let lastAssistantOutput: string | null = null;
+            
+            for (let i = state.messages.length - 1; i >= 0; i--) {
+              const message = state.messages[i];
+              if (message.role === 'assistant') {
+                if (typeof message.content === 'string') {
+                  lastAssistantOutput = message.content;
+                  break;
+                }
+                // Handle array content (e.g., with tool calls)
+                if (Array.isArray(message.content)) {
+                  for (const part of message.content) {
+                    const contentPart = part as { type: string; text?: string };
+                    if (contentPart.type === 'text' && contentPart.text) {
+                      lastAssistantOutput = contentPart.text;
+                      break;
+                    }
+                  }
+                  if (lastAssistantOutput) {
+                    break;
+                  }
+                }
+              }
+            }
+            
+            if (lastAssistantOutput) {
+              // Return the last output even though it may have failed guardrails
+              // Better to return something than to error out
+              if (state.currentAgentSpan) {
+                state.currentAgentSpan.end({
+                  output: lastAssistantOutput,
+                  metadata: {
+                    reason: 'token_limit_exceeded',
+                    guardrailBypassed: true
+                  }
+                });
+              }
+              
+              if (state.trace) {
+                state.trace.update({
+                  output: lastAssistantOutput,
+                  metadata: {
+                    tokenLimitExceeded: true,
+                    guardrailBypassed: true
+                  }
+                });
+              }
+              
+              await this.flushTraces();
+              
+              return {
+                finalOutput: lastAssistantOutput as TOutput,
+                messages: state.messages,
+                steps: state.steps,
+                state,
+                metadata: {
+                  totalTokens: state.usage.totalTokens,
+                  promptTokens: state.usage.inputTokens,
+                  completionTokens: state.usage.outputTokens,
+                  finishReason: 'token_limit_exceeded',
+                  totalToolCalls: state.steps.reduce((sum, s) => sum + s.toolCalls.length, 0),
+                  handoffChain: state.handoffChain.length > 0 ? state.handoffChain : undefined,
+                  agentMetrics: Array.from(state.agentMetrics.values()),
+                  duration: state.getDuration(),
+                },
+              };
+            }
+            
+            // No previous output to return - throw error
             const stats = tokenBudget.getStats();
             throw new TokenLimitExceededError({
               estimatedTokens: stats.total,
@@ -458,25 +528,41 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
           // Agent decided to finish - check guardrails first
           const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
           
+          // Determine if we can retry: guardrail failed AND we have token budget for feedback
+          let canRetry = false;
           if (!guardrailResult.passed) {
-            // Check if we're about to exceed token limit with another retry
-            const feedbackTokens = await state.currentAgent._tokenizerFn(guardrailResult.feedback || '');
-            const canRetry = tokenBudget.canAddMessage(feedbackTokens + 100);
+            // Recalculate context size with current messages (including assistant's response)
+            let currentContextTokens = await state.currentAgent._tokenizerFn(systemMessage);
+            for (const msg of state.messages) {
+              const msgContent = typeof msg.content === 'string' 
+                ? msg.content 
+                : JSON.stringify(msg.content);
+              currentContextTokens += await state.currentAgent._tokenizerFn(msgContent);
+            }
             
-            if (!canRetry) {
-              // Token limit would be exceeded - return current output instead of looping
-              // Better to return a long response than to error out
+            const feedbackTokens = await state.currentAgent._tokenizerFn(guardrailResult.feedback || '');
+            const totalAfterFeedback = currentContextTokens + feedbackTokens;
+            const maxTokens = state.currentAgent._modelSettings?.maxTokens;
+            const responseBuffer = state.currentAgent._modelSettings?.responseTokens ?? 1024;
+            
+            // Can retry if: total context + feedback + response buffer fits in max tokens
+            if (maxTokens) {
+              canRetry = (totalAfterFeedback + responseBuffer) <= maxTokens;
             } else {
-              // Guardrail failed - add feedback and retry
-              state.messages.push({
-                role: 'system',
-                content: guardrailResult.feedback || 'Please regenerate your response.'
-              });
-              
-              // Continue loop to let agent retry
-              continue;
+              canRetry = true; // No limit set, always allow retry
             }
           }
+          
+          if (!guardrailResult.passed && canRetry) {
+            // Guardrail failed but we can retry - add feedback and loop
+            state.messages.push({
+              role: 'system',
+              content: guardrailResult.feedback || 'Please regenerate your response.'
+            });
+            continue;
+          }
+          
+          // Either guardrail passed OR we can't retry (token limit) - return current output
 
           // Parse output if schema provided
           let finalOutput: TOutput;
@@ -861,14 +947,14 @@ export class AgenticRunner<TContext = any, TOutput = string> extends RunHooks<TC
             if (metadata.unit === 'tokens') {
               const currentWords = Math.round(metadata.tokenCount * 0.75);
               const maxWords = Math.round(metadata.maxLength * 0.75);
-              actionableFeedback = `RESPONSE TOO LONG (~${currentWords} words, limit ~${maxWords} words, ${overagePercent}% over). CONDENSE NOW:\n- Remove all filler words and redundant phrases\n- Use shorter sentences\n- Keep only essential information\n- If listing items, use minimal descriptions\n- Do NOT add new information, only remove`;
+              actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (~${currentWords} words, limit ~${maxWords} words, ${overagePercent}% over). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it with these changes:\n- Remove filler words and redundant phrases\n- Use shorter sentences\n- Keep only essential information\n- If listing items, use minimal descriptions\nOutput ONLY the shortened rewrite, nothing else.`;
             } else if (metadata.unit === 'characters') {
               const currentChars = metadata.characterLength;
               const maxChars = metadata.maxLength;
-              actionableFeedback = `RESPONSE TOO LONG (${currentChars} chars, limit ${maxChars}, ${overagePercent}% over). CONDENSE NOW:\n- Remove all filler words\n- Use abbreviations where possible\n- Keep only the most critical info\n- If listing items, show fewer with minimal text\n- Do NOT add new information, only remove`;
+              actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (${currentChars} chars, limit ${maxChars}, ${overagePercent}% over). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it with these changes:\n- Remove filler words\n- Use abbreviations where possible\n- Keep only the most critical info\n- If listing items, show fewer with minimal text\nOutput ONLY the shortened rewrite, nothing else.`;
             } else {
               const currentWords = output.split(/\s+/).length;
-              actionableFeedback = `RESPONSE TOO LONG (${currentWords} words, limit ${metadata.maxLength}). CONDENSE: Remove filler, shorten sentences, keep only essentials.`;
+              actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (${currentWords} words, limit ${metadata.maxLength}). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it more concisely. Output ONLY the shortened rewrite.`;
             }
           } else if (guardrail.name === 'pii_check' || result.message?.includes('PII')) {
             actionableFeedback = `Your response contains personally identifiable information (PII). Please rewrite your response without including any personal data, email addresses, phone numbers, or sensitive information.`;

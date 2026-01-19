@@ -193,10 +193,6 @@ export declare class AgenticRunner<TContext = any, TOutput = string> extends Run
      */
     private runOutputGuardrails;
     /**
-     * Extract length info from guardrail message for feedback
-     */
-    private extractLengthInfo;
-    /**
      * Flush Langfuse traces to ensure they're sent
      */
     private flushTraces;

@@ -40,7 +40,12 @@ function lengthGuardrail(config) {
             else {
                 length = (0, utils_1.calculateLength)(content, unit);
             }
-            const metadata = { characterLength, tokenCount };
+            const metadata = {
+                characterLength,
+                tokenCount,
+                unit,
+                maxLength: config.maxLength
+            };
             if (config.minLength && length < config.minLength) {
                 return {
                     passed: false,
