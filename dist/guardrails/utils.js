@@ -62,6 +62,9 @@ exports.PII_PATTERNS = {
 };
 /**
  * Calculate content length based on unit
+ * @param content - The content to measure
+ * @param unit - Unit of measurement (characters or words)
+ * @returns The length of the content in the specified unit
  */
 function calculateLength(content, unit = 'characters') {
     switch (unit) {
@@ -69,9 +72,6 @@ function calculateLength(content, unit = 'characters') {
             return content.length;
         case 'words':
             return content.split(/\s+/).length;
-        case 'tokens':
-            // Rough estimation: 1 token ≈ 4 characters
-            return Math.ceil(content.length / 4);
     }
 }
 //# sourceMappingURL=utils.js.map

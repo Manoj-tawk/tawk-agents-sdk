@@ -32,6 +32,9 @@ export declare const PII_PATTERNS: {
 };
 /**
  * Calculate content length based on unit
+ * @param content - The content to measure
+ * @param unit - Unit of measurement (characters or words)
+ * @returns The length of the content in the specified unit
  */
-export declare function calculateLength(content: string, unit?: 'characters' | 'words' | 'tokens'): number;
+export declare function calculateLength(content: string, unit?: 'characters' | 'words'): number;
 //# sourceMappingURL=utils.d.ts.map

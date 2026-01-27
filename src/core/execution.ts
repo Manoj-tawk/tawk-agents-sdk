@@ -507,6 +507,15 @@ export async function executeSingleStep<TContext = unknown>(
     newMessages.push(message);
   }
 
+  const tokenBudget = state._tokenBudget as {
+    isEnabled(): boolean;
+    canAddMessage(tokens: number): boolean;
+    estimateTokens(content: string | object): Promise<number>;
+    addTokens(tokens: number): void;
+    markLimitReached(): void;
+    hasReachedLimit: boolean;
+  } | undefined;
+
   if (toolResults.length > 0) {
     const toolResultParts: Array<{
       type: 'tool-result';
@@ -516,16 +525,42 @@ export async function executeSingleStep<TContext = unknown>(
     }> = [];
 
     for (const toolResult of toolResults) {
-      const output = toolResult.error
-        ? { type: 'error-text' as const, value: toolResult.error.message }
-        : { type: 'json' as const, value: toolResult.result ?? null };
+      let output: { type: 'error-text'; value: string } | { type: 'json'; value: unknown };
+      if (toolResult.error) {
+        output = { type: 'error-text', value: toolResult.error.message };
+      } else {
+        output = { type: 'json', value: toolResult.result ?? null };
+      }
 
-      toolResultParts.push({
-        type: 'tool-result',
-        toolCallId: toolResult.toolCallId,
-        toolName: toolResult.toolName,
-        output,
-      });
+      if (tokenBudget?.isEnabled()) {
+        const resultContent = JSON.stringify(output);
+        const estimatedTokens = await tokenBudget.estimateTokens(resultContent);
+        
+        if (!tokenBudget.hasReachedLimit && tokenBudget.canAddMessage(estimatedTokens)) {
+          toolResultParts.push({
+            type: 'tool-result',
+            toolCallId: toolResult.toolCallId,
+            toolName: toolResult.toolName,
+            output,
+          });
+          tokenBudget.addTokens(estimatedTokens);
+        } else {
+          tokenBudget.markLimitReached();
+          toolResultParts.push({
+            type: 'tool-result',
+            toolCallId: toolResult.toolCallId,
+            toolName: toolResult.toolName,
+            output: { type: 'error-text' as const, value: 'Tool result unavailable' },
+          });
+        }
+      } else {
+        toolResultParts.push({
+          type: 'tool-result',
+          toolCallId: toolResult.toolCallId,
+          toolName: toolResult.toolName,
+          output,
+        });
+      }
     }
 
     const toolMessage = {

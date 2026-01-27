@@ -112,6 +112,7 @@ class RunState {
         this.pendingInterruptions = [];
         // Internal state
         this.stepNumber = 0;
+        this._toolsDisabledDueToTokenLimit = false;
         // Legacy compatibility properties
         this.items = [];
         this.modelResponses = [];

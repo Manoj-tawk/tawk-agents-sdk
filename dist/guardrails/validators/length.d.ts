@@ -2,7 +2,7 @@
  * Length Guardrail
  *
  * @module guardrails/validators/length
- * @description Simple length validation guardrail
+ * @description Simple length validation guardrail with accurate token counting
  */
 import type { Guardrail } from '../types';
 export interface LengthConfig {
@@ -16,12 +16,15 @@ export interface LengthConfig {
  * Create a guardrail that validates content length.
  * Supports validation by characters, words, or tokens.
  *
+ * When unit is 'tokens', the guardrail uses the agent's tokenizerFn
+ * for accurate token counting.
+ *
  * @example
  * ```typescript
  * const guardrail = lengthGuardrail({
  *   type: 'output',
  *   maxLength: 1000,
- *   unit: 'words'
+ *   unit: 'tokens'
  * });
  * ```
  */

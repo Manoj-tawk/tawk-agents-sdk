@@ -129,6 +129,8 @@ export declare class RunState<TContext = any, TAgent extends Agent<TContext, any
     currentAgentSpan?: any;
     stepNumber: number;
     private startTime;
+    _tokenBudget?: any;
+    _toolsDisabledDueToTokenLimit: boolean;
     items: any[];
     modelResponses: any[];
     agent: TAgent;

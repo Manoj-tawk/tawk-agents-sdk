@@ -27,7 +27,7 @@ export function createGuardrailGeneration(config: {
     model: extractModelName(config.model),
     input: {
       system: config.systemPrompt,
-      prompt: config.content.substring(0, 500) // Truncate for display
+      prompt: config.content
     },
     metadata: {
       guardrailName: config.name,
@@ -73,19 +73,19 @@ export const PII_PATTERNS = {
 
 /**
  * Calculate content length based on unit
+ * @param content - The content to measure
+ * @param unit - Unit of measurement (characters or words)
+ * @returns The length of the content in the specified unit
  */
 export function calculateLength(
   content: string,
-  unit: 'characters' | 'words' | 'tokens' = 'characters'
+  unit: 'characters' | 'words' = 'characters'
 ): number {
   switch (unit) {
     case 'characters':
       return content.length;
     case 'words':
       return content.split(/\s+/).length;
-    case 'tokens':
-      // Rough estimation: 1 token ≈ 4 characters
-      return Math.ceil(content.length / 4);
   }
 }
 

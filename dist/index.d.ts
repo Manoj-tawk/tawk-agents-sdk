@@ -39,8 +39,10 @@
  * @see {@link https://github.com/Manoj-tawk/tawk-agents-sdk Documentation}
  */
 export { Agent, run, runStream, tool, setDefaultModel, type AgentConfig, type CoreTool, type RunContextWrapper, type RunOptions, type RunResult, type StreamResult, } from './core/agent';
-export { AgenticRunner, type StreamEvent } from './core/runner';
+export { AgenticRunner, TokenLimitExceededError, TokenBudgetTracker, type StreamEvent } from './core/runner';
 export { Usage } from './core/usage';
+export { defaultTokenizerFn } from './core/agent/agent-class';
+export type { TokenizerFn } from './core/agent/types';
 export { createTransferTools, detectTransfer, createTransferContext, } from './core/transfers';
 export type { TransferResult } from './core/transfers';
 export { RunState } from './core/runstate';
