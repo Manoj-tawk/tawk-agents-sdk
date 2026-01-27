@@ -40,7 +40,7 @@
  * @see {@link https://github.com/Manoj-tawk/tawk-agents-sdk Documentation}
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RunHooks = exports.AgentHooks = exports.safeExecute = exports.extractAllText = exports.filterMessagesByRole = exports.getLastTextContent = exports.toolMessage = exports.system = exports.assistant = exports.user = exports.MemorySession = exports.SessionManager = exports.rateLimitGuardrail = exports.languageGuardrail = exports.toxicityGuardrail = exports.sentimentGuardrail = exports.topicRelevanceGuardrail = exports.contentSafetyGuardrail = exports.customGuardrail = exports.piiDetectionGuardrail = exports.lengthGuardrail = exports.isLangfuseEnabled = exports.getLangfuse = exports.initLangfuse = exports.runWithTraceContext = exports.createContextualGeneration = exports.createContextualSpan = exports.setCurrentSpan = exports.getCurrentSpan = exports.getCurrentTrace = exports.withTrace = exports.RunState = exports.createTransferContext = exports.detectTransfer = exports.createTransferTools = exports.Usage = exports.AgenticRunner = exports.setDefaultModel = exports.tool = exports.runStream = exports.run = exports.Agent = void 0;
+exports.RunHooks = exports.AgentHooks = exports.safeExecute = exports.extractAllText = exports.filterMessagesByRole = exports.getLastTextContent = exports.toolMessage = exports.system = exports.assistant = exports.user = exports.MemorySession = exports.SessionManager = exports.rateLimitGuardrail = exports.languageGuardrail = exports.toxicityGuardrail = exports.sentimentGuardrail = exports.topicRelevanceGuardrail = exports.contentSafetyGuardrail = exports.customGuardrail = exports.piiDetectionGuardrail = exports.lengthGuardrail = exports.isLangfuseEnabled = exports.getLangfuse = exports.initLangfuse = exports.runWithTraceContext = exports.createContextualGeneration = exports.createContextualSpan = exports.setCurrentSpan = exports.getCurrentSpan = exports.getCurrentTrace = exports.withTrace = exports.RunState = exports.createTransferContext = exports.detectTransfer = exports.createTransferTools = exports.defaultTokenizerFn = exports.Usage = exports.TokenBudgetTracker = exports.TokenLimitExceededError = exports.AgenticRunner = exports.setDefaultModel = exports.tool = exports.runStream = exports.run = exports.Agent = void 0;
 // ============================================
 // CORE AGENT & EXECUTION
 // ============================================
@@ -57,9 +57,14 @@ Object.defineProperty(exports, "setDefaultModel", { enumerable: true, get: funct
 // Runner with streaming
 var runner_1 = require("./core/runner");
 Object.defineProperty(exports, "AgenticRunner", { enumerable: true, get: function () { return runner_1.AgenticRunner; } });
+Object.defineProperty(exports, "TokenLimitExceededError", { enumerable: true, get: function () { return runner_1.TokenLimitExceededError; } });
+Object.defineProperty(exports, "TokenBudgetTracker", { enumerable: true, get: function () { return runner_1.TokenBudgetTracker; } });
 // Usage tracking
 var usage_1 = require("./core/usage");
 Object.defineProperty(exports, "Usage", { enumerable: true, get: function () { return usage_1.Usage; } });
+// Tokenizer
+var agent_class_1 = require("./core/agent/agent-class");
+Object.defineProperty(exports, "defaultTokenizerFn", { enumerable: true, get: function () { return agent_class_1.defaultTokenizerFn; } });
 // Transfers system
 var transfers_1 = require("./core/transfers");
 Object.defineProperty(exports, "createTransferTools", { enumerable: true, get: function () { return transfers_1.createTransferTools; } });

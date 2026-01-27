@@ -89,6 +89,9 @@ export declare function piiDetectionGuardrail<TContext = any>(config: {
  * Create a guardrail that validates content length.
  * Supports validation by characters, words, or tokens.
  *
+ * When unit is 'tokens', the guardrail uses the agent's tokenizerFn
+ * for accurate token counting.
+ *
  * @template TContext - Type of context object
  *
  * @param {Object} config - Guardrail configuration
@@ -104,7 +107,7 @@ export declare function piiDetectionGuardrail<TContext = any>(config: {
  * const guardrail = lengthGuardrail({
  *   type: 'output',
  *   maxLength: 1000,
- *   unit: 'words'
+ *   unit: 'tokens'
  * });
  * ```
  */

@@ -1,6 +1,6 @@
 {
   "name": "@tawk.to/tawk-agents-sdk",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Production-ready AI agent framework with true agentic architecture, multi-agent orchestration, dynamic HITL approvals, native MCP integration, and full observability.",
   "author": "Tawk.to <support@tawk.to>",
   "license": "MIT",
@@ -60,8 +60,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "tsc",
-    "build:check": "tsc --noEmit",
+    "build": "rm -rf dist && tsc",
+    "build:check": "rm -rf dist && tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

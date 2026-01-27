@@ -21,7 +21,9 @@
 import type { LanguageModel } from 'ai';
 import { z } from 'zod';
 import { AgentHooks } from '../../lifecycle';
-import type { AgentConfig, CoreTool, Guardrail, RunContextWrapper, StepResult } from './types';
+import type { AgentConfig, CoreTool, Guardrail, RunContextWrapper, StepResult, TokenizerFn } from './types';
+/** Default tokenizer: 4 chars ≈ 1 token */
+export declare const defaultTokenizerFn: TokenizerFn;
 /**
  * Set the default language model for all agents.
  * Agents without an explicit model will use this default.
@@ -115,6 +117,8 @@ export declare class Agent<TContext = any, TOutput = string> extends AgentHooks<
     private shouldFinish?;
     /** Enable TOON encoding for token reduction */
     private useTOON?;
+    /** Tokenizer function for calculating token counts */
+    private tokenizerFn;
     /** Cached static instructions for performance */
     private cachedInstructions?;
     /**
@@ -249,10 +253,12 @@ export declare class Agent<TContext = any, TOutput = string> extends AgentHooks<
     get _modelSettings(): {
         temperature?: number;
         topP?: number;
+        responseTokens?: number;
         maxTokens?: number;
         presencePenalty?: number;
         frequencyPenalty?: number;
     } | undefined;
+    get _tokenizerFn(): TokenizerFn;
     get _onStepFinish(): ((step: StepResult) => void | Promise<void>) | undefined;
     get _shouldFinish(): ((context: TContext, toolResults: any[]) => boolean) | undefined;
     get _useTOON(): boolean | undefined;

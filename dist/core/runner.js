@@ -26,7 +26,7 @@
  * @version 1.0.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AgenticRunner = void 0;
+exports.AgenticRunner = exports.TokenBudgetTracker = exports.TokenLimitExceededError = void 0;
 exports.run = run;
 const ai_1 = require("ai");
 const runstate_1 = require("./runstate");
@@ -34,6 +34,81 @@ const execution_1 = require("./execution");
 const langfuse_1 = require("../lifecycle/langfuse");
 const context_1 = require("../tracing/context");
 const lifecycle_1 = require("../lifecycle");
+/** Error thrown when agent run exceeds token budget */
+class TokenLimitExceededError extends Error {
+    constructor(options) {
+        const { estimatedTokens, maxTokens, usedTokens } = options;
+        super(`Token limit exceeded: estimated request (${estimatedTokens} tokens) would exceed ` +
+            `budget (${maxTokens} max, ${usedTokens} already used, ${maxTokens - usedTokens} remaining)`);
+        this.name = 'TokenLimitExceededError';
+        this.estimatedTokens = estimatedTokens;
+        this.maxTokens = maxTokens;
+        this.usedTokens = usedTokens;
+    }
+}
+exports.TokenLimitExceededError = TokenLimitExceededError;
+/**
+ * Token budget tracker
+ */
+class TokenBudgetTracker {
+    constructor(options) {
+        this.estimatedContextTokens = 0;
+        this.alreadyUsedTokens = 0;
+        this.hasReachedLimit = false;
+        this.maxTokens = options.maxTokens;
+        this.tokenizerFn = options.tokenizerFn;
+        this.reservedResponseTokens = options.reservedResponseTokens ?? 1500;
+        this.alreadyUsedTokens = options.alreadyUsedTokens ?? 0;
+    }
+    isEnabled() {
+        return this.maxTokens !== undefined;
+    }
+    async estimateTokens(content) {
+        const text = typeof content === 'string' ? content : JSON.stringify(content);
+        return await this.tokenizerFn(text);
+    }
+    setInitialContext(tokens) {
+        this.estimatedContextTokens = tokens;
+    }
+    addTokens(tokens) {
+        this.estimatedContextTokens += tokens;
+    }
+    getTotalTokens() {
+        return this.alreadyUsedTokens + this.estimatedContextTokens;
+    }
+    getRemainingBudget() {
+        if (!this.maxTokens)
+            return Infinity;
+        return this.maxTokens - this.getTotalTokens() - this.reservedResponseTokens;
+    }
+    canAddMessage(messageTokens) {
+        if (!this.maxTokens)
+            return true;
+        if (this.hasReachedLimit)
+            return false;
+        const wouldUse = this.getTotalTokens() + messageTokens;
+        const wouldRemain = this.maxTokens - wouldUse;
+        return wouldRemain >= this.reservedResponseTokens;
+    }
+    isInitialContextExceeded() {
+        if (!this.maxTokens)
+            return false;
+        return this.getTotalTokens() + this.reservedResponseTokens > this.maxTokens;
+    }
+    markLimitReached() {
+        this.hasReachedLimit = true;
+    }
+    getStats() {
+        return {
+            estimated: this.estimatedContextTokens,
+            used: this.alreadyUsedTokens,
+            total: this.getTotalTokens(),
+            max: this.maxTokens,
+            remaining: this.getRemainingBudget(),
+        };
+    }
+}
+exports.TokenBudgetTracker = TokenBudgetTracker;
 /**
  * Runner - Orchestrates agent execution with true agentic patterns
  *
@@ -152,8 +227,98 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const systemMessage = await state.currentAgent.getInstructions(contextWrapper);
                 // Get model
                 const model = state.currentAgent._model;
-                // Prepare tools
-                const tools = state.currentAgent._tools;
+                const toolsDisabledDueToTokenLimit = state._toolsDisabledDueToTokenLimit;
+                const tools = toolsDisabledDueToTokenLimit ? {} : state.currentAgent._tools;
+                const estimatedResponseTokens = state.currentAgent._modelSettings?.responseTokens ?? 1024;
+                const tokenBudget = new TokenBudgetTracker({
+                    maxTokens: state.currentAgent._modelSettings?.maxTokens,
+                    tokenizerFn: state.currentAgent._tokenizerFn,
+                    reservedResponseTokens: estimatedResponseTokens,
+                    alreadyUsedTokens: 0, // Don't count previous usage - only current context matters
+                });
+                if (tokenBudget.isEnabled()) {
+                    let estimatedInputTokens = await tokenBudget.estimateTokens(systemMessage);
+                    for (const msg of state.messages) {
+                        estimatedInputTokens += await tokenBudget.estimateTokens(JSON.stringify(msg.content));
+                    }
+                    if (tools && Object.keys(tools).length > 0) {
+                        estimatedInputTokens += await tokenBudget.estimateTokens(tools);
+                    }
+                    tokenBudget.setInitialContext(estimatedInputTokens);
+                    if (tokenBudget.isInitialContextExceeded()) {
+                        // Token limit exceeded - try to return last assistant output instead of erroring
+                        let lastAssistantOutput = null;
+                        for (let i = state.messages.length - 1; i >= 0; i--) {
+                            const message = state.messages[i];
+                            if (message.role === 'assistant') {
+                                if (typeof message.content === 'string') {
+                                    lastAssistantOutput = message.content;
+                                    break;
+                                }
+                                // Handle array content (e.g., with tool calls)
+                                if (Array.isArray(message.content)) {
+                                    for (const part of message.content) {
+                                        const contentPart = part;
+                                        if (contentPart.type === 'text' && contentPart.text) {
+                                            lastAssistantOutput = contentPart.text;
+                                            break;
+                                        }
+                                    }
+                                    if (lastAssistantOutput) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (lastAssistantOutput) {
+                            // Return the last output even though it may have failed guardrails
+                            // Better to return something than to error out
+                            if (state.currentAgentSpan) {
+                                state.currentAgentSpan.end({
+                                    output: lastAssistantOutput,
+                                    metadata: {
+                                        reason: 'token_limit_exceeded',
+                                        guardrailBypassed: true
+                                    }
+                                });
+                            }
+                            if (state.trace) {
+                                state.trace.update({
+                                    output: lastAssistantOutput,
+                                    metadata: {
+                                        tokenLimitExceeded: true,
+                                        guardrailBypassed: true
+                                    }
+                                });
+                            }
+                            await this.flushTraces();
+                            return {
+                                finalOutput: lastAssistantOutput,
+                                messages: state.messages,
+                                steps: state.steps,
+                                state,
+                                metadata: {
+                                    totalTokens: state.usage.totalTokens,
+                                    promptTokens: state.usage.inputTokens,
+                                    completionTokens: state.usage.outputTokens,
+                                    finishReason: 'token_limit_exceeded',
+                                    totalToolCalls: state.steps.reduce((sum, s) => sum + s.toolCalls.length, 0),
+                                    handoffChain: state.handoffChain.length > 0 ? state.handoffChain : undefined,
+                                    agentMetrics: Array.from(state.agentMetrics.values()),
+                                    duration: state.getDuration(),
+                                },
+                            };
+                        }
+                        // No previous output to return - throw error
+                        const stats = tokenBudget.getStats();
+                        throw new TokenLimitExceededError({
+                            estimatedTokens: stats.total,
+                            maxTokens: stats.max,
+                            usedTokens: stats.used
+                        });
+                    }
+                }
+                state._tokenBudget = tokenBudget;
                 // Create GENERATION (not span) for LLM call - this properly tracks tokens in Langfuse
                 const generation = state.currentAgentSpan?.generation({
                     name: `LLM Generation: ${state.currentAgent.name}`,
@@ -161,7 +326,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     modelParameters: {
                         temperature: state.currentAgent._modelSettings?.temperature,
                         topP: state.currentAgent._modelSettings?.topP,
-                        maxTokens: state.currentAgent._modelSettings?.maxTokens,
+                        maxTokens: state.currentAgent._modelSettings?.responseTokens,
                     },
                     input: {
                         system: systemMessage.substring(0, 200),
@@ -183,7 +348,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     tools: tools,
                     temperature: state.currentAgent._modelSettings?.temperature,
                     topP: state.currentAgent._modelSettings?.topP,
-                    maxTokens: state.currentAgent._modelSettings?.maxTokens,
+                    maxOutputTokens: state.currentAgent._modelSettings?.responseTokens,
                     presencePenalty: state.currentAgent._modelSettings?.presencePenalty,
                     frequencyPenalty: state.currentAgent._modelSettings?.frequencyPenalty,
                 });
@@ -211,20 +376,46 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const stepResult = await (0, execution_1.executeSingleStep)(state.currentAgent, state, contextWrapper, modelResponse);
                 // Update state with new messages
                 state.messages = stepResult.messages;
+                if (tokenBudget.hasReachedLimit) {
+                    state._toolsDisabledDueToTokenLimit = true;
+                }
                 // Handle next step based on AGENT's decision
                 const nextStep = stepResult.nextStep;
-                if (nextStep.type === 'next_step_final_output') {
+                if (nextStep.type === runstate_1.NextStepType.FINAL_OUTPUT) {
                     // Agent decided to finish - check guardrails first
                     const guardrailResult = await this.runOutputGuardrails(state.currentAgent, state, nextStep.output);
+                    // Determine if we can retry: guardrail failed AND we have token budget for feedback
+                    let canRetry = false;
                     if (!guardrailResult.passed) {
-                        // Guardrail failed - add feedback and retry
+                        // Recalculate context size with current messages (including assistant's response)
+                        let currentContextTokens = await state.currentAgent._tokenizerFn(systemMessage);
+                        for (const msg of state.messages) {
+                            const msgContent = typeof msg.content === 'string'
+                                ? msg.content
+                                : JSON.stringify(msg.content);
+                            currentContextTokens += await state.currentAgent._tokenizerFn(msgContent);
+                        }
+                        const feedbackTokens = await state.currentAgent._tokenizerFn(guardrailResult.feedback || '');
+                        const totalAfterFeedback = currentContextTokens + feedbackTokens;
+                        const maxTokens = state.currentAgent._modelSettings?.maxTokens;
+                        const responseBuffer = state.currentAgent._modelSettings?.responseTokens ?? 1024;
+                        // Can retry if: total context + feedback + response buffer fits in max tokens
+                        if (maxTokens) {
+                            canRetry = (totalAfterFeedback + responseBuffer) <= maxTokens;
+                        }
+                        else {
+                            canRetry = true; // No limit set, always allow retry
+                        }
+                    }
+                    if (!guardrailResult.passed && canRetry) {
+                        // Guardrail failed but we can retry - add feedback and loop
                         state.messages.push({
                             role: 'system',
                             content: guardrailResult.feedback || 'Please regenerate your response.'
                         });
-                        // Continue loop to let agent retry
                         continue;
                     }
+                    // Either guardrail passed OR we can't retry (token limit) - return current output
                     // Parse output if schema provided
                     let finalOutput;
                     if (state.currentAgent._outputSchema) {
@@ -309,7 +500,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         },
                     };
                 }
-                else if (nextStep.type === 'next_step_handoff') {
+                else if (nextStep.type === runstate_1.NextStepType.HANDOFF) {
                     // Agent decided to transfer to another agent
                     if (state.currentAgentSpan) {
                         const agentMetrics = state.agentMetrics.get(state.currentAgent.name);
@@ -351,6 +542,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         : [{ role: 'user', content: state.originalInput }];
                     // Reset messages to just the user query
                     state.messages = [...originalUserMessage];
+                    state._toolsDisabledDueToTokenLimit = false;
                     // Add transfer context as system message (optional: remove if too verbose)
                     if (nextStep.reason) {
                         state.messages.push({
@@ -361,7 +553,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     // Continue loop with new agent (now with isolated context)
                     continue;
                 }
-                else if (nextStep.type === 'next_step_interruption') {
+                else if (nextStep.type === runstate_1.NextStepType.INTERRUPTION) {
                     // Agent needs human approval
                     state.pendingInterruptions = nextStep.interruptions;
                     // Return with interruption state
@@ -382,7 +574,7 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         },
                     };
                 }
-                else if (nextStep.type === 'next_step_run_again') {
+                else if (nextStep.type === runstate_1.NextStepType.RUN_AGAIN) {
                     // Agent decided to continue
                     continue;
                 }
@@ -424,13 +616,19 @@ class AgenticRunner extends lifecycle_1.RunHooks {
         if (!lastUserMessage || typeof lastUserMessage.content !== 'string')
             return;
         const contextWrapper = this.getContextWrapper(agent, state);
+        // Calculate lengths upfront for logging
+        const inputContent = lastUserMessage.content;
+        const characterLength = inputContent.length;
+        const tokenCount = await agent._tokenizerFn(inputContent);
         // Create parent span for all input guardrails UNDER the agent span
         const guardrailsSpan = state.currentAgentSpan?.span({
             name: 'Input Guardrails',
             metadata: {
                 type: 'input',
                 guardrailCount: guardrails.length,
-                agentName: agent.name
+                agentName: agent.name,
+                characterLength,
+                tokenCount
             }
         });
         try {
@@ -439,8 +637,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 const guardrailSpan = guardrailsSpan?.span({
                     name: `Guardrail: ${guardrail.name}`,
                     input: {
-                        content: lastUserMessage.content.substring(0, 200),
-                        type: 'input'
+                        content: inputContent,
+                        characterLength,
+                        tokenCount
                     },
                     metadata: {
                         guardrailName: guardrail.name,
@@ -449,12 +648,13 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                     }
                 });
                 try {
-                    const result = await guardrail.validate(lastUserMessage.content, contextWrapper);
+                    const result = await guardrail.validate(inputContent, contextWrapper);
                     if (guardrailSpan) {
                         guardrailSpan.end({
                             output: {
                                 passed: result.passed,
-                                message: result.message
+                                message: result.message,
+                                metadata: result.metadata
                             },
                             level: result.passed ? 'DEFAULT' : 'WARNING'
                         });
@@ -498,6 +698,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
         if (guardrails.length === 0)
             return { passed: true };
         const contextWrapper = this.getContextWrapper(agent, state);
+        // Calculate lengths upfront for logging
+        const characterLength = output.length;
+        const tokenCount = await agent._tokenizerFn(output);
         // Create parent span for all output guardrails UNDER the agent span
         const guardrailsSpan = state.currentAgentSpan?.span({
             name: 'Output Guardrails',
@@ -505,7 +708,8 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                 type: 'output',
                 guardrailCount: guardrails.length,
                 agentName: agent.name,
-                outputLength: output.length
+                characterLength,
+                tokenCount
             }
         });
         for (const guardrail of guardrails) {
@@ -513,9 +717,9 @@ class AgenticRunner extends lifecycle_1.RunHooks {
             const guardrailSpan = guardrailsSpan?.span({
                 name: `Guardrail: ${guardrail.name}`,
                 input: {
-                    content: output.substring(0, 200),
-                    type: 'output',
-                    fullLength: output.length
+                    content: output,
+                    characterLength,
+                    tokenCount
                 },
                 metadata: {
                     guardrailName: guardrail.name,
@@ -530,22 +734,38 @@ class AgenticRunner extends lifecycle_1.RunHooks {
                         output: {
                             passed: result.passed,
                             message: result.message,
-                            willRetry: !result.passed
+                            willRetry: !result.passed,
+                            metadata: result.metadata
                         },
                         level: result.passed ? 'DEFAULT' : 'WARNING'
                     });
                 }
                 if (!result.passed) {
-                    // Generate ACTIONABLE feedback based on guardrail type
                     let actionableFeedback = result.message || 'Validation failed';
-                    // Make feedback specific and actionable
-                    if (guardrail.name === 'length_check' || result.message?.includes('too long')) {
-                        // Extract max length from message if possible
-                        const maxMatch = result.message?.match(/max[:\s]+(\d+)/i);
-                        const maxLength = maxMatch ? parseInt(maxMatch[1]) : 1500;
-                        const currentLength = output.length;
-                        const reduction = Math.round(((currentLength - maxLength) / currentLength) * 100);
-                        actionableFeedback = `Your response is too long (${currentLength} characters, max: ${maxLength}). Please CONDENSE your existing response to be ${reduction}% shorter. Keep all key points but make it more concise. DO NOT fetch more data - just summarize what you already have.`;
+                    if (guardrail.name === 'length_check') {
+                        const metadata = result.metadata;
+                        let currentLength;
+                        if (metadata.unit === 'characters') {
+                            currentLength = metadata.characterLength;
+                        }
+                        else {
+                            currentLength = metadata.tokenCount;
+                        }
+                        const overagePercent = Math.round((currentLength / metadata.maxLength - 1) * 100);
+                        if (metadata.unit === 'tokens') {
+                            const currentWords = Math.round(metadata.tokenCount * 0.75);
+                            const maxWords = Math.round(metadata.maxLength * 0.75);
+                            actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (~${currentWords} words, limit ~${maxWords} words, ${overagePercent}% over). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it with these changes:\n- Remove filler words and redundant phrases\n- Use shorter sentences\n- Keep only essential information\n- If listing items, use minimal descriptions\nOutput ONLY the shortened rewrite, nothing else.`;
+                        }
+                        else if (metadata.unit === 'characters') {
+                            const currentChars = metadata.characterLength;
+                            const maxChars = metadata.maxLength;
+                            actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (${currentChars} chars, limit ${maxChars}, ${overagePercent}% over). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it with these changes:\n- Remove filler words\n- Use abbreviations where possible\n- Keep only the most critical info\n- If listing items, show fewer with minimal text\nOutput ONLY the shortened rewrite, nothing else.`;
+                        }
+                        else {
+                            const currentWords = output.split(/\s+/).length;
+                            actionableFeedback = `YOUR PREVIOUS RESPONSE WAS TOO LONG (${currentWords} words, limit ${metadata.maxLength}). YOU MUST REWRITE IT SHORTER. Take your previous response above and rewrite it more concisely. Output ONLY the shortened rewrite.`;
+                        }
                     }
                     else if (guardrail.name === 'pii_check' || result.message?.includes('PII')) {
                         actionableFeedback = `Your response contains personally identifiable information (PII). Please rewrite your response without including any personal data, email addresses, phone numbers, or sensitive information.`;

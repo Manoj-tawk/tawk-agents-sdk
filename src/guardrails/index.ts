@@ -88,7 +88,7 @@ export function contentSafetyGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: `You are a content moderation system. Analyze the following text and determine if it contains any of these categories: ${categories.join(', ')}. Respond with a JSON object.`,
-          prompt: content.substring(0, 500) // Truncate for display
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'content_safety',
@@ -229,6 +229,9 @@ export function piiDetectionGuardrail<TContext = any>(config: {
  * Create a guardrail that validates content length.
  * Supports validation by characters, words, or tokens.
  * 
+ * When unit is 'tokens', the guardrail uses the agent's tokenizerFn
+ * for accurate token counting.
+ * 
  * @template TContext - Type of context object
  * 
  * @param {Object} config - Guardrail configuration
@@ -244,7 +247,7 @@ export function piiDetectionGuardrail<TContext = any>(config: {
  * const guardrail = lengthGuardrail({
  *   type: 'output',
  *   maxLength: 1000,
- *   unit: 'words'
+ *   unit: 'tokens'
  * });
  * ```
  */
@@ -255,40 +258,53 @@ export function lengthGuardrail<TContext = any>(config: {
   maxLength?: number;
   unit?: 'characters' | 'words' | 'tokens';
 }): Guardrail<TContext> {
+  const unit = config.unit || 'characters';
+  
   return {
     name: config.name || 'length_check',
     type: config.type,
-    validate: async (content: string) => {
+    validate: async (content: string, contextWrapper: RunContextWrapper<TContext>) => {
+      const characterLength = content.length;
+      const tokenCount = await contextWrapper.agent._tokenizerFn(content);
+      
+      // Calculate length in configured unit
       let length: number;
-
-      switch (config.unit || 'characters') {
+      switch (unit) {
         case 'characters':
-          length = content.length;
+          length = characterLength;
           break;
         case 'words':
           length = content.split(/\s+/).length;
           break;
         case 'tokens':
-          // Rough estimation: 1 token ≈ 4 characters
-          length = Math.ceil(content.length / 4);
+          length = tokenCount;
           break;
       }
+
+      const metadata = { 
+        characterLength, 
+        tokenCount,
+        unit,
+        maxLength: config.maxLength
+      };
 
       if (config.minLength && length < config.minLength) {
         return {
           passed: false,
-          message: `Content too short: ${length} ${config.unit} (min: ${config.minLength})`
+          message: `Content too short: ${length} ${unit} (min: ${config.minLength})`,
+          metadata
         };
       }
 
       if (config.maxLength && length > config.maxLength) {
         return {
           passed: false,
-          message: `Content too long: ${length} ${config.unit} (max: ${config.maxLength})`
+          message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`,
+          metadata
         };
       }
 
-      return { passed: true };
+      return { passed: true, metadata };
     }
   };
 }
@@ -331,7 +347,7 @@ export function topicRelevanceGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: `Analyze if the following text is relevant to these topics: ${config.allowedTopics.join(', ')}. Rate relevance from 0-10.`,
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'topic_relevance',
@@ -630,7 +646,7 @@ export function languageGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Detect the language of the text. Respond with the ISO 639-1 language code.',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'language_detection',
@@ -732,7 +748,7 @@ export function sentimentGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Analyze the sentiment of the text as positive, negative, or neutral.',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'sentiment_check',
@@ -843,7 +859,7 @@ export function toxicityGuardrail<TContext = any>(config: {
         model: extractModelName(config.model),
         input: {
           system: 'Rate the toxicity of the text on a scale from 0 (not toxic) to 10 (extremely toxic).',
-          prompt: content.substring(0, 500)
+          prompt: content
         },
         metadata: {
           guardrailName: config.name || 'toxicity_check',

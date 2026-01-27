@@ -19,25 +19,43 @@
  * @version 1.0.0
  */
 
-import type { ModelMessage, LanguageModel } from 'ai';
+import type { ModelMessage, LanguageModel, Schema, JSONSchema7 } from 'ai';
 import type { z } from 'zod';
 import type { Usage } from '../usage';
+
+// ============================================
+// TOKENIZER FUNCTION TYPE
+// ============================================
+
+/** Tokenizer function for estimating token counts. Can be sync or async. */
+export type TokenizerFn = (text: string) => number | Promise<number>;
 
 // ============================================
 // TOOL DEFINITIONS
 // ============================================
 
 /**
+ * Flexible input schema type that accepts:
+ * - Zod schemas (z.ZodType)
+ * - JSON Schema (JSONSchema7)
+ * - AI SDK Schema objects (created via jsonSchema())
+ */
+export type FlexibleInputSchema = 
+  | z.ZodType
+  | JSONSchema7
+  | Schema;
+
+/**
  * Tool definition compatible with AI SDK v5.
  * 
  * @property {string} [description] - Human-readable description of what the tool does
- * @property {z.ZodSchema} [inputSchema] - Zod schema for validating tool inputs
+ * @property {FlexibleInputSchema} [inputSchema] - Schema for validating tool inputs (Zod, JSON Schema, or AI SDK Schema)
  * @property {Function} execute - Function that executes the tool logic
  * @property {boolean | Function} [enabled] - Whether the tool is enabled (can be dynamic)
  */
 export type CoreTool = {
   description?: string;
-  inputSchema?: z.ZodSchema<any>;
+  inputSchema?: FlexibleInputSchema;
   execute: (args: any, context?: any) => Promise<any> | any;
   enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
 };
@@ -65,10 +83,12 @@ export type CoreTool = {
  * @property {Object} [modelSettings] - Model generation parameters
  * @property {number} [modelSettings.temperature] - Sampling temperature (0-2)
  * @property {number} [modelSettings.topP] - Nucleus sampling parameter
- * @property {number} [modelSettings.maxTokens] - Maximum tokens to generate
+ * @property {number} [modelSettings.responseTokens] - Maximum tokens the LLM should respond with per generation
+ * @property {number} [modelSettings.maxTokens] - Maximum total token budget for the entire agent run (undefined = no limit)
  * @property {number} [modelSettings.presencePenalty] - Presence penalty (-2 to 2)
  * @property {number} [modelSettings.frequencyPenalty] - Frequency penalty (-2 to 2)
  * @property {Function} [onStepFinish] - Callback invoked after each step completes
+ * @property {TokenizerFn} [tokenizerFn] - Custom tokenizer function for calculating token counts (default: 4 chars = 1 token)
  * @property {Function} [shouldFinish] - Custom function to determine if agent should stop
  * @property {boolean} [useTOON] - Enable TOON encoding for 18-33% token reduction
  * 
@@ -105,10 +125,13 @@ export interface AgentConfig<TContext = any, TOutput = string> {
   modelSettings?: {
     temperature?: number;
     topP?: number;
+    responseTokens?: number;
     maxTokens?: number;
     presencePenalty?: number;
     frequencyPenalty?: number;
   };
+  /** Custom tokenizer (default: 4 chars = 1 token) */
+  tokenizerFn?: TokenizerFn;
   onStepFinish?: (step: StepResult) => void | Promise<void>;
   shouldFinish?: (context: TContext, toolResults: any[]) => boolean;
   useTOON?: boolean;

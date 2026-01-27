@@ -29,6 +29,7 @@ import type {
   Guardrail,
   RunContextWrapper,
   StepResult,
+  TokenizerFn,
 } from './types';
 
 // ============================================
@@ -36,6 +37,11 @@ import type {
 // ============================================
 
 let defaultModel: LanguageModel | null = null;
+
+/** Default tokenizer: 4 chars ≈ 1 token */
+export const defaultTokenizerFn: TokenizerFn = (text: string): number => {
+  return Math.ceil(text.length / 4);
+};
 
 /**
  * Set the default language model for all agents.
@@ -159,6 +165,9 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   /** Enable TOON encoding for token reduction */
   private useTOON?: boolean;
   
+  /** Tokenizer function for calculating token counts */
+  private tokenizerFn: TokenizerFn;
+  
   /** Cached static instructions for performance */
   private cachedInstructions?: string;
 
@@ -192,6 +201,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
     this.onStepFinish = config.onStepFinish;
     this.shouldFinish = config.shouldFinish;
     this.useTOON = config.useTOON || false;
+    this.tokenizerFn = config.tokenizerFn || defaultTokenizerFn;
 
     // Setup transfer tools for subagents
     this._setupTransferTools();
@@ -348,6 +358,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
       outputSchema: overrides.outputSchema ?? this.outputSchema,
       maxSteps: overrides.maxSteps ?? this.maxSteps,
       modelSettings: overrides.modelSettings ?? this.modelSettings,
+      tokenizerFn: overrides.tokenizerFn ?? this.tokenizerFn,
       onStepFinish: overrides.onStepFinish ?? this.onStepFinish,
       shouldFinish: overrides.shouldFinish ?? this.shouldFinish,
       useTOON: overrides.useTOON ?? this.useTOON
@@ -416,6 +427,7 @@ export class Agent<TContext = any, TOutput = string> extends AgentHooks<TContext
   get _outputSchema() { return this.outputSchema; }
   get _maxSteps() { return this.maxSteps; }
   get _modelSettings() { return this.modelSettings; }
+  get _tokenizerFn() { return this.tokenizerFn; }
   get _onStepFinish() { return this.onStepFinish; }
   get _shouldFinish() { return this.shouldFinish; }
   get _useTOON() { return this.useTOON; }

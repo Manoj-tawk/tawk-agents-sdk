@@ -30,18 +30,49 @@
  */
 
 import type { Agent } from './agent';
-import type { ModelMessage } from 'ai';
+import { convertToModelMessages, type ModelMessage, type UIMessage } from 'ai';
 import { Usage } from './usage';
+
+/**
+ * Convert input messages to ModelMessage format.
+ * Handles both UIMessage[] and ModelMessage[] inputs.
+ * 
+ * @param messages - Input messages (UIMessage[] or ModelMessage[])
+ * @returns ModelMessage[]
+ */
+function toModelMessages(messages: unknown[]): ModelMessage[] {
+  // Check if this looks like UIMessage[] (has 'id' property typical of UIMessage)
+  const isUIMessages = messages.length > 0 && 
+    typeof messages[0] === 'object' && 
+    messages[0] !== null &&
+    'id' in messages[0];
+  
+  if (isUIMessages) {
+    // Convert UIMessage[] to ModelMessage[]
+    return convertToModelMessages(messages as UIMessage[]);
+  }
+  
+  // Already ModelMessage[] format - return as-is
+  return messages as ModelMessage[];
+}
+
+/** Constants for next step type values */
+export const NextStepType = {
+  RUN_AGAIN: 'next_step_run_again',
+  HANDOFF: 'next_step_handoff',
+  FINAL_OUTPUT: 'next_step_final_output',
+  INTERRUPTION: 'next_step_interruption',
+} as const;
 
 /**
  * Discriminated union for next step transitions
  * Enables type-safe state machine for agent execution
  */
 export type NextStep =
-  | { type: 'next_step_run_again' }
-  | { type: 'next_step_handoff'; newAgent: Agent<any, any>; reason?: string; context?: string }
-  | { type: 'next_step_final_output'; output: string }
-  | { type: 'next_step_interruption'; interruptions: any[] };
+  | { type: typeof NextStepType.RUN_AGAIN }
+  | { type: typeof NextStepType.HANDOFF; newAgent: Agent<any, any>; reason?: string; context?: string }
+  | { type: typeof NextStepType.FINAL_OUTPUT; output: string }
+  | { type: typeof NextStepType.INTERRUPTION; interruptions: any[] };
 
 /**
  * Individual step result with tool outcomes
@@ -150,6 +181,10 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
   public stepNumber: number = 0;
   private startTime: number;
 
+  // Token budget tracking
+  public _tokenBudget?: any;
+  public _toolsDisabledDueToTokenLimit: boolean = false;
+
   // Legacy compatibility properties
   public items: any[] = [];
   public modelResponses: any[] = [];
@@ -164,8 +199,9 @@ export class RunState<TContext = any, TAgent extends Agent<TContext, any> = Agen
     this.currentAgent = agent;
     this.agent = agent; // Set alias
     this.originalInput = input;
+    // Convert input to ModelMessage format - handles both UIMessage[] and ModelMessage[]
     this.messages = Array.isArray(input) 
-      ? [...input] 
+      ? toModelMessages(input) 
       : [{ role: 'user' as const, content: input }];
     this.context = context;
     this.maxTurns = maxTurns;

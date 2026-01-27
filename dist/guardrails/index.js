@@ -213,6 +213,9 @@ function piiDetectionGuardrail(config) {
  * Create a guardrail that validates content length.
  * Supports validation by characters, words, or tokens.
  *
+ * When unit is 'tokens', the guardrail uses the agent's tokenizerFn
+ * for accurate token counting.
+ *
  * @template TContext - Type of context object
  *
  * @param {Object} config - Guardrail configuration
@@ -228,41 +231,52 @@ function piiDetectionGuardrail(config) {
  * const guardrail = lengthGuardrail({
  *   type: 'output',
  *   maxLength: 1000,
- *   unit: 'words'
+ *   unit: 'tokens'
  * });
  * ```
  */
 function lengthGuardrail(config) {
+    const unit = config.unit || 'characters';
     return {
         name: config.name || 'length_check',
         type: config.type,
-        validate: async (content) => {
+        validate: async (content, contextWrapper) => {
+            const characterLength = content.length;
+            const tokenCount = await contextWrapper.agent._tokenizerFn(content);
+            // Calculate length in configured unit
             let length;
-            switch (config.unit || 'characters') {
+            switch (unit) {
                 case 'characters':
-                    length = content.length;
+                    length = characterLength;
                     break;
                 case 'words':
                     length = content.split(/\s+/).length;
                     break;
                 case 'tokens':
-                    // Rough estimation: 1 token ≈ 4 characters
-                    length = Math.ceil(content.length / 4);
+                    length = tokenCount;
                     break;
             }
+            const metadata = {
+                characterLength,
+                tokenCount,
+                unit,
+                maxLength: config.maxLength
+            };
             if (config.minLength && length < config.minLength) {
                 return {
                     passed: false,
-                    message: `Content too short: ${length} ${config.unit} (min: ${config.minLength})`
+                    message: `Content too short: ${length} ${unit} (min: ${config.minLength})`,
+                    metadata
                 };
             }
             if (config.maxLength && length > config.maxLength) {
                 return {
                     passed: false,
-                    message: `Content too long: ${length} ${config.unit} (max: ${config.maxLength})`
+                    message: `Content too long: ${length} ${unit} (max: ${config.maxLength})`,
+                    metadata
                 };
             }
-            return { passed: true };
+            return { passed: true, metadata };
         }
     };
 }

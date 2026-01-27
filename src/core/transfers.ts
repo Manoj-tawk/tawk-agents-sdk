@@ -23,16 +23,8 @@
  * @version 1.0.0
  */
 
-import { Agent } from './agent';
+import { Agent, CoreTool } from './agent';
 import { z } from 'zod';
-
-// Type alias for tool definitions
-type CoreTool = {
-  description?: string;
-  inputSchema?: z.ZodSchema<any>;
-  execute: (args: any, context?: any) => Promise<any> | any;
-  enabled?: boolean | ((context: any) => boolean | Promise<boolean>);
-};
 
 /**
  * Transfer result structure

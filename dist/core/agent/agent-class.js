@@ -20,7 +20,7 @@
  * @version 1.0.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Agent = void 0;
+exports.Agent = exports.defaultTokenizerFn = void 0;
 exports.setDefaultModel = setDefaultModel;
 exports.getDefaultModel = getDefaultModel;
 const zod_1 = require("zod");
@@ -30,6 +30,11 @@ const transfers_1 = require("../transfers");
 // DEFAULT MODEL MANAGEMENT
 // ============================================
 let defaultModel = null;
+/** Default tokenizer: 4 chars ≈ 1 token */
+const defaultTokenizerFn = (text) => {
+    return Math.ceil(text.length / 4);
+};
+exports.defaultTokenizerFn = defaultTokenizerFn;
 /**
  * Set the default language model for all agents.
  * Agents without an explicit model will use this default.
@@ -132,6 +137,7 @@ class Agent extends lifecycle_1.AgentHooks {
         this.onStepFinish = config.onStepFinish;
         this.shouldFinish = config.shouldFinish;
         this.useTOON = config.useTOON || false;
+        this.tokenizerFn = config.tokenizerFn || exports.defaultTokenizerFn;
         // Setup transfer tools for subagents
         this._setupTransferTools();
     }
@@ -268,6 +274,7 @@ class Agent extends lifecycle_1.AgentHooks {
             outputSchema: overrides.outputSchema ?? this.outputSchema,
             maxSteps: overrides.maxSteps ?? this.maxSteps,
             modelSettings: overrides.modelSettings ?? this.modelSettings,
+            tokenizerFn: overrides.tokenizerFn ?? this.tokenizerFn,
             onStepFinish: overrides.onStepFinish ?? this.onStepFinish,
             shouldFinish: overrides.shouldFinish ?? this.shouldFinish,
             useTOON: overrides.useTOON ?? this.useTOON
@@ -329,6 +336,7 @@ class Agent extends lifecycle_1.AgentHooks {
     get _outputSchema() { return this.outputSchema; }
     get _maxSteps() { return this.maxSteps; }
     get _modelSettings() { return this.modelSettings; }
+    get _tokenizerFn() { return this.tokenizerFn; }
     get _onStepFinish() { return this.onStepFinish; }
     get _shouldFinish() { return this.shouldFinish; }
     get _useTOON() { return this.useTOON; }

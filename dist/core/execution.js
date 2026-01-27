@@ -1,26 +1,7 @@
 "use strict";
 /**
  * Agent Execution Engine
- *
  * @module core/execution
- * @description
- * Core execution logic for agent-driven autonomous behavior.
- *
- * **Core Capabilities**:
- * - Parallel tool execution for optimal performance
- * - Agent-controlled decision making
- * - Autonomous state transitions
- * - Multi-agent transfer coordination
- * - Comprehensive error handling
- *
- * **Architecture**:
- * This module processes each execution step, handling tool calls,
- * agent transfers, and state management. It maintains proper
- * separation of concerns between execution logic and orchestration.
- *
- * @author Tawk.to
- * @license MIT
- * @version 1.0.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeToolsInParallel = executeToolsInParallel;
@@ -29,147 +10,248 @@ exports.determineNextStep = determineNextStep;
 exports.executeSingleStep = executeSingleStep;
 const runstate_1 = require("./runstate");
 const context_1 = require("../tracing/context");
+const TRANSFER_PREFIXES = ['transfer_to_', 'handoff_to_'];
+const TOOL_EXECUTION_BATCH_SIZE = 3;
 /**
- * Execute all tool calls in parallel (CRITICAL for agentic behavior)
- *
- * This is the key difference from sequential execution:
- * - All tools run simultaneously using Promise.all
- * - No waiting for one tool to finish before starting another
- * - Agents can make parallel decisions
- *
- * @param tools - Dictionary of available tools
- * @param toolCalls - Tool calls to execute
- * @param contextWrapper - Execution context
+ * Checks if a tool name is a transfer/handoff tool
+ * @param toolName Tool name to check
+ * @returns True if the tool is a transfer tool
+ */
+function isTransferTool(toolName) {
+    for (const prefix of TRANSFER_PREFIXES) {
+        if (toolName.startsWith(prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+/**
+ * Extracts target agent name from transfer tool name
+ * @param toolName Transfer tool name (e.g., "transfer_to_sales_agent")
+ * @returns Agent name with underscores replaced by spaces
+ */
+function extractTargetAgentName(toolName) {
+    for (const prefix of TRANSFER_PREFIXES) {
+        if (toolName.startsWith(prefix)) {
+            return toolName.slice(prefix.length).replace(/_/g, ' ');
+        }
+    }
+    return toolName;
+}
+/**
+ * Checks if a tool requires approval before execution
+ * @param tool Tool to check
+ * @param contextWrapper Execution context
+ * @returns True if the tool needs approval
+ */
+async function checkToolNeedsApproval(tool, contextWrapper) {
+    const enabled = tool.enabled;
+    if (enabled === undefined || enabled === true) {
+        return false;
+    }
+    if (enabled === false) {
+        return true;
+    }
+    if (typeof enabled === 'function') {
+        const isEnabled = await enabled(contextWrapper);
+        return !isEnabled;
+    }
+    return false;
+}
+/**
+ * Executes tool calls in parallel batches to reduce system strain
+ * @param tools Available tools dictionary
+ * @param toolCalls Tool calls to execute
+ * @param contextWrapper Execution context
  * @returns Array of tool execution results
  */
 async function executeToolsInParallel(tools, toolCalls, contextWrapper) {
     if (toolCalls.length === 0) {
         return [];
     }
-    // Execute ALL tools in parallel
-    const executionPromises = toolCalls.map(async (toolCall) => {
-        const tool = tools[toolCall.toolName];
-        const startTime = Date.now();
-        if (!tool) {
-            return {
-                toolName: toolCall.toolName,
-                args: toolCall.args,
-                result: null,
-                error: new Error(`Tool ${toolCall.toolName} not found`),
-                duration: Date.now() - startTime,
-            };
-        }
-        // Check if tool needs approval
-        const enabled = tool.enabled;
-        let needsApproval = false;
-        if (typeof enabled === 'function') {
-            const isEnabled = await enabled(contextWrapper);
-            needsApproval = !isEnabled;
-        }
-        else if (enabled === false) {
-            needsApproval = true;
-        }
-        if (needsApproval) {
-            return {
-                toolName: toolCall.toolName,
-                args: toolCall.args,
-                result: null,
-                duration: Date.now() - startTime,
-                needsApproval: true,
-                approved: false,
-            };
-        }
-        // Execute tool with tracing
-        const span = (0, context_1.createContextualSpan)(`Tool: ${toolCall.toolName}`, {
-            input: toolCall.args || {}, // Ensure we have an object, not undefined
-            metadata: {
-                toolName: toolCall.toolName,
-                agentName: contextWrapper.agent.name,
-                argsReceived: !!toolCall.args,
-                argsKeys: toolCall.args ? Object.keys(toolCall.args) : []
-            },
-        });
-        try {
-            // Log for debugging
-            // Extract arguments for tool execution
-            const result = await tool.execute(toolCall.args || {}, contextWrapper);
-            if (span) {
-                span.end({
-                    output: typeof result === 'string' ? result : JSON.stringify(result),
-                });
+    const results = [];
+    let batch = [];
+    for (const toolCall of toolCalls) {
+        batch.push(executeSingleTool(tools, toolCall, contextWrapper));
+        if (batch.length === TOOL_EXECUTION_BATCH_SIZE) {
+            const batchResults = await Promise.all(batch);
+            for (const batchResult of batchResults) {
+                results.push(batchResult);
             }
-            return {
-                toolName: toolCall.toolName,
-                args: toolCall.args,
-                result,
-                duration: Date.now() - startTime,
-            };
+            batch = [];
         }
-        catch (error) {
-            if (span) {
-                span.end({
-                    output: error instanceof Error ? error.message : String(error),
-                    level: 'ERROR',
-                });
-            }
-            return {
-                toolName: toolCall.toolName,
-                args: toolCall.args,
-                result: null,
-                error: error instanceof Error ? error : new Error(String(error)),
-                duration: Date.now() - startTime,
-            };
+    }
+    if (batch.length > 0) {
+        const batchResults = await Promise.all(batch);
+        for (const batchResult of batchResults) {
+            results.push(batchResult);
         }
-    });
-    // Wait for ALL tools to complete in parallel
-    return await Promise.all(executionPromises);
+    }
+    return results;
 }
 /**
- * Process model response and categorize actions
- *
- * Separates tool calls, handoff requests, and regular messages
- * for autonomous decision making
+ * Executes a single tool call with tracing and error handling
+ * @param tools Available tools dictionary
+ * @param toolCall Tool call to execute
+ * @param contextWrapper Execution context
+ * @returns Tool execution result with duration and any errors
  */
-function processModelResponse(response, _currentAgent) {
+async function executeSingleTool(tools, toolCall, contextWrapper) {
+    const startTime = Date.now();
+    const toolName = toolCall.toolName;
+    const args = toolCall.args;
+    const toolCallId = toolCall.toolCallId;
+    const tool = tools[toolName];
+    if (!tool) {
+        return {
+            toolName,
+            toolCallId,
+            args,
+            result: null,
+            error: new Error(`Tool ${toolName} not found`),
+            duration: Date.now() - startTime,
+        };
+    }
+    const needsApproval = await checkToolNeedsApproval(tool, contextWrapper);
+    if (needsApproval) {
+        return {
+            toolName,
+            toolCallId,
+            args,
+            result: null,
+            duration: Date.now() - startTime,
+            needsApproval: true,
+            approved: false,
+        };
+    }
+    const argsRecord = args;
+    const argsKeys = Object.keys(argsRecord);
+    const span = (0, context_1.createContextualSpan)(`Tool: ${toolName}`, {
+        input: args,
+        metadata: {
+            toolName,
+            agentName: contextWrapper.agent.name,
+            argsReceived: argsKeys.length > 0,
+            argsKeys,
+        },
+    });
+    try {
+        const result = await tool.execute(args, contextWrapper);
+        if (span) {
+            const outputString = typeof result === 'string' ? result : JSON.stringify(result);
+            span.end({ output: outputString });
+        }
+        return {
+            toolName,
+            toolCallId,
+            args,
+            result,
+            duration: Date.now() - startTime,
+        };
+    }
+    catch (error) {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        if (span) {
+            span.end({
+                output: normalizedError.message,
+                level: 'ERROR',
+            });
+        }
+        return {
+            toolName,
+            toolCallId,
+            args,
+            result: null,
+            error: normalizedError,
+            duration: Date.now() - startTime,
+        };
+    }
+}
+/**
+ * Processes model response and categorizes actions
+ * @param response The result from generateText
+ * @returns Processed response with categorized tool calls, handoffs, and messages
+ */
+function processModelResponse(response) {
     const toolCalls = [];
     const handoffRequests = [];
+    const responseToolCalls = response.toolCalls ?? [];
+    for (const responseToolCall of responseToolCalls) {
+        const toolCall = responseToolCall;
+        const toolName = toolCall.toolName;
+        const toolCallId = toolCall.toolCallId;
+        const rawInput = toolCall.input;
+        let toolArgs;
+        if (rawInput !== undefined && rawInput !== null && typeof rawInput === 'object') {
+            toolArgs = rawInput;
+        }
+        else {
+            toolArgs = {};
+        }
+        if (isTransferTool(toolName)) {
+            const reason = typeof toolArgs.reason === 'string' && toolArgs.reason
+                ? toolArgs.reason
+                : 'Transfer requested';
+            const context = typeof toolArgs.context === 'string' ? toolArgs.context : undefined;
+            const handoff = {
+                agentName: extractTargetAgentName(toolName),
+                reason,
+                context,
+            };
+            handoffRequests.push(handoff);
+        }
+        else {
+            const extracted = {
+                toolName,
+                args: toolArgs,
+                toolCallId,
+            };
+            toolCalls.push(extracted);
+        }
+    }
     const newMessages = [];
-    // Extract tool calls from response
-    if (response.toolCalls && Array.isArray(response.toolCalls)) {
-        for (const tc of response.toolCalls) {
-            const toolName = tc.toolName;
-            // Extract args - AI SDK might use 'args' or 'input'
-            const toolArgs = tc.args || tc.input || {};
-            // Check if this is a transfer/handoff tool (support both naming conventions)
-            if (toolName.startsWith('transfer_to_') || toolName.startsWith('handoff_to_')) {
-                const targetAgentName = toolName
-                    .replace('transfer_to_', '')
-                    .replace('handoff_to_', '')
-                    .replace(/_/g, ' ');
-                handoffRequests.push({
-                    agentName: targetAgentName,
-                    reason: toolArgs?.reason || 'Transfer requested',
-                    context: toolArgs?.context,
-                });
+    const responseMessages = response.response?.messages;
+    if (responseMessages && responseMessages.length > 0) {
+        for (const responseMessage of responseMessages) {
+            const message = responseMessage;
+            if (message.role === 'tool') {
+                continue;
+            }
+            if (message.role === 'assistant' && Array.isArray(message.content)) {
+                const transformedContent = [];
+                for (const contentPart of message.content) {
+                    const part = contentPart;
+                    if (part.type === 'tool-call') {
+                        // AI SDK uses 'input', but 'args' is kept for backwards compatibility with older versions
+                        const toolInput = part.input ?? part.args ?? {};
+                        transformedContent.push({
+                            type: 'tool-call',
+                            toolCallId: part.toolCallId,
+                            toolName: part.toolName,
+                            input: typeof toolInput === 'object' ? toolInput : {},
+                        });
+                    }
+                    else {
+                        transformedContent.push(part);
+                    }
+                }
+                const transformedMessage = {
+                    role: 'assistant',
+                    content: transformedContent,
+                };
+                newMessages.push(transformedMessage);
             }
             else {
-                toolCalls.push({
-                    toolName,
-                    args: toolArgs,
-                    toolCallId: tc.toolCallId,
-                });
+                newMessages.push(message);
             }
         }
     }
-    // Add response messages to history
-    if (response.response?.messages) {
-        newMessages.push(...response.response.messages);
-    }
     else if (response.text) {
-        newMessages.push({
+        const textMessage = {
             role: 'assistant',
             content: response.text,
-        });
+        };
+        newMessages.push(textMessage);
     }
     return {
         text: response.text,
@@ -180,143 +262,201 @@ function processModelResponse(response, _currentAgent) {
     };
 }
 /**
- * Determine next step based on agent's decision (NOT SDK decision)
- *
- * This is critical for true agentic behavior:
- * - Agent decides if it needs to continue
- * - Agent decides if it needs to handoff
- * - Agent decides if it has a final output
- * - Agent decides if it needs human approval
- *
- * @param agent - Current agent
- * @param processed - Processed response
- * @param toolResults - Tool execution results
- * @param context - Execution context
+ * Determines the next step based on agent's decision
+ * @param agent Current agent
+ * @param processed Processed model response
+ * @param toolResults Tool execution results
+ * @param context Execution context
  * @returns Next step decision
  */
 async function determineNextStep(agent, processed, toolResults, context) {
-    // 1. Check for interruptions (tool approvals needed)
-    const needsApproval = toolResults.some((r) => r.needsApproval && !r.approved);
+    let needsApproval = false;
+    for (const toolResult of toolResults) {
+        if (toolResult.needsApproval && !toolResult.approved) {
+            needsApproval = true;
+            break;
+        }
+    }
     if (needsApproval) {
-        const interruptions = toolResults
-            .filter((r) => r.needsApproval && !r.approved)
-            .map((r) => ({
-            toolName: r.toolName,
-            args: r.args,
-            type: 'tool_approval',
-        }));
+        const interruptions = [];
+        for (const toolResult of toolResults) {
+            if (toolResult.needsApproval && !toolResult.approved) {
+                interruptions.push({
+                    toolName: toolResult.toolName,
+                    args: toolResult.args,
+                    type: 'tool_approval',
+                });
+            }
+        }
         return {
-            type: 'next_step_interruption',
+            type: runstate_1.NextStepType.INTERRUPTION,
             interruptions,
         };
     }
-    // 2. Check for handoff requests (agent wants to delegate)
     if (processed.handoffRequests.length > 0) {
-        const handoff = processed.handoffRequests[0]; // Take first handoff
-        const targetAgent = agent.handoffs.find((a) => a.name.toLowerCase().replace(/\s+/g, '_') === handoff.agentName);
+        const handoff = processed.handoffRequests[0];
+        const targetAgentName = handoff.agentName.toLowerCase().replace(/\s+/g, '_');
+        let targetAgent;
+        for (const subagent of agent.handoffs) {
+            if (subagent.name.toLowerCase().replace(/\s+/g, '_') === targetAgentName) {
+                targetAgent = subagent;
+                break;
+            }
+        }
         if (targetAgent) {
             return {
-                type: 'next_step_handoff',
+                type: runstate_1.NextStepType.HANDOFF,
                 newAgent: targetAgent,
                 reason: handoff.reason,
                 context: handoff.context,
             };
         }
     }
-    // 3. Check agent's custom shouldFinish function
     if (agent._shouldFinish) {
-        const shouldFinish = agent._shouldFinish(context, toolResults.map((r) => r.result));
+        const results = [];
+        for (const toolResult of toolResults) {
+            results.push(toolResult.result);
+        }
+        const shouldFinish = agent._shouldFinish(context, results);
         if (shouldFinish && processed.text) {
             return {
-                type: 'next_step_final_output',
+                type: runstate_1.NextStepType.FINAL_OUTPUT,
                 output: processed.text,
             };
         }
     }
-    // 4. Check if agent has produced final output (no tools, has text)
     const hasToolCalls = processed.toolCalls.length > 0;
-    const hasText = !!processed.text;
+    const hasText = processed.text !== '';
     const finishedReason = processed.finishReason === 'stop' || processed.finishReason === 'length';
     if (!hasToolCalls && hasText && finishedReason) {
-        // Agent has finished - no more tool calls needed
         return {
-            type: 'next_step_final_output',
-            output: processed.text || '',
+            type: runstate_1.NextStepType.FINAL_OUTPUT,
+            output: processed.text,
         };
     }
-    // 5. Continue running - agent needs more turns
     return {
-        type: 'next_step_run_again',
+        type: runstate_1.NextStepType.RUN_AGAIN,
     };
 }
 /**
- * Execute a single agent step with autonomous decision making
- *
- * @param agent - Current agent
- * @param state - Run state
- * @param options - Execution options
+ * Executes a single agent step with autonomous decision making
+ * @param agent Current agent
+ * @param state Run state
+ * @param contextWrapper Execution context wrapper
+ * @param modelResponse Response from generateText
  * @returns Single step result with next step decision
  */
 async function executeSingleStep(agent, state, contextWrapper, modelResponse) {
-    // 1. Process model response
-    const processed = processModelResponse(modelResponse, agent);
-    // 2. Execute tools in parallel (CRITICAL)
-    const toolResults = await executeToolsInParallel(agent._tools, processed.toolCalls, contextWrapper);
-    // 3. Update state with tool results
-    const preStepMessages = [...state.messages];
-    const newMessages = [...processed.newMessages];
-    // Add tool results as proper ToolModelMessage objects
-    // The AI SDK's response.response.messages contains the assistant's tool call request,
-    // but NOT the actual tool results from our custom execution.
-    // We must add tool results so the next generateText call knows what happened.
-    if (toolResults.length > 0) {
-        const toolResultParts = toolResults.map((r) => ({
-            type: 'tool-result',
-            toolCallId: processed.toolCalls.find((tc) => tc.toolName === r.toolName)?.toolCallId || `call_${r.toolName}_${Date.now()}`,
-            toolName: r.toolName,
-            // Output must be in LanguageModelV2ToolResultOutput format
-            output: r.error
-                ? { type: 'error-text', value: r.error.message }
-                : { type: 'json', value: r.result ?? null }
-        }));
-        // Add as a single tool message with all results
-        newMessages.push({
-            role: 'tool',
-            content: toolResultParts
+    const processed = processModelResponse(modelResponse);
+    const toolCallInputs = [];
+    for (const toolCall of processed.toolCalls) {
+        toolCallInputs.push({
+            toolName: toolCall.toolName,
+            args: toolCall.args,
+            toolCallId: toolCall.toolCallId,
         });
     }
-    // Combine messages
-    const combinedMessages = [...state.messages, ...newMessages];
-    // 4. Record step
+    const toolResults = await executeToolsInParallel(agent._tools, toolCallInputs, contextWrapper);
+    const preStepMessages = [];
+    for (const message of state.messages) {
+        preStepMessages.push(message);
+    }
+    const newMessages = [];
+    for (const message of processed.newMessages) {
+        newMessages.push(message);
+    }
+    const tokenBudget = state._tokenBudget;
+    if (toolResults.length > 0) {
+        const toolResultParts = [];
+        for (const toolResult of toolResults) {
+            let output;
+            if (toolResult.error) {
+                output = { type: 'error-text', value: toolResult.error.message };
+            }
+            else {
+                output = { type: 'json', value: toolResult.result ?? null };
+            }
+            if (tokenBudget?.isEnabled()) {
+                const resultContent = JSON.stringify(output);
+                const estimatedTokens = await tokenBudget.estimateTokens(resultContent);
+                if (!tokenBudget.hasReachedLimit && tokenBudget.canAddMessage(estimatedTokens)) {
+                    toolResultParts.push({
+                        type: 'tool-result',
+                        toolCallId: toolResult.toolCallId,
+                        toolName: toolResult.toolName,
+                        output,
+                    });
+                    tokenBudget.addTokens(estimatedTokens);
+                }
+                else {
+                    tokenBudget.markLimitReached();
+                    toolResultParts.push({
+                        type: 'tool-result',
+                        toolCallId: toolResult.toolCallId,
+                        toolName: toolResult.toolName,
+                        output: { type: 'error-text', value: 'Tool result unavailable' },
+                    });
+                }
+            }
+            else {
+                toolResultParts.push({
+                    type: 'tool-result',
+                    toolCallId: toolResult.toolCallId,
+                    toolName: toolResult.toolName,
+                    output,
+                });
+            }
+        }
+        const toolMessage = {
+            role: 'tool',
+            content: toolResultParts,
+        };
+        newMessages.push(toolMessage);
+    }
+    const combinedMessages = [];
+    for (const message of state.messages) {
+        combinedMessages.push(message);
+    }
+    for (const message of newMessages) {
+        combinedMessages.push(message);
+    }
+    const stepToolCalls = [];
+    for (const toolResult of toolResults) {
+        stepToolCalls.push({
+            toolName: toolResult.toolName,
+            args: toolResult.args,
+            result: toolResult.result,
+        });
+    }
     const stepResult = {
         stepNumber: state.stepNumber + 1,
         agentName: agent.name,
-        toolCalls: toolResults.map((r) => ({
-            toolName: r.toolName,
-            args: r.args,
-            result: r.result,
-        })),
+        toolCalls: stepToolCalls,
         text: processed.text,
         finishReason: processed.finishReason,
         timestamp: Date.now(),
     };
     state.recordStep(stepResult);
-    // 5. Update metrics
     if (modelResponse.usage) {
+        const inputTokens = modelResponse.usage.inputTokens || 0;
+        const outputTokens = modelResponse.usage.outputTokens || 0;
+        const totalTokens = modelResponse.usage.totalTokens || 0;
         state.updateAgentMetrics(agent.name, {
-            input: modelResponse.usage.inputTokens || 0,
-            output: modelResponse.usage.outputTokens || 0,
-            total: modelResponse.usage.totalTokens || 0,
+            input: inputTokens,
+            output: outputTokens,
+            total: totalTokens,
         }, toolResults.length);
-        state.usage.inputTokens += modelResponse.usage.inputTokens || 0;
-        state.usage.outputTokens += modelResponse.usage.outputTokens || 0;
-        state.usage.totalTokens += modelResponse.usage.totalTokens || 0;
+        state.usage.inputTokens += inputTokens;
+        state.usage.outputTokens += outputTokens;
+        state.usage.totalTokens += totalTokens;
     }
-    // 6. Track tool usage for this agent
     if (toolResults.length > 0) {
-        state.toolUseTracker.addToolUse(agent, toolResults.map((r) => r.toolName));
+        const toolNames = [];
+        for (const toolResult of toolResults) {
+            toolNames.push(toolResult.toolName);
+        }
+        state.toolUseTracker.addToolUse(agent, toolNames);
     }
-    // 7. Let AGENT decide what to do next (not SDK)
     const nextStep = await determineNextStep(agent, processed, toolResults, state.context);
     return new runstate_1.SingleStepResult(state.originalInput, combinedMessages, preStepMessages, newMessages, nextStep, stepResult);
 }

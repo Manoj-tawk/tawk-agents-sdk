@@ -188,7 +188,7 @@ Summary (2-3 paragraphs):`;
             const result = await generateText({
                 model: this.summarizationConfig.model,
                 prompt: fullPrompt,
-                maxTokens: 500,
+                maxOutputTokens: 500,
             });
             return result.text;
         }
@@ -385,7 +385,7 @@ Summary (2-3 paragraphs):`;
             const result = await generateText({
                 model: this.summarizationConfig.model,
                 prompt: fullPrompt,
-                maxTokens: 500,
+                maxOutputTokens: 500,
             });
             return result.text;
         }
@@ -603,7 +603,7 @@ Summary (2-3 paragraphs):`;
             const result = await generateText({
                 model: this.summarizationConfig.model,
                 prompt: fullPrompt,
-                maxTokens: 500,
+                maxOutputTokens: 500,
             });
             return result.text;
         }
