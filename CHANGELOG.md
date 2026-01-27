@@ -5,13 +5,30 @@ All notable changes to the Tawk Agents SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2025-12-02
+## [2.0.0] - 2026-01-27
+
+### Added
+
+  - Support for JSON schema formatted tool definitions
+  - Added an option to set `responseTokens` and `maxTokens` on agent initialization
+    - `responseTokens` - Sets the limit for the tokens used for the final output (default: `undefined` [unlimited])
+    - `maxTokens` - Sets the limit for the total tokens used in an agent run (default: `undefined` [unlimited])
+
+## [1.0.0] - 2025-12-02
 
 ### 🎉 Major Release: True Agentic Architecture
 
 This release represents a complete architectural overhaul to implement true agentic patterns, proper observability, and clean code organization.
 
 ### Added
+
+#### Initial Release
+- Basic agent execution
+- Tool support
+- Guardrails
+- Sessions
+- MCP integration
+- TOON optimization
 
 #### Core Features
 - **Enhanced Streaming**: Granular event types for better observability
@@ -181,17 +198,3 @@ for await (const event of result.fullStream) {
 - Cleaned up duplicate exports
 
 ---
-
-## [1.0.0] - 2024-11-15
-
-### Initial Release
-- Basic agent execution
-- Tool support
-- Guardrails
-- Sessions
-- MCP integration
-- TOON optimization
-
----
-
-**Full Changelog**: https://github.com/tawk/tawk-agents-sdk/compare/v1.0.0...v2.0.0
